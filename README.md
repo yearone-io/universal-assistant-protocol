@@ -187,3 +187,53 @@ class AC uapClass
 **Interactions:**
 
 - URDuap defaults to this behavior if no applicable filters/actions are found.
+
+## **Workflow Description**
+
+### **Scenario: Handling Incoming LSP7/LSP8 Asset Transfer**
+
+1. **Transaction Initiation:**
+
+   - An LSP7 or LSP8 asset is transferred to the UP.
+   - The transfer triggers the `universalReceiver` function with the corresponding `typeId`.
+
+2. **Delegation to `URDuap`:**
+
+   - The UP delegates the handling of the transaction to `URDuap`.
+
+3. **Action Lookup:**
+
+   - `URDuap` retrieves the list of action identifiers associated with the `typeId` from `ERC725Y`.
+   - In this case, it finds `spamBoxActionId`.
+
+4. **Retrieve Action Details:**
+
+   - `URDuap` fetches the action details for `spamBoxActionId`:
+     - Assistant Contract: Spam Manager
+     - Filter IDs: `notInCuratedListFilterId`
+     - Logic: "NOT IN"
+
+5. **Filter Evaluation:**
+
+   - **Filter Retrieval:**
+     - `URDuap` retrieves the filter definition for `notInCuratedListFilterId`.
+     - The filter references the curated list at `0xCuratedListLSP8CollectionAddress`.
+
+   - **Check Curated List:**
+     - The Filter Module checks if the asset address (sender of the transfer) exists as a token ID in the LSP8 Collection (curated list).
+     - **If the asset address is NOT in the curated list:**
+       - The filter evaluates to `true` (since logic is "NOT IN").
+     - **If the asset address IS in the curated list:**
+       - The filter evaluates to `false`.
+
+6. **Action Execution:**
+
+   - **If Filter Evaluates to True:**
+     - `URDuap` invokes the Spam Manager Assistant Contract.
+     - The Spam Manager redirects the asset to the Vault (spam box) using `LSP9`.
+   - **If Filter Evaluates to False:**
+     - No action is taken, and `URDuap` defaults to standard UP URD behavior.
+
+7. **Default Handling:**
+
+   - If no actions are executed, `URDuap` delegates to the default `LSP1` implementation.

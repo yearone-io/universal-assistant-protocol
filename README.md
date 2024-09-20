@@ -15,7 +15,7 @@ subgraph User Identity
     KM[Key Manager - LSP6] -->|Manages Access| UP
 end
 
-Tokens[Digital Asset Contracts - LSP7/LSP8] -->|Send Transactions| UP
+Tokens[Digital Asset Contracts - LSP7/LSP8 or Other Payloads] -->|Send Transactions| UP
 
 UP -->|Delegates to| URDuap[UAP - Universal Receiver Delegate]
 
@@ -25,7 +25,9 @@ URDuap -->|Uses| FM[UAP - Filter Modules]
 
 URDuap -->|Invokes| AC[UAP - Assistant Contracts]
 
-AC -->|Interacts with| Vault[Vault Contracts - LSP9]
+AC -->|Ex: Forwards Content to...| ThirdParties[Third Parties, ex: Vault]
+
+AC -->|Invokes| LSP1
 
 URDuap -->|Defaults to| LSP1
 
@@ -92,23 +94,23 @@ class AC uapClass
 **Role:**
 
 - The UAP's implementation of the Universal Receiver Delegate.
-- Replaces or extends the default LSP1 delegate in the UP.
+- Replaces or extends the default `LSP1` delegate in the `UP`.
 
 **Responsibilities:**
 
 - Handles incoming transactions based on `typeId`.
-- Accesses user configurations from ERC725Y.
+- Accesses user configurations from `ERC725Y`.
 - Utilizes Filter Modules to evaluate transactions.
 - Invokes Assistant Contracts to execute user-defined actions.
-- Defaults to standard LSP1 behavior if no specific actions are defined.
+- Defaults to standard `LSP1` behavior if no specific actions are defined.
 
 **Interactions:**
 
-- **Delegated to by UP**: UP delegates transaction handling to URDuap.
-- **Accesses configurations from ERC725Y**: Reads user-defined actions and filters.
-- **Uses Filter Modules (FM)**: Evaluates filters to decide on action execution.
-- **Invokes Assistant Contracts (AC)**: Executes specific actions when filters pass.
-- **Defaults to LSP1**: Falls back to default behavior if no actions match.
+- **Delegated to by UP:** `UP` delegates transaction handling to `URDuap`.
+- **Accesses configurations from ERC725Y:** Reads user-defined actions and filters.
+- **Uses Filter Modules (`FM`):** Evaluates filters to decide on action execution.
+- **Invokes Assistant Contracts (`AC`):** Executes specific actions when filters pass.
+- **Defaults to `LSP1`:** Falls back to default behavior if no actions match.
 
 ### 5. ERC725Y Data Store
 
@@ -145,7 +147,8 @@ class AC uapClass
 
 **Role:**
 
-- Modular contracts performing specific actions upon invocation.
+- Modular contracts performing specific transformations to tx contents upon invocation.
+- Assistants can forward processed content to external entities (`Third Parties`, e.g., Vaults)
 
 **Responsibilities:**
 
@@ -155,7 +158,7 @@ class AC uapClass
 **Interactions:**
 
 - Invoked by URDuap after filters pass.
-- Interact with Vault Contracts for asset management.
+- Can forward modified transaction content to 3rd parties and/or default UP Universal Receiver Delegate
 
 ### 8. Vault Contracts - LSP9
 
@@ -183,16 +186,18 @@ class AC uapClass
 
 - Handles incoming transactions in the default manner.
 - Provides basic processing when no user-defined actions apply.
+- **Supports invocation by Assistants:** Allows Assistants to delegate further processing by invoking `LSP1`.
 
 **Interactions:**
 
-- URDuap defaults to this behavior if no applicable filters/actions are found.
+- **`URDuap` Defaults to This Behavior:** If no applicable filters/actions are found.
+- **Assistants Invoke `LSP1`:** When additional processing is required beyond the scope of Assistants.
 
 ## Detailed Universal Assistant Protocol Transaction Flow
 ```mermaid
 sequenceDiagram
     participant User
-    participant LSP7_Token as LSP7 Token Contract
+    participant LSP7_Token as LSP7/LSP8 Token Contract
     participant UP as Universal Profile (ERC725Y)
     participant URDuap
     participant ERC725Y as ERC725Y Data Store
@@ -200,9 +205,11 @@ sequenceDiagram
     participant Assistant1 as Assistant Contract 1
     participant Assistant2 as Assistant Contract 2
     participant AssistantN as Assistant Contract N
+    participant ThirdParty as Third Party
+    participant LSP1 as Default Universal Receiver Delegate (LSP1)
 
-    %% Step 1: User initiates a token transfer to their Universal Profile
-    User->>LSP7_Token: Transfer tokens to UP
+    %% Step 1: User initiates a transaction (e.g., token transfer) to their Universal Profile
+    User->>LSP7_Token: Transfer tokens or send payload to UP
     LSP7_Token->>UP: Notify Transfer (typeId, data)
 
     %% Step 2: Universal Profile delegates handling to URDuap
@@ -235,6 +242,14 @@ sequenceDiagram
                     %% Assistant executes based on eligibility
                     URDuap->>Assistant: Call universalReceiverDelegate(caller, value, typeId, data)
                     Assistant-->>URDuap: Return actionData
+
+                    %% Step 6a: Assistant forwards content or invokes LSP1
+                    alt Forward to Third Parties
+                        Assistant->>ThirdParty: Forward processed content
+                    else Invoke LSP1
+                        Assistant->>LSP1: Invoke universalReceiverDelegate(caller, value, typeId, data)
+                        LSP1-->>URDuap: Return actionData from LSP1
+                    end
 
                     URDuap->>URDuap: Update data with actionData
                 else
@@ -336,4 +351,5 @@ sequenceDiagram
 6. **LSP7 Token Contract:**
    - Facilitates the transfer of tokens to the **Universal Profile**.
    - Triggers the `universalReceiverDelegate` function upon token transfers, initiating the processing workflow.
+  
 

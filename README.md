@@ -1,4 +1,5 @@
-## Universal Assistant Protocol - Architecture Diagram
+# Universal Assistant Protocol - Architecture Diagram
+
 ```mermaid
 graph LR
 
@@ -21,13 +22,13 @@ UP -->|Delegates to| URDuap[UAP - Universal Receiver Delegate]
 
 URDuap -->|Accesses Configurations from| ERC725Y
 
-URDuap -->|Uses| FM[UAP - Filter Modules]
+URDuap -->|Evaluates| Filters
 
-URDuap -->|Invokes| AC[UAP - Assistant Contracts]
+URDuap -->|Invokes| Assistants
 
-AC -->|Ex: Forwards Content to...| ThirdParties[Third Parties, ex: Vault]
+Assistants -->|Modify| Value_and_Data[Value and Data]
 
-AC -->|Invokes| LSP1
+Assistants -->|Interact with| ThirdParties[Third Parties, ex: Vault]
 
 URDuap -->|Defaults to| LSP1
 
@@ -36,9 +37,11 @@ classDef uapClass fill:#f9f,stroke:#333,stroke-width:2px;
 
 %% Apply Styles to UAP Components
 class URDuap uapClass
-class FM uapClass
-class AC uapClass
+class Filters uapClass
+class Assistants uapClass
 ```
+
+---
 
 ## Detailed Component Descriptions and Interactions
 
@@ -48,7 +51,7 @@ class AC uapClass
 
 - **ERC725X**: Allows for executing generic function calls.
 - **ERC725Y**: Provides a key-value data store for arbitrary data.
-- - **Universal Receiver Delegate (LSP1)**: Handles incoming transactions and messages.
+- **Universal Receiver Delegate (LSP1)**: Handles incoming transactions and messages.
 
 **Role:**
 
@@ -100,17 +103,21 @@ class AC uapClass
 
 - Handles incoming transactions based on `typeId`.
 - Accesses user configurations from `ERC725Y`.
-- Utilizes Filter Modules to evaluate transactions.
-- Invokes Assistant Contracts to execute user-defined actions.
-- Defaults to standard `LSP1` behavior if no specific actions are defined.
+- Retrieves Assistants associated with the `typeId`.
+- For each Assistant, retrieves Filters associated with it.
+- Evaluates Filters to determine whether to invoke the Assistant.
+- Invokes Assistants that pass the filter evaluation.
+- Updates `value` and `data` based on Assistant's execution.
+- Defaults to standard `LSP1` behavior if no configurations are found or no Assistants are invoked.
 
 **Interactions:**
 
-- **Delegated to by UP:** `UP` delegates transaction handling to `URDuap`.
-- **Accesses configurations from ERC725Y:** Reads user-defined actions and filters.
-- **Uses Filter Modules (`FM`):** Evaluates filters to decide on action execution.
-- **Invokes Assistant Contracts (`AC`):** Executes specific actions when filters pass.
-- **Defaults to `LSP1`:** Falls back to default behavior if no actions match.
+- **Delegated to by UP**: `UP` delegates transaction handling to `URDuap`.
+- **Accesses configurations from ERC725Y**: Reads user-defined Assistants and Filters.
+- **Evaluates Filters**: Determines eligibility of Assistants.
+- **Invokes Assistants**: Calls the `execute` function of eligible Assistants.
+- **Updates Value and Data**: Modifies transaction data based on Assistants' output.
+- **Defaults to `LSP1`**: Falls back to default behavior if no actions match.
 
 ### 5. ERC725Y Data Store
 
@@ -120,60 +127,73 @@ class AC uapClass
 
 **Responsibilities:**
 
-- Stores configurations, user-defined actions, and filters.
+- Stores configurations, including mappings from `typeId` to Assistants.
+- Stores Filters associated with each Assistant.
 - Accessible by URDuap to retrieve necessary data.
 
 **Interactions:**
 
 - Accessed by URDuap for configurations.
+- Manages mappings such as:
+  - `UAPTypeConfig:<typeId>` → `AssistantAddresses[]`
+  - `UAPAssistantFilters:<assistantAddress>` → `FilterData[]`
 - Managed through ERC725Y interface with access control via KM.
 
-### 6. Filter Modules (FM)
+### 6. Filters
 
 **Role:**
 
-- Define criteria to evaluate incoming transactions.
+- Define criteria to evaluate whether an Assistant should be invoked.
 
 **Responsibilities:**
 
-- Evaluate transaction data based on user-defined conditions.
-- Return boolean results indicating whether to proceed with an action.
+- Each Filter is associated with an Assistant.
+- Contains:
+  - `filterLogicAddress`: Address of the contract that performs the evaluation logic.
+  - `matchTarget`: Expected boolean result to decide Assistant invocation.
+  - `instructions`: Additional data required for evaluation.
+- Evaluated per Assistant to determine eligibility.
 
 **Interactions:**
 
-- Used by URDuap to process filters before invoking actions.
+- Evaluated by URDuap for each Assistant.
+- URDuap calls `evaluate` function on the `filterLogicAddress` with transaction data and `instructions`.
+- The result is compared with `matchTarget` to decide on Assistant invocation.
 
-### 7. Assistant Contracts (AC)
+### 7. Assistants
 
 **Role:**
 
-- Modular contracts performing specific transformations to tx contents upon invocation.
-- Assistants can forward processed content to external entities (`Third Parties`, e.g., Vaults)
+- Modular contracts performing specific actions upon invocation.
 
 **Responsibilities:**
 
-- Implement predefined interfaces for compatibility.
-- Execute user-defined actions (e.g., redirecting assets, notifications).
+- Implement an `execute` function to process transaction data.
+- Can modify `value` and `data` for subsequent processing.
+- May forward content to external entities (e.g., Vaults).
+- Return updated `value` and `data` to URDuap.
 
 **Interactions:**
 
 - Invoked by URDuap after filters pass.
-- Can forward modified transaction content to 3rd parties and/or default UP Universal Receiver Delegate
+- Receive current `value` and `data` from URDuap.
+- Return updated `value` and `data`.
+- May interact with Third Parties.
 
 ### 8. Vault Contracts - LSP9
 
 **Role:**
 
-- Secure storage for assets managed by Assistant Contracts.
+- Secure storage for assets managed by Assistants.
 
 **Responsibilities:**
 
-- Hold assets redirected by assistants (e.g., unwanted tokens).
+- Hold assets redirected by Assistants (e.g., unwanted tokens).
 - Provide interfaces for users to access or manage stored assets.
 
 **Interactions:**
 
-- Assistant Contracts interact with Vaults to store assets.
+- Assistants interact with Vaults to store assets.
 - Ensure secure separation from the main UP.
 
 ### 9. Default Universal Receiver Delegate (LSP1)
@@ -186,14 +206,16 @@ class AC uapClass
 
 - Handles incoming transactions in the default manner.
 - Provides basic processing when no user-defined actions apply.
-- **Supports invocation by Assistants:** Allows Assistants to delegate further processing by invoking `LSP1`.
 
 **Interactions:**
 
-- **`URDuap` Defaults to This Behavior:** If no applicable filters/actions are found.
-- **Assistants Invoke `LSP1`:** When additional processing is required beyond the scope of Assistants.
+- **`URDuap` Defaults to This Behavior**: If no applicable Assistants are found.
+- **Assistants May Not Invoke `LSP1` Directly**: Assistants handle specific actions independently.
+
+---
 
 ## Detailed Universal Assistant Protocol Transaction Flow
+
 ```mermaid
 sequenceDiagram
     participant User
@@ -201,10 +223,10 @@ sequenceDiagram
     participant UP as Universal Profile (ERC725Y)
     participant URDuap
     participant ERC725Y as ERC725Y Data Store
-    participant FilterModule
-    participant Assistant1 as Assistant Contract 1
-    participant Assistant2 as Assistant Contract 2
-    participant AssistantN as Assistant Contract N
+    participant Assistant1 as Assistant 1
+    participant Assistant2 as Assistant 2
+    participant AssistantN as Assistant N
+    participant FilterLogic as Filter Logic Contract
     participant ThirdParty as Third Party
     participant LSP1 as Default Universal Receiver Delegate (LSP1)
 
@@ -216,140 +238,119 @@ sequenceDiagram
     UP->>URDuap: Call universalReceiverDelegate(caller, value, typeId, data)
 
     %% Step 3: URDuap retrieves Assistants based on typeId
-    URDuap->>ERC725Y: Get Assistants for typeId
-    ERC725Y-->>URDuap: Return AssistantIDs and Addresses [A1:Addr1, A2:Addr2, ..., An:AddrN]
+    URDuap->>ERC725Y: Get OrderedAssistantAddresses for typeId
+    ERC725Y-->>URDuap: Return AssistantAddresses [Addr1, Addr2, ..., AddrN]
 
-    %% Step 4: URDuap retrieves user-configured Assistant execution order
-    URDuap->>ERC725Y: Get AssistantOrder for typeId and user
-    ERC725Y-->>URDuap: Return OrderedAssistantIDs [A2, A1, ..., An]
-
-    %% Step 5: URDuap processes each Assistant in order
-    loop For each Assistant in OrderedAssistantIDs
+    %% Step 4: URDuap processes each Assistant in order
+    loop For each AssistantAddress in AssistantAddresses
         alt Assistant is available
             %% URDuap retrieves Filters associated with the Assistant
-            URDuap->>ERC725Y: Get Filters for Assistant A
-            ERC725Y-->>URDuap: Return FilterIDs [F1, F2, ...]
+            URDuap->>ERC725Y: Get Filters for AssistantAddress
+            ERC725Y-->>URDuap: Return Filters [Filter1, Filter2, ...]
 
-            %% Step 6: URDuap evaluates each Filter via Filter Module
-            loop For each Filter in FilterIDs
-                URDuap->>ERC725Y: Get FilterMetadata for F
-                ERC725Y-->>URDuap: Return filterMetadata
+            %% Step 5: URDuap evaluates Filters
+            loop For each Filter in Filters
+                URDuap->>FilterLogic: Evaluate(notifier, value, typeId, data, instructions)
+                FilterLogic-->>URDuap: Return result (true/false)
 
-                URDuap->>FilterModule: Evaluate(transactionData, filterMetadata for F)
-                FilterModule-->>URDuap: Return eligibility (true/false)
-
-                alt If Filter F passes
-                    %% Assistant executes based on eligibility
-                    URDuap->>Assistant: Call universalReceiverDelegate(caller, value, typeId, data)
-                    Assistant-->>URDuap: Return actionData
-
-                    %% Step 6a: Assistant forwards content or invokes LSP1
-                    alt Forward to Third Parties
-                        Assistant->>ThirdParty: Forward processed content
-                    else Invoke LSP1
-                        Assistant->>LSP1: Invoke universalReceiverDelegate(caller, value, typeId, data)
-                        LSP1-->>URDuap: Return actionData from LSP1
-                    end
-
-                    URDuap->>URDuap: Update data with actionData
+                %% Compare result with matchTarget
+                alt result == matchTarget
+                    %% Filter passes, proceed
                 else
-                    %% Filter F does not pass; skip Assistant execution
+                    %% Filter does not match, skip Assistant
+                    URDuap->>URDuap: Skip to next Assistant
                 end
             end
+
+            %% Step 6: Invoke Assistant's execute function
+            URDuap->>Assistant: execute(notifier, value, typeId, data)
+            Assistant-->>URDuap: Return (value, data)
+
+            %% Assistant may interact with Third Parties
+            alt Assistant forwards content
+                Assistant->>ThirdParty: Forward processed content
+            end
+
+            URDuap->>URDuap: Update value and data
         else
             %% Assistant is not available or disabled; skip
         end
     end
 
     %% Step 7: Finalize transaction handling
+    alt No Assistants were invoked
+        URDuap->>LSP1: Invoke default behavior
+        LSP1-->>URDuap: Return actionData
+    end
     URDuap->>UP: Return final actionData or confirmation
     UP->>User: Confirm transaction processing
 ```
+
 ---
 
 ### **Flow Explanation**
 
 1. **User Initiates Transaction:**
    - The **User** interacts with the **LSP7 Token Contract** to transfer tokens to their **Universal Profile (UP)**.
-   - The **LSP7 Token Contract** notifies the **Universal Profile** of the transfer, including relevant details such as `typeId` and additional `data`.
+   - The **LSP7 Token Contract** notifies the **UP** of the transfer, including `typeId` and `data`.
 
 2. **Delegation to `URDuap`:**
-   - The **Universal Profile** delegates the handling of the incoming transaction to the **Universal Receiver Delegate (`URDuap`)** by calling the `universalReceiverDelegate` function with parameters: `caller`, `value`, `typeId`, and `data`.
+   - The **UP** delegates the handling to the **URDuap** by calling `universalReceiverDelegate(caller, value, typeId, data)`.
 
 3. **Retrieving Assistants Based on `typeId`:**
-   - **URDuap** queries the **ERC725Y Data Store** to retrieve a list of **Assistant IDs** and their corresponding **Assistant Addresses** associated with the specific `typeId`.
-   - The **ERC725Y Data Store** responds with a mapping of **Assistant IDs** to their **Addresses** (e.g., `[A1:Addr1, A2:Addr2, ..., An:AddrN]`).
+   - **URDuap** queries the **ERC725Y Data Store** for an ordered list of **Assistant Addresses** associated with `typeId`.
 
-4. **Retrieving User-Configured Assistant Execution Order:**
-   - **URDuap** fetches the user-defined execution order of **Assistants** for the given `typeId` and **User** from the **ERC725Y Data Store**.
-   - This order determines the sequence in which **Assistants** will be invoked (e.g., `[A2, A1, ..., An]`).
+4. **Processing Each Assistant in Order:**
+   - **URDuap** loops through each **Assistant** in the retrieved order.
+   - **Checks Assistant Availability**: Skips if the Assistant is unavailable or disabled.
 
-5. **Processing Each Assistant in Order:**
-   - **URDuap** enters a loop to process each **Assistant** based on the user-configured order.
-   
-   - **For Each Assistant (e.g., A2, A1, ..., An):**
-     - **Check Assistant Availability:**
-       - **URDuap** verifies if the **Assistant** is available and enabled. If not, it skips to the next **Assistant**.
-   
-     - **Retrieving Filters Associated with the Assistant:**
-       - **URDuap** retrieves the list of **Filter IDs** associated with the **Assistant** from the **ERC725Y Data Store**.
-       - The **ERC725Y Data Store** responds with an array of **Filter IDs** (e.g., `[F1, F2, ...]`).
+5. **Evaluating Filters:**
+   - For each **Assistant**, **URDuap** retrieves associated **Filters** from **ERC725Y**.
+   - **URDuap** evaluates each **Filter** using the **Filter Logic Contract**.
+   - Compares the result with `matchTarget` to decide if the Assistant should be invoked.
+   - If any filter fails to match, **URDuap** skips to the next **Assistant**.
 
-6. **Evaluating Each Filter via the Filter Module:**
-   - **For Each Filter (e.g., F1, F2, ...):**
-     - **Retrieve Filter Metadata:**
-       - **URDuap** fetches the detailed `filterMetadata` for the **Filter** from the **ERC725Y Data Store**.
-       - The **ERC725Y Data Store** responds with the `filterMetadata`.
-     
-     - **Filter Evaluation:**
-       - **URDuap** sends the `transactionData` and `filterMetadata` to the **Filter Module** by invoking the `evaluate` function.
-       - The **Filter Module** processes the criteria defined in the **Filter** and returns a boolean indicating eligibility (`true` if the transaction meets the criteria, `false` otherwise).
-     
-     - **Conditional Assistant Invocation:**
-       - **If the Filter Passes (`true`):**
-         - **URDuap** invokes the **Assistant's** `universalReceiverDelegate` function, passing along the transaction details (`caller`, `value`, `typeId`, `data`).
-         - The **Assistant** processes the transaction and returns `actionData`.
-         - **URDuap** updates the `data` with the returned `actionData`, preparing it for potential subsequent **Assistants** in the sequence.
-       
-       - **If the Filter Does Not Pass (`false`):**
-         - **URDuap** skips the invocation of the corresponding **Assistant** and proceeds to the next **Filter** or **Assistant** in the sequence.
+6. **Invoking Assistant's `execute` Function:**
+   - If all filters pass, **URDuap** invokes the **Assistant's** `execute` function.
+   - **Assistant** processes the transaction, potentially modifying `value` and `data`.
+   - **Assistant** may interact with **Third Parties**.
+   - **URDuap** updates `value` and `data` based on the Assistant's output.
 
 7. **Finalizing Transaction Handling:**
-   - After processing all **Assistants**, **URDuap** sends the final `actionData` or a confirmation back to the **Universal Profile**.
-   - The **Universal Profile** then confirms the successful processing of the transaction to the **User**.
+   - After all Assistants are processed, **URDuap** may invoke **LSP1** if no Assistants were invoked.
+   - **URDuap** returns the final action data to the **UP**.
+   - The **UP** confirms the transaction processing to the **User**.
 
 ---
 
 ### **Detailed Component Roles**
 
 1. **Universal Receiver Delegate (`URDuap`):**
-   - Acts as the central orchestrator for handling incoming transactions.
-   - Fetches **Assistants** based on `typeId` and **User**.
-   - Retrieves and evaluates **Filters** via the **Filter Module**.
-   - Invokes eligible **Assistants** in the user-defined order, passing along transaction data and handling the chaining of results.
+   - Orchestrates transaction handling.
+   - Retrieves and evaluates Assistants and their Filters.
+   - Invokes eligible Assistants via `execute` function.
+   - Updates transaction data based on Assistants' output.
+   - Defaults to standard behavior if necessary.
 
-2. **ERC725Y Data Store (LSP2):**
-   - Serves as the storage layer for all user-specific configurations, including **Assistants**, **Filters**, and their associations.
-   - Maintains mappings between `typeId`, **User**, **Assistant IDs**, and **Filter IDs**.
-   - Ensures efficient retrieval of configuration data for **URDuap**.
+2. **ERC725Y Data Store:**
+   - Stores configurations for Assistants and Filters.
+   - Provides data retrieval for URDuap.
 
 3. **Assistants:**
-   - Modular contracts that perform specific actions upon invocation.
-   - Implement the `universalReceiverDelegate` function to handle transaction data.
-   - Designed to be reusable across multiple users and transaction types.
+   - Modular contracts performing specific actions.
+   - Implement `execute` function to process data.
+   - May modify `value` and `data`.
+   - Can interact with Third Parties.
 
 4. **Filters:**
-   - Configurable metadata defining the criteria under which an **Assistant** should be invoked.
-   - Linked to specific **Assistants** and are evaluated per transaction via the **Filter Module**.
-   - Enable users to customize transaction handling based on their unique requirements.
+   - Define criteria for Assistant invocation.
+   - Contain evaluation logic via `filterLogicAddress`.
+   - Use `matchTarget` to determine eligibility.
 
-5. **Filter Module:**
-   - Evaluates transaction data against **Filter** criteria to determine eligibility.
-   - Implements the logic for various `FilterCriteria` and `LogicalOperators`.
-   - Decouples the evaluation logic from **Assistants**, promoting modularity and maintainability.
+5. **Filter Logic Contract:**
+   - Evaluates Filters based on provided instructions.
+   - Returns boolean results for comparison.
 
 6. **LSP7 Token Contract:**
-   - Facilitates the transfer of tokens to the **Universal Profile**.
-   - Triggers the `universalReceiverDelegate` function upon token transfers, initiating the processing workflow.
-  
-
+   - Initiates transactions to the UP.
+   - Triggers the URDuap upon token transfers.

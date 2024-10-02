@@ -1,0 +1,27 @@
+node_modules
+
+# Hardhat files
+/cache
+/artifacts
+
+# TypeChain files
+/typechain
+/typechain-types
+
+# solidity-coverage files
+/coverage
+/coverage.json
+
+# Hardhat Ignition default folder for deployments against a local node
+ignition/deployments/chain-31337
+
+# dotenv environment variables file
+.env
+.env.test
+.env.local
+constants/network.ts
+
+
+# Lock files
+package-lock.json
+

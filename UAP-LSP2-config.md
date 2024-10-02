@@ -9,36 +9,61 @@ Stores the list of `actionIds` defined by the user.
 
 ```json
 {
-  "name": "UAPConfig:Actions[]",
-  "key": "0x<keccak256('UAPConfig:Actions[]')>",
+  "name": "UAPConfig:OrderedActions[]",
+  "key": "0x" + keccak256("UAPConfig:OrderedActions[]"),
   "keyType": "Array",
-  "valueType": "bytes32",
-  "valueContent": "Keccak256"
+  "valueType": "address",
+  "valueContent": "Address"
 }
 ```
 
-### 1.2. Action Details
+#### Usage
+```javascript
+import { ERC725 } from '@erc725/erc725.js';
+import { keccak256, toUtf8Bytes } from 'ethers';
 
-Stores details for each action.
+const schema = [
+  {
+    name: 'UAPConfig:OrderedActions[]',
+    key: keccak256(toUtf8Bytes('UAPConfig:OrderedActions[]')),
+    keyType: 'Array',
+    valueType: 'address',
+    valueContent: 'Address',
+  },
+];
 
-```json
-{
-  "name": "UAPAction:<actionId>",
-  "key": "0x<bytes10(keccak256('UAPAction'))><bytes2('00')><bytes20(<actionId>)>",
-  "keyType": "Mapping",
-  "valueType": "(address, bytes, bytes)",
-  "valueContent": "(Address, String, Bytes)"
-}
+const myUniversalProfileAddress = '0xYourUniversalProfileAddress';
+const rpcUrl = 'https://rpc.testnet.lukso.network';
+
+const erc725 = new ERC725(schema, myUniversalProfileAddress, rpcUrl, {
+  ipfsGateway: 'https://api.universalprofile.cloud/ipfs',
+});
+
+// Example addresses to store
+const addresses = [
+  '0x1234567890abcdef1234567890abcdef12345678',
+  '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+];
+
+// Encode the data
+const encodedData = erc725.encodeData([
+  {
+    keyName: 'UAPConfig:OrderedActions[]',
+    value: addresses,
+  },
+]);
+
+console.log(encodedData);
 ```
 
-### 1.3. Filters Array for Actions
+### 1.2. Action Filters
 
 Stores the list of `filterIds` associated with a specific action.
 
 ```json
 {
-  "name": "UAPAction:<actionId>:Filters[]",
-  "key": "0x<keccak256('UAPAction:<actionId>:Filters[]')>",
+  "name": "UAPConfig:<actionAddress>:Filters[]",
+  "key": "0x<keccak256('UAPConfig:<actionAddress>:Filters[]')>",
   "keyType": "Array",
   "valueType": "bytes32",
   "valueContent": "Keccak256"

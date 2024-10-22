@@ -2,7 +2,7 @@
 pragma solidity ^0.8.4;
 
 // Import interfaces and contracts
-import { IExecutiveAssistant } from "./IExecutiveAssistant.sol";
+import { IExecutiveAssistant } from "../IExecutiveAssistant.sol";
 import { IERC725Y } from '@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol';
 import { IERC725X } from '@erc725/smart-contracts/contracts/interfaces/IERC725X.sol';
 import { ILSP7DigitalAsset } from '@lukso/lsp-smart-contracts/contracts/LSP7DigitalAsset/ILSP7DigitalAsset.sol';
@@ -16,10 +16,6 @@ import { _TYPEID_LSP8_TOKENSRECIPIENT } from '@lukso/lsp-smart-contracts/contrac
 // Utils
 import { ERC165 } from '@openzeppelin/contracts/utils/introspection/ERC165.sol';
 import { ERC165Checker } from '@openzeppelin/contracts/utils/introspection/ERC165Checker.sol';
-
-interface IVault {
-    function owner() external view returns (address);
-}
 
 contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
     function supportsInterface(bytes4 interfaceId)
@@ -162,7 +158,6 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
      * @return The bytes32 key.
      */
     function generateAssistantInstructionsKey(address assistantAddress) internal pure returns (bytes32) {
-        // The key is: keccak256("UAPAssistantInstructions") + first 20 bytes of assistantAddress
-        return bytes32(abi.encodePacked(bytes10(keccak256("UAPAssistantInstructions")), bytes20(assistantAddress)));
+        return bytes32(abi.encodePacked(bytes10(keccak256("UAPExecutiveConfig")), bytes20(assistantAddress)));
     }
 }

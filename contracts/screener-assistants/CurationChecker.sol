@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 // Import interfaces and contracts
-import { IScreenerAssistant } from "./IScreenerAssistant.sol";
+import { IScreenerAssistant } from "../IScreenerAssistant.sol";
 import { IERC725Y } from '@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol';
 import { ILSP8IdentifiableDigitalAsset } from "@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/ILSP8IdentifiableDigitalAsset.sol";
 

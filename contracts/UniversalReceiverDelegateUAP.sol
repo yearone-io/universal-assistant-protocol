@@ -10,6 +10,7 @@ import { IERC725Y } from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.
 import { ERC165Checker } from '@openzeppelin/contracts/utils/introspection/ERC165Checker.sol';
 // Constants
 import { _INTERFACEID_LSP0 } from '@lukso/lsp-smart-contracts/contracts/LSP0ERC725Account/LSP0Constants.sol';
+import {console} from "hardhat/console.sol";
 
 // Additional Interfaces
 import "./IExecutiveAssistant.sol";
@@ -44,20 +45,19 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         returns (bytes memory)
     {
         // Check that the caller is an LSP0 (Universal Profile)
+        console.log("UniversalReceiverDelegateUAP msg.sender and typeId", msg.sender);
         require(
             ERC165Checker.supportsInterface(msg.sender, _INTERFACEID_LSP0),
             "UniversalReceiverDelegateUAP: Caller is not an LSP0"
         );
-
         // Generate the key for UAPTypeConfig
         bytes32 typeConfigKey = LSP2Utils.generateMappingKey(
             bytes10(keccak256("UAPTypeConfig")),
             bytes20(typeId)
         );
-
         // Fetch the type configuration
         bytes memory typeConfig = IERC725Y(msg.sender).getData(typeConfigKey);
-
+        console.log("UniversalReceiverDelegateUAP typeConfig extracted");
         if (typeConfig.length == 0) {
             // No configurations found, invoke default behavior
             return super.universalReceiverDelegate(notifier, value, typeId, data);
@@ -66,13 +66,17 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
 
         // Decode the addresses of executive assistants
         address[] memory orderedExecutiveAssistants = customDecodeAddresses(typeConfig);
+        console.log("UniversalReceiverDelegateUAP orderedExecutiveAssistants decoded");
         if (orderedExecutiveAssistants.length == 0) {
             // No assistants found, invoke default behavior
+            console.log("No assistants found, invoke default behavior");
             return super.universalReceiverDelegate(notifier, value, typeId, data);
         }
 
+        console.log("UniversalReceiverDelegateUAP looping through assistants");
         // Loop through each executive assistant
         for (uint256 i = 0; i < orderedExecutiveAssistants.length; i++) {
+            console.log("UniversalReceiverDelegateUAP assistant detected");
             address executiveAssistant = orderedExecutiveAssistants[i];
             emit AssistantFound(executiveAssistant);
 
@@ -81,14 +85,16 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                 bytes10(keccak256("UAPExecutiveScreeners")),
                 bytes20(executiveAssistant)
             );
-
             // Fetch the executive assistant configuration
             bytes memory executiveAssitantScreeners = IERC725Y(msg.sender).getData(screenerAssistantsKey);
+            console.log("UniversalReceiverDelegateUAP screener assistants found");
 
             // Decode the addresses of screener assistants
             address[] memory orderedScreenerAssistants = executiveAssitantScreeners.length > 0
                 ? customDecodeAddresses(executiveAssitantScreeners)
                 : new address[](0);
+
+            console.log("UniversalReceiverDelegateUAP ordered screener fetched");
 
             bool delegateToExecutive = true;
 
@@ -123,8 +129,10 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                     break;
                 }
             }
+            console.log("UniversalReceiverDelegateUAP evaluate whether to run executive");
 
             if (delegateToExecutive) {
+                console.log("UniversalReceiverDelegateUAP executing assistant");
                 // Ensure the executive assistant is trusted
                 require(
                     isTrustedAssistant(executiveAssistant),
@@ -132,9 +140,11 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                 );
 
                 // Call the executive assistant
+                
                 (bool success, bytes memory returnData) = executiveAssistant.delegatecall(
                     abi.encodeWithSelector(
                         IExecutiveAssistant.execute.selector,
+                        executiveAssistant,
                         notifier,
                         value,
                         typeId,
@@ -142,11 +152,22 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                     )
                 );
 
+                bytes4 expectedSelector = bytes4(keccak256("execute(address,address,uint256,bytes32,bytes)"));
+                require(
+                    IExecutiveAssistant.execute.selector == expectedSelector,
+                    "Function selector mismatch"
+                );
+                console.log("UniversalReceiverDelegateUAP function selectors matched");
+                //bytes memory returnData = IExecutiveAssistant(executiveAssistant).execute(executiveAssistant, notifier, value, typeId, data);
+                
                 // Handle failure
+                
                 require(success, _getRevertMsg(returnData));
-
+                
                 // Decode the returned value and data
                 (value, data) = abi.decode(returnData, (uint256, bytes));
+                
+                
                 emit AssistantInvoked(executiveAssistant);
             }
         }
@@ -179,7 +200,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
             require(encoded.length >= offset - 32 + 20, "Invalid encoded data");
             address addr;
             assembly {
-                addr := shr(96, mload(add(encoded, add(offset, 12))))
+                addr := shr(96, mload(add(encoded, offset))) // vs incorrect, addr := shr(96, mload(add(encoded, add(offset, 12))))
             }
             addresses[i] = addr;
             offset += 20;

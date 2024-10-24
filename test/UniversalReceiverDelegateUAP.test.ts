@@ -56,53 +56,8 @@ describe.skip("UniversalReceiverDelegateUAP", function () {
   });
 
   describe("universalReceiverDelegate", function () {
-    it("should revert if caller is not an LSP0", async function () {
-      await expect(
-        universalReceiverDelegateUAP
-          .connect(nonOwner)
-          .universalReceiverDelegate(
-            await owner.getAddress(),
-            0,
-            LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification,
-            "0x"
-          )
-      ).to.be.revertedWith("UniversalReceiverDelegateUAP: Caller is not an LSP0");
-    });
-
-    it("should proceed with super function if no type configuration is found", async function () {
-      // Mock getData to return empty bytes
-      //await mockERC725Y.setData("", "");
-      //console.log("mockERC725Y.address", mockERC725Y.address);
-      await expect(
-        mockLSP0.callUniversalReceiverDelegate(
-          universalReceiverDelegateUAPAddress,
-          await owner.getAddress(),
-          0,
-          LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification,
-          "0x"
-        )
-      ).to.not.be.reverted;
-    });
     /*
-    it("should proceed with super function if type configuration is found but no assistants are found", async function () {
-      // Mock getData to return data that decodes to an empty array
-      const encodedData = ethers.hexConcat([
-        "0x0000", // Number of addresses (0)
-      ]);
-
-
-      await mockERC725Y.setData([ethers.utils.keccak256("0x")], [encodedData]);
-
-      await expect(
-        mockLSP0.callUniversalReceiverDelegate(
-          universalReceiverDelegateUAP.address,
-          await owner.getAddress(),
-          0,
-          ethers.utils.formatBytes32String("testTypeId"),
-          "0x"
-        )
-      ).to.not.be.reverted;
-    });
+    
 
     it("should invoke executive assistants when they are found", async function () {
       // Encode the assistant addresses

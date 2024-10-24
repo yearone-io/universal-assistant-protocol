@@ -4,10 +4,8 @@ pragma solidity ^0.8.24;
 import "../IExecutiveAssistant.sol";
 
 contract MockAssistant is IExecutiveAssistant {
-    bytes private returnData;
-
-    function setExecuteReturnValues(bytes memory _data) public {
-        returnData = _data;
+    function getExecuteSelector() external pure returns (bytes4) {
+        return this.execute.selector;
     }
 
     function execute(
@@ -21,6 +19,6 @@ contract MockAssistant is IExecutiveAssistant {
         override
         returns (bytes memory)
     {
-        return returnData;
+        return abi.encode(0, "0x");
     }
 }

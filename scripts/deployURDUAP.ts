@@ -6,6 +6,7 @@ console.log('network: ', network);
 const { UP_ADDR_CONTROLLED_BY_EOA } = getNetworkAccountsConfig(network as string);
 
 async function main() {
+  /*
   const LSP2Utils = await ethers.getContractFactory('@lukso/lsp-smart-contracts/contracts/LSP2ERC725YJSONSchema/LSP2Utils.sol:LSP2Utils');
   const LSP2UtilsLibrary = await LSP2Utils.deploy();
   await LSP2UtilsLibrary.waitForDeployment();
@@ -23,7 +24,7 @@ async function main() {
   } catch (error) {
     console.error("Contract verification failed:", error);
   }
-
+  */
   const deployer = UP_ADDR_CONTROLLED_BY_EOA;
   console.log("Deploying contracts with the account:", deployer);
   const UniversalReceiverDelegateUAP = await ethers.getContractFactory('UniversalReceiverDelegateUAP', {

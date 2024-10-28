@@ -4,11 +4,7 @@ import { Signer } from "ethers";
 import { LSP1_TYPE_IDS } from "@lukso/lsp-smart-contracts";
 
 // Import the artifacts (assumed to be compiled and available)
-import { UniversalReceiverDelegateUAP } from "../typechain-types";
-import { MockLSP0 } from "../typechain-types";
-import { MockAssistant } from "../typechain-types";
-import { MockScreenerAssistant } from "../typechain-types";
-import { MockERC725Y } from "../typechain-types";
+import { UniversalReceiverDelegateUAP, MockLSP0, MockAssistant, MockBadAssistant, MockTrueScreenerAssistant, MockFalseScreenerAssistant, MockBadScreenerAssistant, MockERC725Y } from "../typechain-types";
 
 describe("UniversalReceiverDelegateUAP", function () {
   let owner: Signer;
@@ -18,15 +14,20 @@ describe("UniversalReceiverDelegateUAP", function () {
   let mockLSP0: MockLSP0;
   let mockAssistant: MockAssistant;
   let mockAssistantAddress: string;
-  let mockScreenerAssistant: MockScreenerAssistant;
-  let mockScreenerAssistantAddress: string;
+  let mockBadAssistant: MockAssistant;
+  let mockBadAssistantAddress: string;
+  let mockTrueScreenerAssistant: MockTrueScreenerAssistant;
+  let mockTrueScreenerAssistantAddress: string;
+  let mockFalseScreenerAssistant: MockTrueScreenerAssistant;
+  let mockFalseScreenerAssistantAddress: string;
+  let mockBadScreenerAssistant: MockTrueScreenerAssistant;
+  let mockBadScreenerAssistantAddress: string;
   let mockERC725Y: MockERC725Y;
   let typeMappingKey: string;
   let nonStandardTypeMappingKey: string;
 
   beforeEach(async function () {
     [owner, nonOwner] = await ethers.getSigners();
-    console.log("owner", await owner.getAddress());
 
     // Deploy UniversalReceiverDelegateUAP
     const UniversalReceiverDelegateUAPFactory = await ethers.getContractFactory(
@@ -41,7 +42,6 @@ describe("UniversalReceiverDelegateUAP", function () {
     mockLSP0 = (await MockLSP0Factory.deploy()) as MockLSP0;
     await mockLSP0.waitForDeployment();
     const mockLSP0Address = await mockLSP0.getAddress();
-    console.log("mockLSP0Address", mockLSP0Address);
 
     // Deploy mock ERC725Y (storage)
     const MockERC725YFactory = await ethers.getContractFactory("MockERC725Y");
@@ -56,11 +56,22 @@ describe("UniversalReceiverDelegateUAP", function () {
     const MockAssistantFactory = await ethers.getContractFactory("MockAssistant");
     mockAssistant = (await MockAssistantFactory.deploy()) as MockAssistant;
     mockAssistantAddress = await mockAssistant.getAddress();
-    console.log("mockAssistantAddress", mockAssistantAddress);
 
-    const MockScreenerAssistantFactory = await ethers.getContractFactory("MockScreenerAssistant");
-    mockScreenerAssistant = (await MockScreenerAssistantFactory.deploy()) as MockScreenerAssistant;
-    mockScreenerAssistantAddress = await mockScreenerAssistant.getAddress();
+    const MockBadAssistantFactory = await ethers.getContractFactory("MockBadAssistant");
+    mockBadAssistant = (await MockBadAssistantFactory.deploy()) as MockBadAssistant;
+    mockBadAssistantAddress = await mockBadAssistant.getAddress();
+
+    const MockTrueScreenerAssistantFactory = await ethers.getContractFactory("MockTrueScreenerAssistant");
+    mockTrueScreenerAssistant = (await MockTrueScreenerAssistantFactory.deploy()) as MockTrueScreenerAssistant;
+    mockTrueScreenerAssistantAddress = await mockTrueScreenerAssistant.getAddress();
+
+    const MockFalseScreenerAssistantFactory = await ethers.getContractFactory("MockFalseScreenerAssistant");
+    mockFalseScreenerAssistant = (await MockFalseScreenerAssistantFactory.deploy()) as MockFalseScreenerAssistant;
+    mockFalseScreenerAssistantAddress = await mockFalseScreenerAssistant.getAddress();
+
+    const MockBadScreenerAssistantFactory = await ethers.getContractFactory("MockBadScreenerAssistant");
+    mockBadScreenerAssistant = (await MockBadScreenerAssistantFactory.deploy()) as MockBadScreenerAssistant;
+    mockBadScreenerAssistantAddress = await mockBadScreenerAssistant.getAddress();
 
     typeMappingKey = generateMappingKey('UAPTypeConfig', LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification);
     nonStandardTypeMappingKey = generateMappingKey('UAPTypeConfig', LSP1_TYPE_IDS.LSP0ValueReceived);
@@ -95,7 +106,6 @@ describe("UniversalReceiverDelegateUAP", function () {
     it("should proceed with super function if type configuration is found but no assistants are found", async function () {
       // Mock getData to return data that decodes to an empty array
       const encodedData = customEncodeAddresses([]);
-      console.log("encodedData", encodedData);
       await mockERC725Y.setData(typeMappingKey, encodedData);
 
       await expect(
@@ -109,22 +119,12 @@ describe("UniversalReceiverDelegateUAP", function () {
       ).to.not.be.reverted;
     });
 
-    it.only("should invoke executive assistants when they are found", async function () {
+    it("should invoke executive assistants when they are found", async function () {
       // Encode the assistant addresses
       const encodedData = customEncodeAddresses([mockAssistantAddress]);
 
       // Mock getData to return the encoded addresses
       await mockERC725Y.setData(nonStandardTypeMappingKey, encodedData);
-      console.log("UAP.test custom encoded addresses:", encodedData)
-
-      // Mock the assistant's execute function
-      //const abi = ethers.AbiCoder.defaultAbiCoder();
-      //const mockReturn = abi.encode(["uint256", "bytes"], [0, "0x"]);
-      /*
-      const selectorFromMock = await mockAssistant.getExecuteSelector();
-      const selectorFromInterface = IExecutiveAssistant.interface.getSighash('execute');
-      expect(selectorFromMock).to.equal(selectorFromInterface);
-      */
 
       await expect(
         mockLSP0.callUniversalReceiverDelegate(
@@ -148,6 +148,102 @@ describe("UniversalReceiverDelegateUAP", function () {
       )
         .to.emit(universalReceiverDelegateUAP, "AssistantInvoked")
         .withArgs(mockAssistantAddress);
+    });
+
+    it("should invoke executive assistants after evaluating true screener assistant", async function () {
+      const encodedAssistantsData = customEncodeAddresses([mockAssistantAddress]);
+      await mockERC725Y.setData(nonStandardTypeMappingKey, encodedAssistantsData);
+      // encoded executive assistant screener
+      const assistantScreenerKey = generateMappingKey('UAPExecutiveScreeners', mockAssistantAddress);
+      const encodedScreenersData = customEncodeAddresses([mockTrueScreenerAssistantAddress]);
+      await mockERC725Y.setData(assistantScreenerKey, encodedScreenersData); 
+
+      await expect(
+        mockLSP0.callUniversalReceiverDelegate(
+          universalReceiverDelegateUAPAddress,
+          await owner.getAddress(),
+          0,
+          LSP1_TYPE_IDS.LSP0ValueReceived,
+          "0x"
+        )
+      )
+        .to.emit(universalReceiverDelegateUAP, "AssistantInvoked")
+        .withArgs(mockAssistantAddress);
+    });
+
+    it("should not invoke executive assistants after evaluating false screener assistant", async function () {
+      const encodedAssistantsData = customEncodeAddresses([mockAssistantAddress]);
+      await mockERC725Y.setData(nonStandardTypeMappingKey, encodedAssistantsData);
+      // encoded executive assistant screener
+      const assistantScreenerKey = generateMappingKey('UAPExecutiveScreeners', mockAssistantAddress);
+      const encodedScreenersData = customEncodeAddresses([mockFalseScreenerAssistantAddress]);
+      await mockERC725Y.setData(assistantScreenerKey, encodedScreenersData); 
+
+      await expect(
+        mockLSP0.callUniversalReceiverDelegate(
+          universalReceiverDelegateUAPAddress,
+          await owner.getAddress(),
+          0,
+          LSP1_TYPE_IDS.LSP0ValueReceived,
+          "0x"
+        )
+      )
+        .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
+    });
+
+    it("should handle screener delegatecall failures through revert", async function () {
+      const encodedAssistantsData = customEncodeAddresses([mockAssistantAddress]);
+      await mockERC725Y.setData(nonStandardTypeMappingKey, encodedAssistantsData);
+      // encoded executive assistant screener
+      const assistantScreenerKey = generateMappingKey('UAPExecutiveScreeners', mockAssistantAddress);
+      const encodedScreenersData = customEncodeAddresses([mockBadScreenerAssistantAddress]);
+      await mockERC725Y.setData(assistantScreenerKey, encodedScreenersData); 
+
+      await expect(
+        mockLSP0.callUniversalReceiverDelegate(
+          universalReceiverDelegateUAPAddress,
+          await owner.getAddress(),
+          0,
+          LSP1_TYPE_IDS.LSP0ValueReceived,
+          "0x"
+        )
+      ).to.be.revertedWith("UniversalReceiverDelegateUAP: Screener evaluation failed");
+    });
+
+    it("should handle executive delegatecall failures through revert", async function () {
+      const encodedAssistantsData = customEncodeAddresses([mockBadAssistantAddress]);
+      await mockERC725Y.setData(nonStandardTypeMappingKey, encodedAssistantsData);
+      // encoded executive assistant screener
+      const assistantScreenerKey = generateMappingKey('UAPExecutiveScreeners', mockAssistantAddress);
+      const encodedScreenersData = customEncodeAddresses([mockTrueScreenerAssistantAddress]);
+      await mockERC725Y.setData(assistantScreenerKey, encodedScreenersData); 
+
+      await expect(
+        mockLSP0.callUniversalReceiverDelegate(
+          universalReceiverDelegateUAPAddress,
+          await owner.getAddress(),
+          0,
+          LSP1_TYPE_IDS.LSP0ValueReceived,
+          "0x"
+        )
+      ).to.be.revertedWith("UniversalReceiverDelegateUAP: Assistant execution failed");
+    });
+
+    it("should correctly decode addresses in customDecodeAddresses function", async function () {
+      const addresses = [await owner.getAddress(), await nonOwner.getAddress()];
+      const encodedData = customEncodeAddresses(addresses);
+      const decodedAddresses = await universalReceiverDelegateUAP.customDecodeAddresses(
+        encodedData
+      );
+
+      expect(decodedAddresses[0]).to.equal(addresses[0]);
+      expect(decodedAddresses[1]).to.equal(addresses[1]);
+    });
+
+    it.skip("should revert if a screener assistant is not trusted", async function () {
+    });
+
+    it.skip("should revert if an executive assistant is not trusted", async function () {
     });
   });
 });

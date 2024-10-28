@@ -45,7 +45,6 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         returns (bytes memory)
     {
         // Check that the caller is an LSP0 (Universal Profile)
-        console.log("UniversalReceiverDelegateUAP msg.sender and typeId", msg.sender);
         require(
             ERC165Checker.supportsInterface(msg.sender, _INTERFACEID_LSP0),
             "UniversalReceiverDelegateUAP: Caller is not an LSP0"
@@ -57,7 +56,6 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         );
         // Fetch the type configuration
         bytes memory typeConfig = IERC725Y(msg.sender).getData(typeConfigKey);
-        console.log("UniversalReceiverDelegateUAP typeConfig extracted");
         if (typeConfig.length == 0) {
             // No configurations found, invoke default behavior
             return super.universalReceiverDelegate(notifier, value, typeId, data);
@@ -66,17 +64,12 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
 
         // Decode the addresses of executive assistants
         address[] memory orderedExecutiveAssistants = customDecodeAddresses(typeConfig);
-        console.log("UniversalReceiverDelegateUAP orderedExecutiveAssistants decoded");
         if (orderedExecutiveAssistants.length == 0) {
             // No assistants found, invoke default behavior
-            console.log("No assistants found, invoke default behavior");
             return super.universalReceiverDelegate(notifier, value, typeId, data);
         }
-
-        console.log("UniversalReceiverDelegateUAP looping through assistants");
         // Loop through each executive assistant
         for (uint256 i = 0; i < orderedExecutiveAssistants.length; i++) {
-            console.log("UniversalReceiverDelegateUAP assistant detected");
             address executiveAssistant = orderedExecutiveAssistants[i];
             emit AssistantFound(executiveAssistant);
 
@@ -87,14 +80,11 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
             );
             // Fetch the executive assistant configuration
             bytes memory executiveAssitantScreeners = IERC725Y(msg.sender).getData(screenerAssistantsKey);
-            console.log("UniversalReceiverDelegateUAP screener assistants found");
 
             // Decode the addresses of screener assistants
             address[] memory orderedScreenerAssistants = executiveAssitantScreeners.length > 0
                 ? customDecodeAddresses(executiveAssitantScreeners)
                 : new address[](0);
-
-            console.log("UniversalReceiverDelegateUAP ordered screener fetched");
 
             bool delegateToExecutive = true;
 
@@ -112,6 +102,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                 (bool success, bytes memory returnData) = screenerAssistant.delegatecall(
                     abi.encodeWithSelector(
                         IScreenerAssistant.evaluate.selector,
+                        screenerAssistant,
                         notifier,
                         value,
                         typeId,
@@ -120,7 +111,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                 );
 
                 // Handle failure
-                require(success, _getRevertMsg(returnData));
+                require(success, "UniversalReceiverDelegateUAP: Screener evaluation failed");
 
                 bool delegateToExecutiveResult = abi.decode(returnData, (bool));
                 delegateToExecutive = delegateToExecutive && delegateToExecutiveResult;
@@ -129,10 +120,8 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                     break;
                 }
             }
-            console.log("UniversalReceiverDelegateUAP evaluate whether to run executive");
 
             if (delegateToExecutive) {
-                console.log("UniversalReceiverDelegateUAP executing assistant");
                 // Ensure the executive assistant is trusted
                 require(
                     isTrustedAssistant(executiveAssistant),
@@ -152,21 +141,8 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                     )
                 );
 
-                bytes4 expectedSelector = bytes4(keccak256("execute(address,address,uint256,bytes32,bytes)"));
-                require(
-                    IExecutiveAssistant.execute.selector == expectedSelector,
-                    "Function selector mismatch"
-                );
-                console.log("UniversalReceiverDelegateUAP function selectors matched");
-                //bytes memory returnData = IExecutiveAssistant(executiveAssistant).execute(executiveAssistant, notifier, value, typeId, data);
-                
-                // Handle failure
-                
-                require(success, _getRevertMsg(returnData));
-                
-                // Decode the returned value and data
+                require(success, "UniversalReceiverDelegateUAP: Assistant execution failed");
                 (value, data) = abi.decode(returnData, (uint256, bytes));
-                
                 
                 emit AssistantInvoked(executiveAssistant);
             }
@@ -217,21 +193,5 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
     function isTrustedAssistant(address assistant) internal view returns (bool) {
         // todo: a hashlist ?
         return true;
-    }
-
-    /**
-     * @dev Extracts the revert message from failed delegatecall.
-     * @param returnData The return data from the failed call.
-     * @return The revert message string.
-     */
-    function _getRevertMsg(bytes memory returnData) internal pure returns (string memory) {
-        // If the return data length is less than 68, then the transaction failed silently (without a revert message)
-        if (returnData.length < 68) return "Transaction reverted silently";
-
-        assembly {
-            // Slice the sighash.
-            returnData := add(returnData, 4)
-        }
-        return abi.decode(returnData, (string));
     }
 }

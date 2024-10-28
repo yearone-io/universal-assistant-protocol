@@ -24,7 +24,6 @@ contract MockLSP0 is LSP0ERC725Account(address(0)) {
         bytes32 typeId,
         bytes memory data
     ) public returns (bytes memory) {
-        console.log("mockLSP0 callUniversalReceiverDelegate", msg.sender);
         UniversalReceiverDelegateUAP delegate = UniversalReceiverDelegateUAP(delegateAddress);
         return delegate.universalReceiverDelegate(notifier, value, typeId, data);
     }

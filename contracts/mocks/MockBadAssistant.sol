@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 import "../IExecutiveAssistant.sol";
 import {console} from "hardhat/console.sol";
 
-contract MockAssistant is IExecutiveAssistant {
+contract MockBadAssistant is IExecutiveAssistant {
     function execute(
         address assistantAddress,
         address notifier,
@@ -16,7 +16,6 @@ contract MockAssistant is IExecutiveAssistant {
         override
         returns (bytes memory)
     {
-        bytes memory result = abi.encode(0, bytes32("0x"));
-        return result;
+        require(false);
     }
 }

@@ -16,6 +16,11 @@ import {console} from "hardhat/console.sol";
 import "./IExecutiveAssistant.sol";
 import "./IScreenerAssistant.sol";
 
+// temporary imports (delete me later)
+import { ILSP8IdentifiableDigitalAsset } from '@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/ILSP8IdentifiableDigitalAsset.sol';
+import { IERC725X } from '@erc725/smart-contracts/contracts/interfaces/IERC725X.sol';
+
+
 /**
  * @title UniversalReceiverDelegateUAP
  * @dev Universal Receiver Delegate for the Universal Assistant Protocol.
@@ -129,7 +134,8 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                 );
 
                 // Call the executive assistant
-                
+                // msg.sender
+                /*
                 (bool success, bytes memory returnData) = executiveAssistant.delegatecall(
                     abi.encodeWithSelector(
                         IExecutiveAssistant.execute.selector,
@@ -140,9 +146,29 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                         data
                     )
                 );
+                */
+                (address txSource, address from, address to, bytes32 tokenId, bytes memory txData) = abi.decode(
+                    data,
+                    (address, address, address, bytes32, bytes)
+                );
+                // Prepare the transfer call
+                bytes memory encodedLSP8Tx = abi.encodeCall(
+                    ILSP8IdentifiableDigitalAsset.transfer,
+                    (msg.sender, address(0), tokenId, true, data)
+                );
+                console.log("ForwarderAssistant: encodedLSP8Tx");
+                // Execute the transfer via the UP's ERC725X execute function
+                console.logAddress(msg.sender);
+                IERC725X(msg.sender).execute(0, notifier, 0, encodedLSP8Tx);
+                console.log("ForwarderAssistant: IERC725X(msg.sender).execute done");
+                /*
+                console.logBytes(returnData);
+                console.logString(string(returnData));
+                console.logString(_decodeRevertReason(returnData));
 
                 require(success, "UniversalReceiverDelegateUAP: Assistant execution failed");
                 (value, data) = abi.decode(returnData, (uint256, bytes));
+                */
                 
                 emit AssistantInvoked(executiveAssistant);
             }
@@ -193,5 +219,31 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
     function isTrustedAssistant(address assistant) internal view returns (bool) {
         // todo: a hashlist ?
         return true;
+    }
+
+    function _decodeRevertReason(bytes memory revertData) internal pure returns (string memory) {
+        // If there is no data to decode, return a generic error
+        if (revertData.length < 4) {
+            return "Transaction reverted silently";
+        }
+
+        // Extract the selector, which should be 0x08c379a0 (Error(string))
+        bytes4 selector;
+        assembly {
+            selector := mload(add(revertData, 32))
+        }
+
+        // Check if the selector matches Error(string)
+        if (selector == 0x08c379a0) {
+            // Skip the first 4 bytes (selector), then decode the error message
+            bytes memory errorMessage;
+            assembly {
+                // The error message starts at byte 68: skip selector (4 bytes) + length (32 bytes)
+                errorMessage := add(revertData, 68)
+            }
+            return string(errorMessage);
+        } else {
+            return "Unknown error format";
+        }
     }
 }

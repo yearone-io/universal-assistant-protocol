@@ -17,6 +17,16 @@ contract MockLSP0 is LSP0ERC725Account(address(0)) {
         return IERC725Y(erc725Y).getData(key);
     }
 
+    /*
+    function universalReceiver(
+        bytes32 typeId,
+        bytes memory receivedData
+    ) public payable virtual override returns (bytes memory returnedValues) {
+        console.log("MockLSP0: universalReceiver called");
+        return super.universalReceiver(typeId, receivedData);
+    }
+    */
+
     function callUniversalReceiverDelegate(
         address delegateAddress,
         address notifier,

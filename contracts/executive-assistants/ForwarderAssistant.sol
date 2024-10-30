@@ -17,6 +17,8 @@ import { _TYPEID_LSP8_TOKENSRECIPIENT } from '@lukso/lsp-smart-contracts/contrac
 import { ERC165 } from '@openzeppelin/contracts/utils/introspection/ERC165.sol';
 import { ERC165Checker } from '@openzeppelin/contracts/utils/introspection/ERC165Checker.sol';
 
+import {console} from "hardhat/console.sol";
+
 contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
     function supportsInterface(bytes4 interfaceId)
         public
@@ -54,14 +56,15 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
         // Read settings from the UP's ERC725Y data store.
         IERC725Y upERC725Y = IERC725Y(upAddress);
 
-        // Generate the key for assistant instructions: "UAPAssistantInstructions:<assistantAddress>"
-        bytes32 assistantInstructionsKey = generateAssistantInstructionsKey(assistantAddress);
+        bytes32 settingsKey = getSettingsDataKey(assistantAddress);
 
-        bytes memory settingsData = upERC725Y.getData(assistantInstructionsKey);
+        bytes memory settingsData = upERC725Y.getData(settingsKey);
 
         // Decode the settingsData to get targetAddress.
         // Assume settingsData is encoded as: abi.encode(address targetAddress)
+        console.log("ForwarderAssistant: settingsData redirect address");
         address targetAddress = abi.decode(settingsData, (address));
+        console.logAddress(targetAddress);
 
         require(
             targetAddress != address(0),
@@ -91,7 +94,7 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
                 return abi.encode(value, data);
             }
         }
-
+        /*
         if (typeId == _TYPEID_LSP7_TOKENSRECIPIENT) {
             // Decode data to extract the amount
             (address sender, address receiver, address operator, uint256 amount, bytes memory lsp7Data) = abi.decode(
@@ -105,7 +108,7 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
                 upAddress,
                 targetAddress,
                 amount,
-                false,
+                true,
                 lsp7Data
             );
 
@@ -119,29 +122,35 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
             // Return the modified value and data
             return abi.encode(value, modifiedData);
 
-        } else if (typeId == _TYPEID_LSP8_TOKENSRECIPIENT) {
+        } else */if (typeId == _TYPEID_LSP8_TOKENSRECIPIENT) {
             // Decode data to extract the tokenId
-            (address sender, address receiver, address operator, bytes32 tokenId, bytes memory lsp8Data) = abi.decode(
+            (address txSource, address from, address to, bytes32 tokenId, bytes memory txData) = abi.decode(
                 data,
                 (address, address, address, bytes32, bytes)
             );
+            console.log("ForwarderAssistant: msg.sender");
+            console.logAddress(msg.sender);
+            console.log("ForwarderAssistant: txSource contract");
+            console.logAddress(txSource);
+            console.log("ForwarderAssistant: original from");
+            console.logAddress(from);
+            console.log("ForwarderAssistant: original to");
+            console.logAddress(to);
+            console.log("ForwarderAssistant: redirected targetAddress");
+            console.logAddress(targetAddress);
 
             // Prepare the transfer call
-            bytes memory encodedLSP8Tx = abi.encodeWithSelector(
-                ILSP8IdentifiableDigitalAsset.transfer.selector,
-                upAddress,
-                targetAddress,
-                tokenId,
-                false,
-                lsp8Data
+            bytes memory encodedLSP8Tx = abi.encodeCall(
+                ILSP8IdentifiableDigitalAsset.transfer,
+                (msg.sender, targetAddress, tokenId, true, data)
             );
-
+            console.log("ForwarderAssistant: encodedLSP8Tx");
             // Execute the transfer via the UP's ERC725X execute function
-            IERC725X(upAddress).execute(0, notifier, 0, encodedLSP8Tx);
+            IERC725X(msg.sender).execute(0, notifier, 0, encodedLSP8Tx);
+            console.log("ForwarderAssistant: IERC725X(msg.sender).execute done");
 
             // Modify the data to set tokenId to zero
-            bytes32 modifiedTokenId = bytes32(0);
-            bytes memory modifiedData = abi.encode(sender, receiver, operator, modifiedTokenId, lsp8Data);
+            bytes memory modifiedData = abi.encode(txSource, from, to, bytes32(0), txData);
 
             // Return the modified value and data
             return abi.encode(value, modifiedData);
@@ -157,7 +166,15 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
      * @param assistantAddress The address of the assistant.
      * @return The bytes32 key.
      */
-    function generateAssistantInstructionsKey(address assistantAddress) internal pure returns (bytes32) {
-        return bytes32(abi.encodePacked(bytes10(keccak256("UAPExecutiveConfig")), bytes20(assistantAddress)));
+    function getSettingsDataKey(address assistantAddress) internal pure returns (bytes32) {
+        bytes32 firstWordHash = keccak256(bytes("UAPExecutiveConfig"));
+
+        bytes memory temporaryBytes = bytes.concat(
+            bytes10(firstWordHash),
+            bytes2(0),
+            bytes20(assistantAddress)
+        );
+
+        return bytes32(temporaryBytes);
     }
 }

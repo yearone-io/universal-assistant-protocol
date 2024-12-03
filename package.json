@@ -11,12 +11,11 @@
     "@erc725/erc725.js": "^0.22.0",
     "@lukso/lsp-factory.js": "^3.2.1",
     "@lukso/lsp-smart-contracts": "^0.14.0",
-    "@openzeppelin/contracts": "^4.9.3",
-    "dotenv": "^16.3.1",
-    "prettier": "^3.1.0",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@nomicfoundation/hardhat-verify": "^2.0.1",
+    "dotenv": "^16.3.1",
     "hardhat": "^2.22.6",
-    "hardhat-contract-sizer": "^2.10.0"
+    "hardhat-contract-sizer": "^2.10.0",
+    "prettier": "^3.1.0"
   }
 }

@@ -10,6 +10,11 @@ import { UniversalReceiverDelegateUAP, ForwarderAssistant, MockLSP0, MockAssista
 import LSP1UniversalReceiverDelegateSchemas from '@erc725/erc725.js/schemas/LSP1UniversalReceiverDelegate.json';
 import LSP6KeyManagerSchemas from '@erc725/erc725.js/schemas/LSP6KeyManager.json';
 import config from "../hardhat.config";
+import { Contract } from "ethers";
+import LSP23FactoryArtifact from "@lukso/lsp-smart-contracts/artifacts/LSP23LinkedContractsFactory.json";
+import UniversalProfileInitArtifact from "@lukso/lsp-smart-contracts/artifacts/UniversalProfileInit.json";
+import LSP6KeyManagerArtifact from "@lukso/lsp-smart-contracts/artifacts/LSP6KeyManager.json";
+import LSP3ProfileMetadataSchemas from "@erc725/erc725.js/schemas/LSP3ProfileMetadata.json"; // Correct schema
 
 export const DEFAULT_UP_URD_PERMISSIONS = {
   REENTRANCY: true,
@@ -43,9 +48,11 @@ export const DEFAULT_UP_CONTROLLER_PERMISSIONS = {
   EXECUTE_RELAY_CALL: true
 }
 
+
+
 describe("UniversalReceiverDelegateUAP", function () {
   let owner: Signer;
-  let mainController: Signer;
+  let mainController: Signer | string;
   let nonOwner: Signer;
   let LSP8Holder: Signer;
   let universalReceiverDelegateUAP: UniversalReceiverDelegateUAP;
@@ -72,7 +79,114 @@ describe("UniversalReceiverDelegateUAP", function () {
   let mockUP: any;
   let keyManager: any;
   let keyManagerAddress: string;
+  let factory: any;
+  let universalProfileImplementation: any;
+  let keyManagerImplementation: any;
   let mockUPAddress: string;
+
+  before(async function () {
+    const [deployer] = await ethers.getSigners();
+    mainController = deployer.address;
+  
+    // Deploy LSP23 Factory
+    const Factory = await ethers.getContractFactory(
+      LSP23FactoryArtifact.abi,
+      LSP23FactoryArtifact.bytecode
+    );
+    factory = await Factory.deploy();
+    await factory.waitForDeployment();
+    console.log("Deployed LSP23 Factory Address:", factory.target);
+  
+    // Deploy Universal Profile Implementation
+    const UniversalProfile = await ethers.getContractFactory(
+      UniversalProfileInitArtifact.abi,
+      UniversalProfileInitArtifact.bytecode
+    );
+    universalProfileImplementation = await UniversalProfile.deploy();
+    await universalProfileImplementation.waitForDeployment();
+    console.log(
+      "Deployed Universal Profile Implementation Address:",
+      universalProfileImplementation.target
+    );
+  
+  
+    // Store the Universal Profile address
+    mockUPAddress = universalProfileImplementation.target;
+  
+    // Attach to ERC725Y Interface
+    const ERC725Y = await ethers.getContractFactory(
+      "@erc725/smart-contracts/contracts/ERC725Y.sol:ERC725Y"
+    );
+    const erc725YInstance = ERC725Y.attach(mockUPAddress);
+  
+    // Deploy Key Manager Implementation
+    const KeyManager = await ethers.getContractFactory(
+      LSP6KeyManagerArtifact.abi,
+      LSP6KeyManagerArtifact.bytecode
+    );
+    keyManagerImplementation = await KeyManager.deploy(mockUPAddress);
+    await keyManagerImplementation.waitForDeployment();
+    console.log(
+      "Deployed Key Manager Implementation Address:",
+      keyManagerImplementation.target
+    );
+  
+    // Prepare Metadata
+    const erc725 = new ERC725(
+      [
+        ...LSP6KeyManagerSchemas,
+        ...LSP3ProfileMetadataSchemas,
+        ...LSP1UniversalReceiverDelegateSchemas,
+      ],
+      ethers.provider
+    );
+  
+    const lsp3DataValue = {
+      verification: {
+        method: "keccak256(utf8)",
+        data: "0x6d6d08aafb0ee059e3e4b6b3528a5be37308a5d4f4d19657d26dd8a5ae799de0",
+      },
+      url: "ipfs://QmPRoJsaYcNqQiUrQxE7ajTRaXwHyAU29tHqYNctBmK64w",
+    };
+  
+    const setDataKeysAndValues = erc725.encodeData([
+      { keyName: "LSP3Profile", value: lsp3DataValue },
+      {
+        keyName: "AddressPermissions:Permissions:<address>",
+        dynamicKeyParts: [mainController],
+        value: erc725.encodePermissions({
+          CHANGEOWNER: true,
+          ADDCONTROLLER: true,
+          SUPER_SETDATA: true,
+        }),
+      },
+    ]);
+  
+    console.log("Keys:", setDataKeysAndValues.keys);
+    console.log("Values:", setDataKeysAndValues.values);
+  
+    // Debug permissions
+    const permissionsKey = "0x4b80742de2bf82acb3630000" + mainController.slice(2);
+    const permissions = await erc725YInstance.getData(permissionsKey);
+    console.log("Deployer Permissions:", permissions);
+  
+    // try {
+      await erc725YInstance["setDataBatch(bytes32[],bytes[])"](
+        setDataKeysAndValues.keys,
+        setDataKeysAndValues.values
+      );
+      console.log("Metadata and Permissions Set on Universal Profile");
+    // } catch (error) {
+    //   console.error("Error during setDataBatch:", error);
+    // }
+  });
+  
+  it("should deploy and initialize Universal Profile and Key Manager", async function () {
+    expect(mockUPAddress).to.exist;
+    expect(keyManagerImplementation.target).to.exist;
+    console.log("Deployment successful!");
+  });
+
 
   beforeEach(async function () {
     [owner, mainController, nonOwner, LSP8Holder] = await ethers.getSigners();
@@ -101,11 +215,12 @@ describe("UniversalReceiverDelegateUAP", function () {
     // Set the ERC725Y instance in the mock LSP0 contract
     await mockLSP0.setERC725Y(mockERC725YAddress);
 
+    
     // deploy UP account
     /*
     const UPAccountFactory = new ethers.ContractFactory(LSP0ERC725Account.abi, LSP0ERC725Account.bytecode, owner);
     
-    mockUP = (await UPAccountFactory.connect(owner).deploy(ownerAddress));
+     mockUP = (await UPAccountFactory.connect(owner).deploy(ownerAddress));
     console.log("UP owner:", await mockUP.owner());
     await mockUP.waitForDeployment();
     mockUPAddress = await mockUP.getAddress();

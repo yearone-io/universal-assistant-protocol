@@ -3,9 +3,12 @@ import { expect } from "chai";
 import { Signer } from "ethers";
 import { ERC725YDataKeys, LSP1_TYPE_IDS } from "@lukso/lsp-smart-contracts";
 import LSP0ERC725Account from "@lukso/lsp-smart-contracts/artifacts/LSP0ERC725Account.json";
+import LSP6KeyManager from "@lukso/lsp-smart-contracts/artifacts/LSP6KeyManager.json";
 import { ERC725, ERC725JSONSchema } from '@erc725/erc725.js';
 import LSP6Schema from '@erc725/erc725.js/schemas/LSP6KeyManager.json';
 import { UniversalReceiverDelegateUAP, ForwarderAssistant, MockLSP0, MockAssistant, MockLSP8IdentifiableDigitalAsset, MockBadAssistant, MockTrueScreenerAssistant, MockFalseScreenerAssistant, MockBadScreenerAssistant, MockERC725Y } from "../typechain-types";
+import LSP1UniversalReceiverDelegateSchemas from '@erc725/erc725.js/schemas/LSP1UniversalReceiverDelegate.json';
+import LSP6KeyManagerSchemas from '@erc725/erc725.js/schemas/LSP6KeyManager.json';
 import config from "../hardhat.config";
 
 export const DEFAULT_UP_URD_PERMISSIONS = {
@@ -14,8 +17,35 @@ export const DEFAULT_UP_URD_PERMISSIONS = {
   SETDATA: true,
 };
 
+export const DEFAULT_UP_CONTROLLER_PERMISSIONS = {
+  CHANGEOWNER: false,
+  ADDCONTROLLER: true,
+  EDITPERMISSIONS: true,
+  ADDEXTENSIONS: false,
+  CHANGEEXTENSIONS: false,
+  ADDUNIVERSALRECEIVERDELEGATE: false,
+  CHANGEUNIVERSALRECEIVERDELEGATE: false,
+  REENTRANCY: false,
+  SUPER_TRANSFERVALUE: true,
+  TRANSFERVALUE: true,
+  SUPER_CALL: true,
+  CALL: true,
+  SUPER_STATICCALL: true,
+  STATICCALL: true,
+  SUPER_DELEGATECALL: false,
+  DELEGATECALL: false,
+  DEPLOY: true,
+  SUPER_SETDATA: true,
+  SETDATA: true,
+  ENCRYPT: true,
+  DECRYPT: true,
+  SIGN: true,
+  EXECUTE_RELAY_CALL: true
+}
+
 describe("UniversalReceiverDelegateUAP", function () {
   let owner: Signer;
+  let mainController: Signer;
   let nonOwner: Signer;
   let LSP8Holder: Signer;
   let universalReceiverDelegateUAP: UniversalReceiverDelegateUAP;
@@ -40,10 +70,13 @@ describe("UniversalReceiverDelegateUAP", function () {
   let mockLSP8: MockLSP8IdentifiableDigitalAsset;
   let mockLSP8Address: string;
   let mockUP: any;
+  let keyManager: any;
+  let keyManagerAddress: string;
   let mockUPAddress: string;
 
   beforeEach(async function () {
-    [owner, nonOwner, LSP8Holder] = await ethers.getSigners();
+    [owner, mainController, nonOwner, LSP8Holder] = await ethers.getSigners();
+    const ownerAddress = await owner.getAddress();
 
     // Deploy UniversalReceiverDelegateUAP
     const UniversalReceiverDelegateUAPFactory = await ethers.getContractFactory(
@@ -69,12 +102,27 @@ describe("UniversalReceiverDelegateUAP", function () {
     await mockLSP0.setERC725Y(mockERC725YAddress);
 
     // deploy UP account
+    /*
     const UPAccountFactory = new ethers.ContractFactory(LSP0ERC725Account.abi, LSP0ERC725Account.bytecode, owner);
-    const ownerAddress = await owner.getAddress();
+    
     mockUP = (await UPAccountFactory.connect(owner).deploy(ownerAddress));
     console.log("UP owner:", await mockUP.owner());
     await mockUP.waitForDeployment();
     mockUPAddress = await mockUP.getAddress();
+    console.log("UP deployed to: ", mockUPAddress);
+    const MockKeyManagerFactory = new ethers.ContractFactory(LSP6KeyManager.abi, LSP6KeyManager.bytecode, owner);
+    keyManager = (await MockKeyManagerFactory.connect(owner).deploy(owner));
+    await keyManager.waitForDeployment();
+    keyManagerAddress = await keyManager.getAddress();
+    console.log("KeyManager deployed to: ", keyManagerAddress);
+    const transferOwnershipTx = await mockUP.transferOwnership(keyManagerAddress);
+    transferOwnershipTx.wait();
+    console.log("Transfer Ownership Tx", transferOwnershipTx);
+    const acceptOwnershipBytes = mockUP.interface.encodeFunctionData('acceptOwnership');
+    console.log("Accept Ownership Bytes", acceptOwnershipBytes);
+    await keyManager.connect(owner).execute(acceptOwnershipBytes);
+    */
+
     const permissionsKey = generateMappingWithGroupingKey("AddressPermissions", "Permissions", ownerAddress);
     console.log("permissions key", permissionsKey);
     console.log("Owner Permissions", await mockUP.getData(generateMappingWithGroupingKey("AddressPermissions", "Permissions", ownerAddress)));
@@ -125,13 +173,20 @@ describe("UniversalReceiverDelegateUAP", function () {
 
     // const currentPermissionsData = await upPermissions.getData();
     // const currentControllers = currentPermissionsData[0].value as string[];
+    const ownerPermissions = upPermissions.encodePermissions({
+      ...DEFAULT_UP_CONTROLLER_PERMISSIONS,
+    });
     const urdPermissions = upPermissions.encodePermissions({
         SUPER_CALL: true,
         ...DEFAULT_UP_URD_PERMISSIONS,
       });
 
     const urdPermissionsData = upPermissions.encodeData([
-        // the permission of the beneficiary address
+        {
+          keyName: 'AddressPermissions:Permissions:<address>',
+          dynamicKeyParts: ownerAddress,
+          value: ownerPermissions,
+        },
         {
           keyName: 'AddressPermissions:Permissions:<address>',
           dynamicKeyParts: universalReceiverDelegateUAPAddress,
@@ -141,7 +196,7 @@ describe("UniversalReceiverDelegateUAP", function () {
         // + or -  1 in the `AddressPermissions[]` array length
         {
           keyName: 'AddressPermissions[]',
-          value: [universalReceiverDelegateUAPAddress],
+          value: [ownerAddress, universalReceiverDelegateUAPAddress],
         },
       ]);
     
@@ -153,6 +208,61 @@ describe("UniversalReceiverDelegateUAP", function () {
 
     typeMappingKey = generateMappingKey('UAPTypeConfig', LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification);
     nonStandardTypeMappingKey = generateMappingKey('UAPTypeConfig', LSP1_TYPE_IDS.LSP0ValueReceived);
+
+    const MAIN_CONTROLLER = ownerAddress;
+    const erc725 = new ERC725([
+      ...LSP6KeyManagerSchemas as ERC725JSONSchema[],
+      ...LSP1UniversalReceiverDelegateSchemas as ERC725JSONSchema[]
+    ]);
+    const setDataKeysAndValues = erc725.encodeData([
+      {
+        keyName: 'LSP1UniversalReceiverDelegate',
+        value: universalReceiverDelegateUAPAddress,
+      }, // Universal Receiver data key and value
+      {
+        keyName: 'AddressPermissions:Permissions:<address>',
+        dynamicKeyParts: [universalReceiverDelegateUAPAddress],
+        value: erc725.encodePermissions({
+          REENTRANCY: true,
+          SUPER_SETDATA: true,
+        }),
+      }, // Universal Receiver Delegate permissions data key and value
+      {
+        keyName: 'AddressPermissions:Permissions:<address>',
+        dynamicKeyParts: [ownerAddress],
+        value: erc725.encodePermissions({
+          CHANGEOWNER: true,
+          ADDCONTROLLER: true,
+          EDITPERMISSIONS: true,
+          ADDEXTENSIONS: true,
+          CHANGEEXTENSIONS: true,
+          ADDUNIVERSALRECEIVERDELEGATE: true,
+          CHANGEUNIVERSALRECEIVERDELEGATE: true,
+          REENTRANCY: false,
+          SUPER_TRANSFERVALUE: true,
+          TRANSFERVALUE: true,
+          SUPER_CALL: true,
+          CALL: true,
+          SUPER_STATICCALL: true,
+          STATICCALL: true,
+          SUPER_DELEGATECALL: false,
+          DELEGATECALL: false,
+          DEPLOY: true,
+          SUPER_SETDATA: true,
+          SETDATA: true,
+          ENCRYPT: true,
+          DECRYPT: true,
+          SIGN: true,
+          EXECUTE_RELAY_CALL: true,
+        }), // Main Controller permissions data key and value
+      },
+      // Address Permissions array length = 2, and the controller addresses at each index
+      {
+        keyName: 'AddressPermissions[]',
+        value: [universalReceiverDelegateUAPAddress, ownerAddress],
+      },
+    ]);
+
   });
 
   describe("universalReceiverDelegate", function () {
@@ -318,7 +428,7 @@ describe("UniversalReceiverDelegateUAP", function () {
       expect(decodedAddresses[1]).to.equal(addresses[1]);
     });
 
-    it.only("should forward LSP8 tokens to the target address using the ForwarderAssistant", async function () {
+    it("should forward LSP8 tokens to the target address using the ForwarderAssistant", async function () {
       // Generate and set the type config data
       const typeMappingKey = generateMappingKey('UAPTypeConfig', LSP1_TYPE_IDS.LSP8Tokens_RecipientNotification);
       const encodedAssistantsData = customEncodeAddresses([forwarderAssistantAddress]);
@@ -337,6 +447,9 @@ describe("UniversalReceiverDelegateUAP", function () {
       const URDAddress = universalReceiverDelegateUAPAddress;
       await mockUP.setData(LSP8URDdataKey, URDAddress);
       console.log("URD Address", await mockUP.getData(LSP8URDdataKey));
+
+      // Give the URDUAP the necessary permissions
+
   
       // Mint an LSP8 token to owner
       const tokenId = "0x0000000000000000000000000000000000000000000000000000000000000001";

@@ -50,7 +50,6 @@ export const setupProfileWithKeyManagerWithURD = async (EOA: Signer) => {
   );
   const universalReceiverDelegateUAP = (await UniversalReceiverDelegateUAPFactory.deploy()) as UniversalReceiverDelegateUAP;
   await universalReceiverDelegateUAP.waitForDeployment();
-  const universalReceiverDelegateUAPAddress = await universalReceiverDelegateUAP.getAddress();
 
 
   await universalProfile

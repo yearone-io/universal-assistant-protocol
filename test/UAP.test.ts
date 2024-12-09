@@ -13,22 +13,30 @@ import {
   UniversalReceiverDelegateUAP
 } from "../typechain-types";
 import { setupProfileWithKeyManagerWithURD } from "./up-utils";
+import { MockLSP7DigitalAsset } from "../typechain-types/contracts/mocks";
 
 describe("UniversalReceiverDelegateUAP", function () {
   let owner: Signer;
   let nonOwner: Signer;
+  let LSP7Holder: Signer;
   let LSP8Holder: Signer;
   let universalReceiverDelegateUAP: UniversalReceiverDelegateUAP;
   let universalReceiverDelegateUAPAddress: string;
+  let mockAssistant: MockAssistant;
+  let mockAssistantAddress: string;
   let forwarderAssistant: ForwarderAssistant;
   let forwarderAssistantAddress: string;
+  let mockLSP7: MockLSP7DigitalAsset;
+  let mockLSP7Address: string;
   let mockLSP8: MockLSP8IdentifiableDigitalAsset;
   let mockLSP8Address: string;
   let mockUP: any;
+  let typeMappingKey: string;
+  let nonStandardTypeMappingKey: string;
   let mockUPAddress: string;
 
   beforeEach(async function () {
-    [owner, nonOwner, LSP8Holder] = await ethers.getSigners();
+    [owner, nonOwner, LSP7Holder, LSP8Holder] = await ethers.getSigners();
     const ownerAddress = await owner.getAddress();
 
     // deploy UP account
@@ -44,10 +52,20 @@ describe("UniversalReceiverDelegateUAP", function () {
     console.log("permissions key", permissionsKey);
     console.log("Owner Permissions", await mockUP.getData(generateMappingWithGroupingKey("AddressPermissions", "Permissions", ownerAddress)));
 
+    // Deploy mock assistant contracts
+    const MockAssistantFactory = await ethers.getContractFactory("MockAssistant");
+    mockAssistant = (await MockAssistantFactory.deploy()) as MockAssistant;
+    mockAssistantAddress = await mockAssistant.getAddress();
+
     const ForwarderAssistantFactory = await ethers.getContractFactory("ForwarderAssistant");
     forwarderAssistant = (await ForwarderAssistantFactory.deploy()) as ForwarderAssistant;
     await forwarderAssistant.waitForDeployment();
     forwarderAssistantAddress = await forwarderAssistant.getAddress();
+
+    const MockLSP7Factory = await ethers.getContractFactory("MockLSP7DigitalAsset");
+    mockLSP7 = (await MockLSP7Factory.deploy("Mock LSP7 Token", "MLSP7", await LSP7Holder.getAddress())) as MockLSP7DigitalAsset;
+    await mockLSP7.waitForDeployment();
+    mockLSP7Address = await mockLSP7.getAddress();
 
     const MockLSP8Factory = await ethers.getContractFactory("MockLSP8IdentifiableDigitalAsset");
     mockLSP8 = (await MockLSP8Factory.deploy("Mock LSP8 Token", "MLSP8", await LSP8Holder.getAddress())) as MockLSP8IdentifiableDigitalAsset;
@@ -56,6 +74,53 @@ describe("UniversalReceiverDelegateUAP", function () {
     console.log("MockLSP8IdentifiableDigitalAsset deployed to: ", mockLSP8Address);
     console.log("mockUPAddress: ", mockUPAddress);
 
+    typeMappingKey = generateMappingKey('UAPTypeConfig', LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification);
+    nonStandardTypeMappingKey = generateMappingKey('UAPTypeConfig', LSP1_TYPE_IDS.LSP0ValueReceived);
+
+  });
+
+  it("should proceed with super function if no type configuration is found", async function () {
+    // Mint an LSP7 token to owner
+    const amount = 1;
+    await mockLSP7.connect(LSP7Holder).mint(LSP7Holder, amount);
+    // Transfer the LSP7 token to the LSP0 (UP)
+    await mockLSP7.connect(LSP7Holder).transfer(await LSP7Holder.getAddress(), mockUPAddress, amount, true, "0x");
+
+    // Check that the token has been forwarded to the target address
+    const balanceOfUp = await mockLSP7.balanceOf(mockUPAddress);
+    expect(balanceOfUp).to.equal(amount);
+  });
+
+  it("should proceed with super function if type configuration is found but no assistants are found", async function () {
+    // Mock getData to return data that decodes to an empty array
+    const encodedData = customEncodeAddresses([]);
+    await mockUP.setData(typeMappingKey, encodedData);
+
+    // Transfer the LSP7 token to the LSP0 (UP)
+    const amount = 1;
+    await mockLSP7.connect(LSP7Holder).mint(LSP7Holder, amount);
+    await mockLSP7.connect(LSP7Holder).transfer(await LSP7Holder.getAddress(), mockUPAddress, amount, true, "0x");
+
+    // Check that the token has been forwarded to the target address
+    const balanceOfUp = await mockLSP7.balanceOf(mockUPAddress);
+    expect(balanceOfUp).to.equal(amount);
+  });
+
+
+  it("should invoke executive assistants when they are found", async function () {
+    // Encode the assistant addresses
+    const encodedData = customEncodeAddresses([mockAssistantAddress]);
+
+    // Mock getData to return the encoded addresses
+    await mockUP.setData(nonStandardTypeMappingKey, encodedData);
+
+    const amount = 1;
+    await mockLSP7.connect(LSP7Holder).mint(LSP7Holder, amount);
+    await expect(
+      await mockLSP7.connect(LSP7Holder).transfer(await LSP7Holder.getAddress(), mockUPAddress, amount, true, "0x")
+    )
+      .to.emit(universalReceiverDelegateUAP, "AssistantFound")
+      .withArgs(mockAssistantAddress);
   });
 
   describe("universalReceiverDelegate", function () {

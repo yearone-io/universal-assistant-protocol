@@ -49,11 +49,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         override(LSP1UniversalReceiverDelegateUP)
         returns (bytes memory)
     {
-        // Check that the caller is an LSP0 (Universal Profile)
-        require(
-            ERC165Checker.supportsInterface(msg.sender, _INTERFACEID_LSP0),
-            "UniversalReceiverDelegateUAP: Caller is not an LSP0"
-        );
+
         // Generate the key for UAPTypeConfig
         bytes32 typeConfigKey = LSP2Utils.generateMappingKey(
             bytes10(keccak256("UAPTypeConfig")),

@@ -69,7 +69,7 @@ export const setupProfileWithKeyManagerWithURD = async (EOA: Signer) => {
         ownerAddress,
         await universalReceiverDelegateUAP.getAddress(),
         ALL_PERMISSIONS,
-        combinePermissions(PERMISSIONS.SUPER_SETDATA, PERMISSIONS.REENTRANCY),
+        combinePermissions(PERMISSIONS.SUPER_CALL),
         await universalReceiverDelegateUAP.getAddress(),
       ],
     );

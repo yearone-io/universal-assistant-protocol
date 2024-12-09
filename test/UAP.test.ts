@@ -31,16 +31,11 @@ describe("UniversalReceiverDelegateUAP", function () {
     [owner, nonOwner, LSP8Holder] = await ethers.getSigners();
     const ownerAddress = await owner.getAddress();
 
-    // Deploy UniversalReceiverDelegateUAP
-    const UniversalReceiverDelegateUAPFactory = await ethers.getContractFactory(
-      "UniversalReceiverDelegateUAP"
-    );
-    universalReceiverDelegateUAP = (await UniversalReceiverDelegateUAPFactory.deploy()) as UniversalReceiverDelegateUAP;
-    await universalReceiverDelegateUAP.waitForDeployment();
-    universalReceiverDelegateUAPAddress = await universalReceiverDelegateUAP.getAddress();
-
     // deploy UP account
-    const [universalProfile] = await setupProfileWithKeyManagerWithURD(owner);
+    const [universalProfile, universalReceiverDelegateUAPInitial] = await setupProfileWithKeyManagerWithURD(owner);
+
+    universalReceiverDelegateUAP = universalReceiverDelegateUAPInitial;
+    universalReceiverDelegateUAPAddress = await universalReceiverDelegateUAP.getAddress();
 
     mockUP = universalProfile;
     mockUPAddress = await universalProfile.getAddress();

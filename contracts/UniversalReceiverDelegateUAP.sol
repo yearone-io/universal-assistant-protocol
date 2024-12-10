@@ -139,6 +139,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                         data
                     )
                 );
+                require(success, "UniversalReceiverDelegateUAP: Assistant execution failed");
                 emit AssistantInvoked(executiveAssistant);
             }
         }

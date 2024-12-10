@@ -24,15 +24,21 @@ describe("UniversalReceiverDelegateUAP", function () {
   let universalReceiverDelegateUAPAddress: string;
   let mockAssistant: MockAssistant;
   let mockAssistantAddress: string;
+  let mockBadAssistant: MockAssistant;
+  let mockBadAssistantAddress: string;
+  let mockTrueScreenerAssistant: MockTrueScreenerAssistant;
+  let mockTrueScreenerAssistantAddress: string;
+  let mockFalseScreenerAssistant: MockTrueScreenerAssistant;
+  let mockFalseScreenerAssistantAddress: string;
+  let mockBadScreenerAssistant: MockTrueScreenerAssistant;
+  let mockBadScreenerAssistantAddress: string;
+  let typeMappingKey: string;
   let forwarderAssistant: ForwarderAssistant;
   let forwarderAssistantAddress: string;
   let mockLSP7: MockLSP7DigitalAsset;
-  let mockLSP7Address: string;
   let mockLSP8: MockLSP8IdentifiableDigitalAsset;
   let mockLSP8Address: string;
   let mockUP: any;
-  let typeMappingKey: string;
-  let nonStandardTypeMappingKey: string;
   let mockUPAddress: string;
 
   beforeEach(async function () {
@@ -40,7 +46,7 @@ describe("UniversalReceiverDelegateUAP", function () {
     const ownerAddress = await owner.getAddress();
 
     // deploy UP account
-    const [universalProfile, universalReceiverDelegateUAPInitial] = await setupProfileWithKeyManagerWithURD(owner);
+    const [universalProfile, _, universalReceiverDelegateUAPInitial] = await setupProfileWithKeyManagerWithURD(owner);
 
     universalReceiverDelegateUAP = universalReceiverDelegateUAPInitial;
     universalReceiverDelegateUAPAddress = await universalReceiverDelegateUAP.getAddress();
@@ -57,6 +63,10 @@ describe("UniversalReceiverDelegateUAP", function () {
     mockAssistant = (await MockAssistantFactory.deploy()) as MockAssistant;
     mockAssistantAddress = await mockAssistant.getAddress();
 
+    const MockBadAssistantFactory = await ethers.getContractFactory("MockBadAssistant");
+    mockBadAssistant = (await MockBadAssistantFactory.deploy()) as MockBadAssistant;
+    mockBadAssistantAddress = await mockBadAssistant.getAddress();
+
     const ForwarderAssistantFactory = await ethers.getContractFactory("ForwarderAssistant");
     forwarderAssistant = (await ForwarderAssistantFactory.deploy()) as ForwarderAssistant;
     await forwarderAssistant.waitForDeployment();
@@ -72,12 +82,26 @@ describe("UniversalReceiverDelegateUAP", function () {
     await mockLSP8.waitForDeployment();
     mockLSP8Address = await mockLSP8.getAddress();
     console.log("MockLSP8IdentifiableDigitalAsset deployed to: ", mockLSP8Address);
+
+    const MockTrueScreenerAssistantFactory = await ethers.getContractFactory("MockTrueScreenerAssistant");
+    mockTrueScreenerAssistant = (await MockTrueScreenerAssistantFactory.deploy()) as MockTrueScreenerAssistant;
+    mockTrueScreenerAssistantAddress = await mockTrueScreenerAssistant.getAddress();
+
+    const MockFalseScreenerAssistantFactory = await ethers.getContractFactory("MockFalseScreenerAssistant");
+    mockFalseScreenerAssistant = (await MockFalseScreenerAssistantFactory.deploy()) as MockFalseScreenerAssistant;
+    mockFalseScreenerAssistantAddress = await mockFalseScreenerAssistant.getAddress();
+
+    const MockBadScreenerAssistantFactory = await ethers.getContractFactory("MockBadScreenerAssistant");
+    mockBadScreenerAssistant = (await MockBadScreenerAssistantFactory.deploy()) as MockBadScreenerAssistant;
+    mockBadScreenerAssistantAddress = await mockBadScreenerAssistant.getAddress();
+
     console.log("mockUPAddress: ", mockUPAddress);
 
     typeMappingKey = generateMappingKey('UAPTypeConfig', LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification);
     nonStandardTypeMappingKey = generateMappingKey('UAPTypeConfig', LSP1_TYPE_IDS.LSP0ValueReceived);
 
   });
+  describe("universalReceiverDelegate", function () {
 
   it("should proceed with super function if no type configuration is found", async function () {
     // Mint an LSP7 token to owner
@@ -112,18 +136,98 @@ describe("UniversalReceiverDelegateUAP", function () {
     const encodedData = customEncodeAddresses([mockAssistantAddress]);
 
     // Mock getData to return the encoded addresses
-    await mockUP.setData(nonStandardTypeMappingKey, encodedData);
+    await mockUP.setData(typeMappingKey, encodedData);
 
     const amount = 1;
     await mockLSP7.connect(LSP7Holder).mint(LSP7Holder, amount);
     await expect(
-      await mockLSP7.connect(LSP7Holder).transfer(await LSP7Holder.getAddress(), mockUPAddress, amount, true, "0x")
+      await mockLSP7.connect(LSP7Holder)
+        .transfer(await LSP7Holder.getAddress(), mockUPAddress, amount, true, "0x")
     )
-      .to.emit(universalReceiverDelegateUAP, "AssistantFound")
+      .to.emit(universalReceiverDelegateUAP, "AssistantInvoked")
+      .withArgs(mockAssistantAddress)
+      .to.emit(universalReceiverDelegateUAP, "AssistantInvoked")
       .withArgs(mockAssistantAddress);
   });
 
-  describe("universalReceiverDelegate", function () {
+    it("should invoke executive assistants after evaluating true screener assistant", async function () {
+      const encodedAssistantsData = customEncodeAddresses([mockAssistantAddress]);
+      await mockUP.setData(typeMappingKey, encodedAssistantsData);
+
+      // encoded executive assistant screener
+      const assistantScreenerKey = generateMappingKey('UAPExecutiveScreeners', mockAssistantAddress);
+      const encodedScreenersData = customEncodeAddresses([mockTrueScreenerAssistantAddress]);
+      await mockUP.setData(assistantScreenerKey, encodedScreenersData);
+
+      const amount = 1;
+      await mockLSP7.connect(LSP7Holder).mint(LSP7Holder, amount);
+      await expect(
+        await mockLSP7.connect(LSP7Holder)
+          .transfer(await LSP7Holder.getAddress(), mockUPAddress, amount, true, "0x")
+      )
+        .to.emit(universalReceiverDelegateUAP, "AssistantInvoked")
+        .withArgs(mockAssistantAddress);
+    });
+
+    it("should not invoke executive assistants after evaluating false screener assistant", async function () {
+      const encodedAssistantsData = customEncodeAddresses([mockAssistantAddress]);
+      await mockUP.setData(typeMappingKey, encodedAssistantsData);
+      // encoded executive assistant screener
+      const assistantScreenerKey = generateMappingKey('UAPExecutiveScreeners', mockAssistantAddress);
+      const encodedScreenersData = customEncodeAddresses([mockFalseScreenerAssistantAddress]);
+      await mockUP.setData(assistantScreenerKey, encodedScreenersData);
+
+      const amount = 1;
+      await mockLSP7.connect(LSP7Holder).mint(LSP7Holder, amount);
+      await expect(
+        await mockLSP7.connect(LSP7Holder)
+          .transfer(await LSP7Holder.getAddress(), mockUPAddress, amount, true, "0x")
+      )
+        .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
+    });
+
+    it("should handle screener delegatecall failures through revert", async function () {
+      const encodedAssistantsData = customEncodeAddresses([mockAssistantAddress]);
+      await mockUP.setData(typeMappingKey, encodedAssistantsData);
+      // encoded executive assistant screener
+      const assistantScreenerKey = generateMappingKey('UAPExecutiveScreeners', mockAssistantAddress);
+      const encodedScreenersData = customEncodeAddresses([mockBadScreenerAssistantAddress]);
+      await mockUP.setData(assistantScreenerKey, encodedScreenersData);
+
+      const amount = 1;
+      await mockLSP7.connect(LSP7Holder).mint(LSP7Holder, amount);
+      await expect(
+        mockLSP7.connect(LSP7Holder)
+          .transfer(await LSP7Holder.getAddress(), mockUPAddress, amount, true, "0x")
+      ).to.be.revertedWith("UniversalReceiverDelegateUAP: Screener evaluation failed");
+    });
+
+    it("should handle executive delegatecall failures through revert", async function () {
+      const encodedAssistantsData = customEncodeAddresses([mockBadAssistantAddress]);
+      await mockUP.setData(typeMappingKey, encodedAssistantsData);
+      // encoded executive assistant screener
+      const assistantScreenerKey = generateMappingKey('UAPExecutiveScreeners', mockAssistantAddress);
+      const encodedScreenersData = customEncodeAddresses([mockTrueScreenerAssistantAddress]);
+      await mockUP.setData(assistantScreenerKey, encodedScreenersData);
+
+      const amount = 1;
+      await mockLSP7.connect(LSP7Holder).mint(LSP7Holder, amount);
+      await expect(
+        mockLSP7.connect(LSP7Holder)
+          .transfer(await LSP7Holder.getAddress(), mockUPAddress, amount, true, "0x")
+      ).to.be.revertedWith("UniversalReceiverDelegateUAP: Assistant execution failed");
+    });
+
+    it("should correctly decode addresses in customDecodeAddresses function", async function () {
+      const addresses = [await owner.getAddress(), await nonOwner.getAddress()];
+      const encodedData = customEncodeAddresses(addresses);
+      const decodedAddresses = await universalReceiverDelegateUAP.customDecodeAddresses(
+        encodedData
+      );
+
+      expect(decodedAddresses[0]).to.equal(addresses[0]);
+      expect(decodedAddresses[1]).to.equal(addresses[1]);
+    });
 
     it("should forward LSP8 tokens to the target address using the ForwarderAssistant", async function () {
       // Generate and set the type config data

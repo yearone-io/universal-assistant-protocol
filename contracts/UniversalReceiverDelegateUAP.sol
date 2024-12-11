@@ -49,11 +49,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         override(LSP1UniversalReceiverDelegateUP)
         returns (bytes memory)
     {
-        // Check that the caller is an LSP0 (Universal Profile)
-        require(
-            ERC165Checker.supportsInterface(msg.sender, _INTERFACEID_LSP0),
-            "UniversalReceiverDelegateUAP: Caller is not an LSP0"
-        );
+
         // Generate the key for UAPTypeConfig
         bytes32 typeConfigKey = LSP2Utils.generateMappingKey(
             bytes10(keccak256("UAPTypeConfig")),
@@ -133,9 +129,6 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                     "UniversalReceiverDelegateUAP: Untrusted executive assistant"
                 );
 
-                // Call the executive assistant
-                // msg.sender
-                /*
                 (bool success, bytes memory returnData) = executiveAssistant.delegatecall(
                     abi.encodeWithSelector(
                         IExecutiveAssistant.execute.selector,
@@ -146,30 +139,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                         data
                     )
                 );
-                */
-                (address txSource, address from, address to, bytes32 tokenId, bytes memory txData) = abi.decode(
-                    data,
-                    (address, address, address, bytes32, bytes)
-                );
-                // Prepare the transfer call
-                bytes memory encodedLSP8Tx = abi.encodeCall(
-                    ILSP8IdentifiableDigitalAsset.transfer,
-                    (msg.sender, address(0), tokenId, true, data)
-                );
-                console.log("ForwarderAssistant: encodedLSP8Tx");
-                // Execute the transfer via the UP's ERC725X execute function
-                console.logAddress(msg.sender);
-                IERC725X(msg.sender).execute(0, notifier, 0, encodedLSP8Tx);
-                console.log("ForwarderAssistant: IERC725X(msg.sender).execute done");
-                /*
-                console.logBytes(returnData);
-                console.logString(string(returnData));
-                console.logString(_decodeRevertReason(returnData));
-
                 require(success, "UniversalReceiverDelegateUAP: Assistant execution failed");
-                (value, data) = abi.decode(returnData, (uint256, bytes));
-                */
-                
                 emit AssistantInvoked(executiveAssistant);
             }
         }

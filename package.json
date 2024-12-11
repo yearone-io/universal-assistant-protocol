@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "npx hardhat compile",
-    "test": "npx hardhat test",
+    "test": "REPORT_GAS=true npx hardhat test",
     "typechain": "typechain --target ethers-v6 --out-dir typechain-types ./node_modules/@lukso/lsp-smart-contracts/artifacts/*.json"
   },
   "dependencies": {

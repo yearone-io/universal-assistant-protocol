@@ -16,6 +16,11 @@ import {console} from "hardhat/console.sol";
 import "./IExecutiveAssistant.sol";
 import "./IScreenerAssistant.sol";
 
+// temporary imports (delete me later)
+import { ILSP8IdentifiableDigitalAsset } from '@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/ILSP8IdentifiableDigitalAsset.sol';
+import { IERC725X } from '@erc725/smart-contracts/contracts/interfaces/IERC725X.sol';
+
+
 /**
  * @title UniversalReceiverDelegateUAP
  * @dev Universal Receiver Delegate for the Universal Assistant Protocol.
@@ -44,11 +49,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         override(LSP1UniversalReceiverDelegateUP)
         returns (bytes memory)
     {
-        // Check that the caller is an LSP0 (Universal Profile)
-        require(
-            ERC165Checker.supportsInterface(msg.sender, _INTERFACEID_LSP0),
-            "UniversalReceiverDelegateUAP: Caller is not an LSP0"
-        );
+
         // Generate the key for UAPTypeConfig
         bytes32 typeConfigKey = LSP2Utils.generateMappingKey(
             bytes10(keccak256("UAPTypeConfig")),
@@ -128,8 +129,6 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                     "UniversalReceiverDelegateUAP: Untrusted executive assistant"
                 );
 
-                // Call the executive assistant
-                
                 (bool success, bytes memory returnData) = executiveAssistant.delegatecall(
                     abi.encodeWithSelector(
                         IExecutiveAssistant.execute.selector,
@@ -140,10 +139,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                         data
                     )
                 );
-
                 require(success, "UniversalReceiverDelegateUAP: Assistant execution failed");
-                (value, data) = abi.decode(returnData, (uint256, bytes));
-                
                 emit AssistantInvoked(executiveAssistant);
             }
         }
@@ -193,5 +189,31 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
     function isTrustedAssistant(address assistant) internal view returns (bool) {
         // todo: a hashlist ?
         return true;
+    }
+
+    function _decodeRevertReason(bytes memory revertData) internal pure returns (string memory) {
+        // If there is no data to decode, return a generic error
+        if (revertData.length < 4) {
+            return "Transaction reverted silently";
+        }
+
+        // Extract the selector, which should be 0x08c379a0 (Error(string))
+        bytes4 selector;
+        assembly {
+            selector := mload(add(revertData, 32))
+        }
+
+        // Check if the selector matches Error(string)
+        if (selector == 0x08c379a0) {
+            // Skip the first 4 bytes (selector), then decode the error message
+            bytes memory errorMessage;
+            assembly {
+                // The error message starts at byte 68: skip selector (4 bytes) + length (32 bytes)
+                errorMessage := add(revertData, 68)
+            }
+            return string(errorMessage);
+        } else {
+            return "Unknown error format";
+        }
     }
 }

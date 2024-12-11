@@ -37,6 +37,7 @@ describe("UniversalReceiverDelegateUAP", function () {
   let forwarderAssistantAddress: string;
   let mockLSP7: MockLSP7DigitalAsset;
   let mockLSP8: MockLSP8IdentifiableDigitalAsset;
+  let mockLSP7Address: string;
   let mockLSP8Address: string;
   let mockUP: any;
   let mockUPAddress: string;
@@ -98,7 +99,6 @@ describe("UniversalReceiverDelegateUAP", function () {
     console.log("mockUPAddress: ", mockUPAddress);
 
     typeMappingKey = generateMappingKey('UAPTypeConfig', LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification);
-    nonStandardTypeMappingKey = generateMappingKey('UAPTypeConfig', LSP1_TYPE_IDS.LSP0ValueReceived);
 
   });
   describe("universalReceiverDelegate", function () {

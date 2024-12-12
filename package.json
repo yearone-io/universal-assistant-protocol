@@ -1,5 +1,9 @@
 {
-  "name": "hashlist-protocol",
+  "name": "@yearone-io/universal-assistant-protocol",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yearone-io/universal-assistant-protocol.git"
+  },
   "version": "0.1.0",
   "private": true,
   "scripts": {

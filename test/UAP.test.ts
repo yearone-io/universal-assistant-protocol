@@ -229,6 +229,35 @@ describe("UniversalReceiverDelegateUAP", function () {
       expect(decodedAddresses[1]).to.equal(addresses[1]);
     });
 
+    it("should forward LSP7 tokens to the target address using the ForwarderAssistant", async function () {
+      // Generate and set the type config data
+      const typeMappingKey = generateMappingKey('UAPTypeConfig', LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification);
+      const encodedAssistantsData = customEncodeAddresses([forwarderAssistantAddress]);
+      await mockUP.setData(typeMappingKey, encodedAssistantsData);
+
+      // Generate and set the executive config data
+      const assistantInstructionsKey = generateMappingKey('UAPExecutiveConfig', forwarderAssistantAddress);
+      const targetAddress = await nonOwner.getAddress();
+      const abi = new ethers.AbiCoder;
+      const encodedInstructions = abi.encode(["address"], [targetAddress]);
+      await mockUP.setData(assistantInstructionsKey, encodedInstructions);
+
+      // Generate and set the URDUAP as the default URD for LSP7 tokens
+      const LSP7URDdataKey = ERC725YDataKeys.LSP1.LSP1UniversalReceiverDelegatePrefix +
+        LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification.slice(2).slice(0, 40);
+      await mockUP.setData(LSP7URDdataKey, universalReceiverDelegateUAPAddress);
+      console.log("URD Address", await mockUP.getData(LSP7URDdataKey));
+
+      // Mint an LSP7 token to owner
+      await mockLSP7.connect(LSP7Holder).mint(LSP7Holder, 1);
+
+      // Transfer the LSP7 token to the LSP0 (UP)
+      await mockLSP7.connect(LSP7Holder).transfer(await LSP7Holder.getAddress(), mockUPAddress, 1, true, "0x");
+
+      // Check that the token has been forwarded to the target address
+      expect(await mockLSP7.balanceOf(targetAddress)).to.equal(1);
+    });
+
     it("should forward LSP8 tokens to the target address using the ForwarderAssistant", async function () {
       // Generate and set the type config data
       const typeMappingKey = generateMappingKey('UAPTypeConfig', LSP1_TYPE_IDS.LSP8Tokens_RecipientNotification);

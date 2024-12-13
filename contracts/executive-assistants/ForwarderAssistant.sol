@@ -20,6 +20,9 @@ import { ERC165Checker } from '@openzeppelin/contracts/utils/introspection/ERC16
 import {console} from "hardhat/console.sol";
 
 contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
+    event LSP7AssetForwarded(address asset, uint256 amount, address destination);
+    event LSP8AssetForwarded(address asset, bytes32 tokenId , address destination);
+
     function supportsInterface(bytes4 interfaceId)
         public
         view
@@ -94,7 +97,6 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
                 return abi.encode(value, data);
             }
         }
-        /*
         if (typeId == _TYPEID_LSP7_TOKENSRECIPIENT) {
             // Decode data to extract the amount
             (address sender, address receiver, address operator, uint256 amount, bytes memory lsp7Data) = abi.decode(
@@ -118,26 +120,16 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
             // Modify the data to set amount to zero
             uint256 modifiedAmount = 0;
             bytes memory modifiedData = abi.encode(sender, receiver, operator, modifiedAmount, lsp7Data);
-
+            emit LSP7AssetForwarded(notifier, amount, targetAddress);
             // Return the modified value and data
             return abi.encode(value, modifiedData);
 
-        } else */if (typeId == _TYPEID_LSP8_TOKENSRECIPIENT) {
+        } else if (typeId == _TYPEID_LSP8_TOKENSRECIPIENT) {
             // Decode data to extract the tokenId
             (address txSource, address from, address to, bytes32 tokenId, bytes memory txData) = abi.decode(
                 data,
                 (address, address, address, bytes32, bytes)
             );
-            console.log("ForwarderAssistant: msg.sender");
-            console.logAddress(msg.sender);
-            console.log("ForwarderAssistant: txSource contract");
-            console.logAddress(txSource);
-            console.log("ForwarderAssistant: original from");
-            console.logAddress(from);
-            console.log("ForwarderAssistant: original to");
-            console.logAddress(to);
-            console.log("ForwarderAssistant: redirected targetAddress");
-            console.logAddress(targetAddress);
 
             // Prepare the transfer call
             bytes memory encodedLSP8Tx = abi.encodeCall(
@@ -151,7 +143,7 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
 
             // Modify the data to set tokenId to zero
             bytes memory modifiedData = abi.encode(txSource, from, to, bytes32(0), txData);
-
+            emit LSP8AssetForwarded(notifier, tokenId, targetAddress);
             // Return the modified value and data
             return abi.encode(value, modifiedData);
 

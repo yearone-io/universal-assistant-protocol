@@ -1,7 +1,7 @@
 import { ethers } from "hardhat";
 import { expect } from "chai";
 import { Signer } from "ethers";
-import { ERC725YDataKeys, LSP1_TYPE_IDS } from "@lukso/lsp-smart-contracts";
+import { LSP1_TYPE_IDS } from "@lukso/lsp-smart-contracts";
 import {
   ForwarderAssistant,
   MockAssistant,
@@ -242,12 +242,6 @@ describe("UniversalReceiverDelegateUAP", function () {
       const encodedInstructions = abi.encode(["address"], [targetAddress]);
       await mockUP.setData(assistantInstructionsKey, encodedInstructions);
 
-      // Generate and set the URDUAP as the default URD for LSP7 tokens
-      const LSP7URDdataKey = ERC725YDataKeys.LSP1.LSP1UniversalReceiverDelegatePrefix +
-        LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification.slice(2).slice(0, 40);
-      await mockUP.setData(LSP7URDdataKey, universalReceiverDelegateUAPAddress);
-      console.log("URD Address", await mockUP.getData(LSP7URDdataKey));
-
       // Mint an LSP7 token to owner
       await mockLSP7.connect(LSP7Holder).mint(LSP7Holder, 1);
 
@@ -270,12 +264,6 @@ describe("UniversalReceiverDelegateUAP", function () {
       const abi = new ethers.AbiCoder;
       const encodedInstructions = abi.encode(["address"], [targetAddress]);
       await mockUP.setData(assistantInstructionsKey, encodedInstructions);
-
-      // Generate and set the URDUAP as the default URD for LSP8 tokens
-      const LSP8URDdataKey = ERC725YDataKeys.LSP1.LSP1UniversalReceiverDelegatePrefix +
-        LSP1_TYPE_IDS.LSP8Tokens_RecipientNotification.slice(2).slice(0, 40);
-      await mockUP.setData(LSP8URDdataKey, universalReceiverDelegateUAPAddress);
-      console.log("URD Address", await mockUP.getData(LSP8URDdataKey));
 
       // Give the URDUAP the necessary permissions
 

@@ -65,38 +65,13 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
 
         // Decode the settingsData to get targetAddress.
         // Assume settingsData is encoded as: abi.encode(address targetAddress)
-        console.log("ForwarderAssistant: settingsData redirect address");
         address targetAddress = abi.decode(settingsData, (address));
-        console.logAddress(targetAddress);
 
         require(
             targetAddress != address(0),
             'ForwarderAssistant: target address not set'
         );
 
-        // Ensure the notifier is a contract and the UP has a balance
-        if (notifier.code.length > 0) {
-            bool hasBalance = false;
-            // Check for LSP7 balance
-            try ILSP7DigitalAsset(notifier).balanceOf(upAddress) returns (uint256 balance) {
-                if (balance > 0) {
-                    hasBalance = true;
-                }
-            } catch {
-                // Not LSP7, try LSP8
-                try ILSP8IdentifiableDigitalAsset(notifier).balanceOf(upAddress) returns (uint256 balance) {
-                    if (balance > 0) {
-                        hasBalance = true;
-                    }
-                } catch {
-                    // Not LSP8, proceed without setting hasBalance
-                }
-            }
-            if (!hasBalance) {
-                // Return the original value and data
-                return abi.encode(value, data);
-            }
-        }
         if (typeId == _TYPEID_LSP7_TOKENSRECIPIENT) {
             // Decode data to extract the amount
             (address sender, address receiver, address operator, uint256 amount, bytes memory lsp7Data) = abi.decode(
@@ -136,7 +111,6 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
                 ILSP8IdentifiableDigitalAsset.transfer,
                 (msg.sender, targetAddress, tokenId, true, data)
             );
-            console.log("ForwarderAssistant: encodedLSP8Tx");
             // Execute the transfer via the UP's ERC725X execute function
             IERC725X(msg.sender).execute(0, notifier, 0, encodedLSP8Tx);
             console.log("ForwarderAssistant: IERC725X(msg.sender).execute done");

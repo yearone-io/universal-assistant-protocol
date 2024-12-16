@@ -101,7 +101,7 @@ describe("UniversalReceiverDelegateUAP", function () {
   });
   describe("universalReceiverDelegate", function () {
 
-  it.only("should proceed with super function if no type configuration is found", async function () {
+  it("should proceed with super function if no type configuration is found", async function () {
     // Mint an LSP7 token to owner
     const amount = 1;
     await mockLSP7.connect(LSP7Holder).mint(LSP7Holder, amount);

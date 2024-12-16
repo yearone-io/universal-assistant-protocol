@@ -1,7 +1,7 @@
 import { ethers } from "hardhat";
 import { expect } from "chai";
 import { Signer } from "ethers";
-import { ERC725YDataKeys, LSP1_TYPE_IDS } from "@lukso/lsp-smart-contracts";
+import { LSP1_TYPE_IDS } from "@lukso/lsp-smart-contracts";
 import {
   ForwarderAssistant,
   MockAssistant,
@@ -37,7 +37,6 @@ describe("UniversalReceiverDelegateUAP", function () {
   let forwarderAssistantAddress: string;
   let mockLSP7: MockLSP7DigitalAsset;
   let mockLSP8: MockLSP8IdentifiableDigitalAsset;
-  let mockLSP7Address: string;
   let mockLSP8Address: string;
   let mockUP: any;
   let mockUPAddress: string;
@@ -76,7 +75,6 @@ describe("UniversalReceiverDelegateUAP", function () {
     const MockLSP7Factory = await ethers.getContractFactory("MockLSP7DigitalAsset");
     mockLSP7 = (await MockLSP7Factory.deploy("Mock LSP7 Token", "MLSP7", await LSP7Holder.getAddress())) as MockLSP7DigitalAsset;
     await mockLSP7.waitForDeployment();
-    mockLSP7Address = await mockLSP7.getAddress();
 
     const MockLSP8Factory = await ethers.getContractFactory("MockLSP8IdentifiableDigitalAsset");
     mockLSP8 = (await MockLSP8Factory.deploy("Mock LSP8 Token", "MLSP8", await LSP8Holder.getAddress())) as MockLSP8IdentifiableDigitalAsset;
@@ -229,6 +227,29 @@ describe("UniversalReceiverDelegateUAP", function () {
       expect(decodedAddresses[1]).to.equal(addresses[1]);
     });
 
+    it("should forward LSP7 tokens to the target address using the ForwarderAssistant", async function () {
+      // Generate and set the type config data
+      const typeMappingKey = generateMappingKey('UAPTypeConfig', LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification);
+      const encodedAssistantsData = customEncodeAddresses([forwarderAssistantAddress]);
+      await mockUP.setData(typeMappingKey, encodedAssistantsData);
+
+      // Generate and set the executive config data
+      const assistantInstructionsKey = generateMappingKey('UAPExecutiveConfig', forwarderAssistantAddress);
+      const targetAddress = await nonOwner.getAddress();
+      const abi = new ethers.AbiCoder;
+      const encodedInstructions = abi.encode(["address"], [targetAddress]);
+      await mockUP.setData(assistantInstructionsKey, encodedInstructions);
+
+      // Mint an LSP7 token to owner
+      await mockLSP7.connect(LSP7Holder).mint(LSP7Holder, 1);
+
+      // Transfer the LSP7 token to the LSP0 (UP)
+      await mockLSP7.connect(LSP7Holder).transfer(await LSP7Holder.getAddress(), mockUPAddress, 1, true, "0x");
+
+      // Check that the token has been forwarded to the target address
+      expect(await mockLSP7.balanceOf(targetAddress)).to.equal(1);
+    });
+
     it("should forward LSP8 tokens to the target address using the ForwarderAssistant", async function () {
       // Generate and set the type config data
       const typeMappingKey = generateMappingKey('UAPTypeConfig', LSP1_TYPE_IDS.LSP8Tokens_RecipientNotification);
@@ -241,12 +262,6 @@ describe("UniversalReceiverDelegateUAP", function () {
       const abi = new ethers.AbiCoder;
       const encodedInstructions = abi.encode(["address"], [targetAddress]);
       await mockUP.setData(assistantInstructionsKey, encodedInstructions);
-
-      // Generate and set the URDUAP as the default URD for LSP8 tokens
-      const LSP8URDdataKey = ERC725YDataKeys.LSP1.LSP1UniversalReceiverDelegatePrefix +
-        LSP1_TYPE_IDS.LSP8Tokens_RecipientNotification.slice(2).slice(0, 40);
-      await mockUP.setData(LSP8URDdataKey, universalReceiverDelegateUAPAddress);
-      console.log("URD Address", await mockUP.getData(LSP8URDdataKey));
 
       // Give the URDUAP the necessary permissions
 

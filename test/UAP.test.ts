@@ -305,8 +305,9 @@ describe("UniversalReceiverDelegateUAP", function () {
             true,
             "0x",
           ),
-      ).to.be.revertedWith(
-        "Screener evaluation failed",
+      ).to.be.revertedWithCustomError(
+        universalReceiverDelegateUAP,
+        "ScreenerEvaluationFailed",
       );
     });
 
@@ -337,8 +338,9 @@ describe("UniversalReceiverDelegateUAP", function () {
             true,
             "0x",
           ),
-      ).to.be.revertedWith(
-        "Assistant execution failed",
+      ).to.be.revertedWithCustomError(
+        universalReceiverDelegateUAP,
+        "AssistantExecutionFailed",
       );
     });
 

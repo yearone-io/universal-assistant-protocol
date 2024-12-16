@@ -10,7 +10,6 @@ import { IERC725Y } from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.
 import { ERC165Checker } from '@openzeppelin/contracts/utils/introspection/ERC165Checker.sol';
 // Constants
 import { _INTERFACEID_LSP0 } from '@lukso/lsp-smart-contracts/contracts/LSP0ERC725Account/LSP0Constants.sol';
-import {console} from "hardhat/console.sol";
 
 // Additional Interfaces
 import "./IExecutiveAssistant.sol";

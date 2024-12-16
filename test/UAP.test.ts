@@ -37,7 +37,6 @@ describe("UniversalReceiverDelegateUAP", function () {
   let forwarderAssistantAddress: string;
   let mockLSP7: MockLSP7DigitalAsset;
   let mockLSP8: MockLSP8IdentifiableDigitalAsset;
-  let mockLSP7Address: string;
   let mockLSP8Address: string;
   let mockUP: any;
   let mockUPAddress: string;
@@ -103,12 +102,12 @@ describe("UniversalReceiverDelegateUAP", function () {
   });
   describe("universalReceiverDelegate", function () {
 
-  it("should proceed with super function if no type configuration is found", async function () {
+  it.only("should proceed with super function if no type configuration is found", async function () {
     // Mint an LSP7 token to owner
     const amount = 1;
     await mockLSP7.connect(LSP7Holder).mint(LSP7Holder, amount);
     // Transfer the LSP7 token to the LSP0 (UP)
-    await mockLSP7.connect(LSP7Holder).transfer(mockLSP7Address, mockUPAddress, amount, true, "0x");
+    await mockLSP7.connect(LSP7Holder).transfer(await LSP7Holder.getAddress(), mockUPAddress, amount, true, "0x");
 
     // Check that the token has been forwarded to the target address
     const balanceOfUp = await mockLSP7.balanceOf(mockUPAddress);

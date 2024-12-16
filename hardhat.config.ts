@@ -2,6 +2,7 @@ import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-verify";
 import "@nomicfoundation/hardhat-toolbox";
 import * as dotenv from "dotenv";
+import { getNetworkAccountsConfig } from "./constants/network";
 require("hardhat-contract-sizer");
 
 // load env vars
@@ -17,24 +18,23 @@ const config: HardhatUserConfig = {
       },
       viaIR: true,
     },
-  },
-  contractSizer: {
-    alphaSort: true,
-    runOnCompile: true,
-    disambiguatePaths: false,
-  },
-  // public LUKSO Testnet
+  },  contractSizer: {
+      alphaSort: true,
+      runOnCompile: true,
+      disambiguatePaths: false,
+    },
+
   networks: {
-    // luksoTestnet: {
-    //   url: "https://lukso-testnet.rpc.thirdweb.com",
-    //   chainId: 4201,
-    //   accounts: [ getNetworkAccountsConfig("luksoTestnet").EOA_PRIVATE_KEY as string] // your private key here
-    // },
-    // luksoMain: {
-    //   url: "https://lukso.rpc.thirdweb.com",
-    //   chainId: 42,
-    //   accounts: [getNetworkAccountsConfig("luksoMain").EOA_PRIVATE_KEY as string] // your private key here
-    // },
+     luksoTestnet: {
+       url: "https://lukso-testnet.rpc.thirdweb.com",
+       chainId: 4201,
+        accounts: getNetworkAccountsConfig("luksoTestnet").EOA_PRIVATE_KEY ? [ getNetworkAccountsConfig("luksoTestnet").EOA_PRIVATE_KEY as string] : []
+     },
+     luksoMain: {
+       url: "https://lukso.rpc.thirdweb.com",
+       chainId: 42,
+        accounts: getNetworkAccountsConfig("luksoMain").EOA_PRIVATE_KEY ? [ getNetworkAccountsConfig("luksoMain").EOA_PRIVATE_KEY as string] : []
+     },
   },
   sourcify: {
     enabled: false,

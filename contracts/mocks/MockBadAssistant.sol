@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import IExecutiveAssistant from "../IExecutiveAssistant.sol";
+import { IExecutiveAssistant } from "../IExecutiveAssistant.sol";
 
 
 contract MockBadAssistant is IExecutiveAssistant {
@@ -17,6 +17,6 @@ contract MockBadAssistant is IExecutiveAssistant {
         returns (bytes memory)
     {
         require(false, "always false");
-        return false;
+        return "";
     }
 }

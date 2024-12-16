@@ -78,7 +78,7 @@ contract CuratedListFilter is IScreenerAssistant, ERC165 {
         ILSP8IdentifiableDigitalAsset curatedList = ILSP8IdentifiableDigitalAsset(curatedListAddress);
         
         // Check if the token exists (i.e., is minted)
-        try curatedList.tokenOwnerOf(tokenId) returns (address owner) {
+        try curatedList.tokenOwnerOf(tokenId) returns (address /*owner */) {
             // If the token exists, return true
             return true;
         } catch {

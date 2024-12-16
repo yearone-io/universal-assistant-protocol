@@ -8,8 +8,8 @@ import { LSP1UniversalReceiverDelegateUP } from "@lukso/lsp-smart-contracts/cont
 import { IERC725Y } from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
 
 // Additional Interfaces
-import IExecutiveAssistant from "./IExecutiveAssistant.sol";
-import IScreenerAssistant from "./IScreenerAssistant.sol";
+import { IExecutiveAssistant } from "./IExecutiveAssistant.sol";
+import { IScreenerAssistant } from "./IScreenerAssistant.sol";
 
 /**
  * @title UniversalReceiverDelegateUAP
@@ -90,7 +90,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                 );
 
                 // Call the screener assistant
-                (bool success) = screenerAssistant.delegatecall(
+                (bool success, bytes memory returnData) = screenerAssistant.delegatecall(
                     abi.encodeWithSelector(
                         IScreenerAssistant.evaluate.selector,
                         screenerAssistant,
@@ -119,7 +119,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                     "Untrusted executive assistant"
                 );
 
-                (bool success) = executiveAssistant.delegatecall(
+                (bool success, bytes memory returnData) = executiveAssistant.delegatecall(
                     abi.encodeWithSelector(
                         IExecutiveAssistant.execute.selector,
                         executiveAssistant,
@@ -173,7 +173,6 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
 
     /**
      * @dev Checks if an assistant contract is trusted.
-     * @param assistant The address of the assistant contract.
      * @return True if the assistant is trusted, false otherwise.
      */
     function isTrustedAssistant(address /*assistant */) internal view returns (bool) {

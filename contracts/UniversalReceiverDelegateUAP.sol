@@ -119,7 +119,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                     "Untrusted executive assistant"
                 );
 
-                (bool success, bytes memory returnData) = executiveAssistant.delegatecall(
+                (bool success,) = executiveAssistant.delegatecall(
                     abi.encodeWithSelector(
                         IExecutiveAssistant.execute.selector,
                         executiveAssistant,

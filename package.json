@@ -4,11 +4,13 @@
     "type": "git",
     "url": "https://github.com/yearone-io/universal-assistant-protocol.git"
   },
-  "version": "0.1.0",
+  "version": "0.2.0",
   "scripts": {
-    "build": "npx hardhat clean && npx hardhat compile",
-    "test": "REPORT_GAS=true npx hardhat compile && npx hardhat test",
+    "build": "npx hardhat compile",
+    "test": "REPORT_GAS=true npm run build && npm run typechain && npx hardhat test",
+    "coverage": "npx hardhat coverage",
     "typechain": "typechain --target ethers-v6 --out-dir typechain-types ./node_modules/@lukso/lsp-smart-contracts/artifacts/*.json",
+    "postinstall": "npm run typechain",
     "lint": "solhint 'contracts/**/*.sol'",
     "lint:fix": "solhint --fix 'contracts/**/*.sol'"
   },

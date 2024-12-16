@@ -8,7 +8,7 @@ const { UP_ADDR_CONTROLLED_BY_EOA } = getNetworkAccountsConfig(network as string
 async function main() {
   const deployer = UP_ADDR_CONTROLLED_BY_EOA;
   console.log("Deploying contracts with the account:", deployer);
-  const AssistantContract = await ethers.getContractFactory('TokenForwarder', {});
+  const AssistantContract = await ethers.getContractFactory('ForwarderAssistant', {});
   const assistantContract = await AssistantContract.deploy();
   // wait until the contract is mined
   await assistantContract.waitForDeployment();
@@ -22,7 +22,7 @@ async function main() {
       address: assistantContract.target,
       network,
       constructorArguments: [],
-      contract: "contracts/executive-assistants/TokenForwarder.sol:TokenForwarder"
+      contract: "contracts/executive-assistants/ForwarderAssistant.sol:ForwarderAssistant"
     });
     console.log("Contract verified");
 

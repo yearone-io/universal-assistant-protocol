@@ -108,7 +108,7 @@ describe("UniversalReceiverDelegateUAP", function () {
     const amount = 1;
     await mockLSP7.connect(LSP7Holder).mint(LSP7Holder, amount);
     // Transfer the LSP7 token to the LSP0 (UP)
-    await mockLSP7.connect(LSP7Holder).transfer(await LSP7Holder.getAddress(), mockUPAddress, amount, true, "0x");
+    await mockLSP7.connect(LSP7Holder).transfer(mockLSP7Address, mockUPAddress, amount, true, "0x");
 
     // Check that the token has been forwarded to the target address
     const balanceOfUp = await mockLSP7.balanceOf(mockUPAddress);

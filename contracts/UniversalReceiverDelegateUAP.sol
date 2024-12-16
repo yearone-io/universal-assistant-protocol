@@ -2,23 +2,14 @@
 pragma solidity ^0.8.24;
 
 // Libraries
-import { LSP2Utils } from '@lukso/lsp-smart-contracts/contracts/LSP2ERC725YJSONSchema/LSP2Utils.sol';
+import { LSP2Utils } from "@lukso/lsp-smart-contracts/contracts/LSP2ERC725YJSONSchema/LSP2Utils.sol";
 // Interfaces
-import { LSP1UniversalReceiverDelegateUP } from '@lukso/lsp-smart-contracts/contracts/LSP1UniversalReceiver/LSP1UniversalReceiverDelegateUP/LSP1UniversalReceiverDelegateUP.sol';
+import { LSP1UniversalReceiverDelegateUP } from "@lukso/lsp-smart-contracts/contracts/LSP1UniversalReceiver/LSP1UniversalReceiverDelegateUP/LSP1UniversalReceiverDelegateUP.sol";
 import { IERC725Y } from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
-// Utils
-import { ERC165Checker } from '@openzeppelin/contracts/utils/introspection/ERC165Checker.sol';
-// Constants
-import { _INTERFACEID_LSP0 } from '@lukso/lsp-smart-contracts/contracts/LSP0ERC725Account/LSP0Constants.sol';
 
 // Additional Interfaces
-import "./IExecutiveAssistant.sol";
-import "./IScreenerAssistant.sol";
-
-// temporary imports (delete me later)
-import { ILSP8IdentifiableDigitalAsset } from '@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/ILSP8IdentifiableDigitalAsset.sol';
-import { IERC725X } from '@erc725/smart-contracts/contracts/interfaces/IERC725X.sol';
-
+import IExecutiveAssistant from "./IExecutiveAssistant.sol";
+import IScreenerAssistant from "./IScreenerAssistant.sol";
 
 /**
  * @title UniversalReceiverDelegateUAP
@@ -95,11 +86,11 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                 // Ensure the screener assistant is trusted
                 require(
                     isTrustedAssistant(screenerAssistant),
-                    "UniversalReceiverDelegateUAP: Untrusted screener assistant"
+                    "Untrusted screener assistant"
                 );
 
                 // Call the screener assistant
-                (bool success, bytes memory returnData) = screenerAssistant.delegatecall(
+                (bool success) = screenerAssistant.delegatecall(
                     abi.encodeWithSelector(
                         IScreenerAssistant.evaluate.selector,
                         screenerAssistant,
@@ -111,7 +102,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                 );
 
                 // Handle failure
-                require(success, "UniversalReceiverDelegateUAP: Screener evaluation failed");
+                require(success, "Screener evaluation failed");
 
                 bool delegateToExecutiveResult = abi.decode(returnData, (bool));
                 delegateToExecutive = delegateToExecutive && delegateToExecutiveResult;
@@ -125,10 +116,10 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                 // Ensure the executive assistant is trusted
                 require(
                     isTrustedAssistant(executiveAssistant),
-                    "UniversalReceiverDelegateUAP: Untrusted executive assistant"
+                    "Untrusted executive assistant"
                 );
 
-                (bool success, bytes memory returnData) = executiveAssistant.delegatecall(
+                (bool success) = executiveAssistant.delegatecall(
                     abi.encodeWithSelector(
                         IExecutiveAssistant.execute.selector,
                         executiveAssistant,
@@ -138,7 +129,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                         data
                     )
                 );
-                require(success, "UniversalReceiverDelegateUAP: Assistant execution failed");
+                require(success, "Assistant execution failed");
                 emit AssistantInvoked(executiveAssistant);
             }
         }
@@ -185,7 +176,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
      * @param assistant The address of the assistant contract.
      * @return True if the assistant is trusted, false otherwise.
      */
-    function isTrustedAssistant(address assistant) internal view returns (bool) {
+    function isTrustedAssistant(address /*assistant */) internal view returns (bool) {
         // todo: a hashlist ?
         return true;
     }

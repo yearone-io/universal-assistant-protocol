@@ -18,6 +18,7 @@ import { ERC165 } from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
     event LSP7AssetForwarded(address asset, uint256 amount, address destination);
     event LSP8AssetForwarded(address asset, bytes32 tokenId , address destination);
+    error TargetAddressNotSet();
 
     function supportsInterface(bytes4 interfaceId)
         public
@@ -63,10 +64,9 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
         // Assume settingsData is encoded as: abi.encode(address targetAddress)
         address targetAddress = abi.decode(settingsData, (address));
 
-        require(
-            targetAddress != address(0),
-            "Target address not set"
-        );
+        if (targetAddress == address(0)) {
+            revert TargetAddressNotSet();
+        }
 
         if (typeId == _TYPEID_LSP7_TOKENSRECIPIENT) {
             // Decode data to extract the amount

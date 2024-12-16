@@ -3,11 +3,11 @@ pragma solidity ^0.8.24;
 
 // Import interfaces and contracts
 import { IScreenerAssistant } from "../IScreenerAssistant.sol";
-import { IERC725Y } from '@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol';
+import { IERC725Y } from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
 import { ILSP8IdentifiableDigitalAsset } from "@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/ILSP8IdentifiableDigitalAsset.sol";
 
 // Utils
-import { ERC165 } from '@openzeppelin/contracts/utils/introspection/ERC165.sol';
+import { ERC165 } from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 contract CuratedListFilter is IScreenerAssistant, ERC165 {
     function supportsInterface(bytes4 interfaceId)
@@ -78,7 +78,7 @@ contract CuratedListFilter is IScreenerAssistant, ERC165 {
         ILSP8IdentifiableDigitalAsset curatedList = ILSP8IdentifiableDigitalAsset(curatedListAddress);
         
         // Check if the token exists (i.e., is minted)
-        try curatedList.tokenOwnerOf(tokenId) returns (address owner) {
+        try curatedList.tokenOwnerOf(tokenId) returns (address /*owner */) {
             // If the token exists, return true
             return true;
         } catch {

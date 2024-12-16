@@ -7,8 +7,10 @@
   "version": "0.1.0",
   "scripts": {
     "build": "npx hardhat clean && npx hardhat compile",
-    "test": "REPORT_GAS=true npx hardhat test",
-    "typechain": "typechain --target ethers-v6 --out-dir typechain-types ./node_modules/@lukso/lsp-smart-contracts/artifacts/*.json"
+    "test": "REPORT_GAS=true npx hardhat compile && npx hardhat test",
+    "typechain": "typechain --target ethers-v6 --out-dir typechain-types ./node_modules/@lukso/lsp-smart-contracts/artifacts/*.json",
+    "lint": "solhint 'contracts/**/*.sol'",
+    "lint:fix": "solhint --fix 'contracts/**/*.sol'"
   },
   "dependencies": {
     "@erc725/erc725.js": "^0.22.0",
@@ -21,6 +23,7 @@
     "dotenv": "^16.3.1",
     "hardhat": "^2.22.6",
     "hardhat-contract-sizer": "^2.10.0",
-    "prettier": "^3.1.0"
+    "prettier": "^3.1.0",
+    "solhint": "^5.0.3"
   }
 }

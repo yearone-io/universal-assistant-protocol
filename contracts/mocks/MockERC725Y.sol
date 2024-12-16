@@ -24,7 +24,7 @@ contract MockERC725Y is IERC725Y {
     }
 
     function setDataBatch(bytes32[] memory keys, bytes[] memory values) external payable override(IERC725Y) {
-        require(keys.length == values.length, "Keys and values array length mismatch");
+        require(keys.length == values.length, "Keys/values array mismatch");
         for (uint256 i = 0; i < keys.length; i++) {
             store[keys[i]] = values[i];
             emit IERC725Y.DataChanged(keys[i], values[i]);

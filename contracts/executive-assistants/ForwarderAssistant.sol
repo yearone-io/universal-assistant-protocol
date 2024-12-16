@@ -1,25 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.24;
 
 // Import interfaces and contracts
 import { IExecutiveAssistant } from "../IExecutiveAssistant.sol";
-import { IERC725Y } from '@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol';
-import { IERC725X } from '@erc725/smart-contracts/contracts/interfaces/IERC725X.sol';
-import { ILSP7DigitalAsset } from '@lukso/lsp-smart-contracts/contracts/LSP7DigitalAsset/ILSP7DigitalAsset.sol';
-import { ILSP8IdentifiableDigitalAsset } from '@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/ILSP8IdentifiableDigitalAsset.sol';
+import { IERC725Y } from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
+import { IERC725X } from "@erc725/smart-contracts/contracts/interfaces/IERC725X.sol";
+import { ILSP7DigitalAsset } from "@lukso/lsp-smart-contracts/contracts/LSP7DigitalAsset/ILSP7DigitalAsset.sol";
+import { ILSP8IdentifiableDigitalAsset } from "@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/ILSP8IdentifiableDigitalAsset.sol";
 
 // Constants
-import { _INTERFACEID_LSP9 } from '@lukso/lsp-smart-contracts/contracts/LSP9Vault/LSP9Constants.sol';
-import { _TYPEID_LSP7_TOKENSRECIPIENT } from '@lukso/lsp-smart-contracts/contracts/LSP7DigitalAsset/LSP7Constants.sol';
-import { _TYPEID_LSP8_TOKENSRECIPIENT } from '@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/LSP8Constants.sol';
+import { _TYPEID_LSP7_TOKENSRECIPIENT } from "@lukso/lsp-smart-contracts/contracts/LSP7DigitalAsset/LSP7Constants.sol";
+import { _TYPEID_LSP8_TOKENSRECIPIENT } from "@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/LSP8Constants.sol";
 
 // Utils
-import { ERC165 } from '@openzeppelin/contracts/utils/introspection/ERC165.sol';
-import { ERC165Checker } from '@openzeppelin/contracts/utils/introspection/ERC165Checker.sol';
+import { ERC165 } from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
     event LSP7AssetForwarded(address asset, uint256 amount, address destination);
     event LSP8AssetForwarded(address asset, bytes32 tokenId , address destination);
+    error TargetAddressNotSet();
 
     function supportsInterface(bytes4 interfaceId)
         public
@@ -65,10 +64,9 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
         // Assume settingsData is encoded as: abi.encode(address targetAddress)
         address targetAddress = abi.decode(settingsData, (address));
 
-        require(
-            targetAddress != address(0),
-            'ForwarderAssistant: target address not set'
-        );
+        if (targetAddress == address(0)) {
+            revert TargetAddressNotSet();
+        }
 
         if (typeId == _TYPEID_LSP7_TOKENSRECIPIENT) {
             // Decode data to extract the amount

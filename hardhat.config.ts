@@ -2,7 +2,6 @@ import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-verify";
 import "@nomicfoundation/hardhat-toolbox";
 import * as dotenv from 'dotenv';
-import './tasks/deployContracts';
 require('hardhat-contract-sizer');
 
 // load env vars

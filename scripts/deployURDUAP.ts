@@ -1,9 +1,11 @@
-import hre, { ethers } from 'hardhat';
-import { getNetworkAccountsConfig } from '../constants/network';
+import hre, { ethers } from "hardhat";
+import { getNetworkAccountsConfig } from "../constants/network";
 
 const network = hre.network.name;
-console.log('network: ', network);
-const { UP_ADDR_CONTROLLED_BY_EOA } = getNetworkAccountsConfig(network as string);
+console.log("network: ", network);
+const { UP_ADDR_CONTROLLED_BY_EOA } = getNetworkAccountsConfig(
+  network as string,
+);
 
 async function main() {
   /*
@@ -27,39 +29,42 @@ async function main() {
   */
   const deployer = UP_ADDR_CONTROLLED_BY_EOA;
   console.log("Deploying contracts with the account:", deployer);
-  const UniversalReceiverDelegateUAP = await ethers.getContractFactory('UniversalReceiverDelegateUAP', {
-    /*
+  const UniversalReceiverDelegateUAP = await ethers.getContractFactory(
+    "UniversalReceiverDelegateUAP",
+    {
+      /*
     libraries: {
       LSP2Utils: LSP2UtilsLibrary.target,
     },
     */
-  });
-  const universalReceiverDelegateUAP = await UniversalReceiverDelegateUAP.deploy();
+    },
+  );
+  const universalReceiverDelegateUAP =
+    await UniversalReceiverDelegateUAP.deploy();
   // wait until the contract is mined
   await universalReceiverDelegateUAP.waitForDeployment();
 
   // print contract address
   const address = await universalReceiverDelegateUAP.getAddress();
-  console.log('✅ UniversalReceiverDelegateUAP deployed to:', address);
+  console.log("✅ UniversalReceiverDelegateUAP deployed to:", address);
 
   try {
     await hre.run("verify:verify", {
       address: universalReceiverDelegateUAP.target,
       network,
       constructorArguments: [],
-      contract: "contracts/UniversalReceiverDelegateUAP.sol:UniversalReceiverDelegateUAP"
+      contract:
+        "contracts/UniversalReceiverDelegateUAP.sol:UniversalReceiverDelegateUAP",
     });
     console.log("Contract verified");
-
   } catch (error) {
     console.error("Contract verification failed:", error);
   }
 }
-  
-  main()
-    .then(() => process.exit(0))
-    .catch((error) => {
-      console.error(error);
-      process.exit(1);
-    });
-  
+
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });

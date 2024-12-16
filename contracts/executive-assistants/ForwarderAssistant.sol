@@ -17,8 +17,6 @@ import { _TYPEID_LSP8_TOKENSRECIPIENT } from '@lukso/lsp-smart-contracts/contrac
 import { ERC165 } from '@openzeppelin/contracts/utils/introspection/ERC165.sol';
 import { ERC165Checker } from '@openzeppelin/contracts/utils/introspection/ERC165Checker.sol';
 
-import {console} from "hardhat/console.sol";
-
 contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
     event LSP7AssetForwarded(address asset, uint256 amount, address destination);
     event LSP8AssetForwarded(address asset, bytes32 tokenId , address destination);
@@ -113,7 +111,6 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
             );
             // Execute the transfer via the UP's ERC725X execute function
             IERC725X(msg.sender).execute(0, notifier, 0, encodedLSP8Tx);
-            console.log("ForwarderAssistant: IERC725X(msg.sender).execute done");
 
             // Modify the data to set tokenId to zero
             bytes memory modifiedData = abi.encode(txSource, from, to, bytes32(0), txData);

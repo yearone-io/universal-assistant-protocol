@@ -75,7 +75,6 @@ describe("UniversalReceiverDelegateUAP", function () {
     const MockLSP7Factory = await ethers.getContractFactory("MockLSP7DigitalAsset");
     mockLSP7 = (await MockLSP7Factory.deploy("Mock LSP7 Token", "MLSP7", await LSP7Holder.getAddress())) as MockLSP7DigitalAsset;
     await mockLSP7.waitForDeployment();
-    mockLSP7Address = await mockLSP7.getAddress();
 
     const MockLSP8Factory = await ethers.getContractFactory("MockLSP8IdentifiableDigitalAsset");
     mockLSP8 = (await MockLSP8Factory.deploy("Mock LSP8 Token", "MLSP8", await LSP8Holder.getAddress())) as MockLSP8IdentifiableDigitalAsset;

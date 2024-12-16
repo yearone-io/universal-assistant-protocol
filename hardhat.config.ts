@@ -27,16 +27,16 @@ const config: HardhatUserConfig = {
     },
     // public LUKSO Testnet
     networks: {
-      luksoTestnet: {
-        url: "https://lukso-testnet.rpc.thirdweb.com",
-        chainId: 4201,
-        accounts: [getNetworkAccountsConfig("luksoTestnet").EOA_PRIVATE_KEY as string] // your private key here
-      },
-      luksoMain: {
-        url: "https://lukso.rpc.thirdweb.com",
-        chainId: 42,
-        accounts: [getNetworkAccountsConfig("luksoMain").EOA_PRIVATE_KEY as string] // your private key here
-      },
+      // luksoTestnet: {
+      //   url: "https://lukso-testnet.rpc.thirdweb.com",
+      //   chainId: 4201,
+      //   accounts: [ getNetworkAccountsConfig("luksoTestnet").EOA_PRIVATE_KEY as string] // your private key here
+      // },
+      // luksoMain: {
+      //   url: "https://lukso.rpc.thirdweb.com",
+      //   chainId: 42,
+      //   accounts: [getNetworkAccountsConfig("luksoMain").EOA_PRIVATE_KEY as string] // your private key here
+      // },
     },
     sourcify: {
       enabled: false,

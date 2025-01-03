@@ -354,3 +354,8 @@ sequenceDiagram
 6. **LSP7 Token Contract:**
    - Initiates transactions to the UP.
    - Triggers the URDuap upon token transfers.
+
+
+# Deployments
+Deploy UAP URD and multiple assistants at once:
+```npx hardhat deployContracts --network luksoTestnet --names "UniversalReceiverDelegateUAP,ForwarderAssistant" --paths "contracts,contracts/executive-assistants"```

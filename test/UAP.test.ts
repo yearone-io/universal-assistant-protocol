@@ -47,7 +47,7 @@ describe("UniversalReceiverDelegateUAP", function () {
 
   beforeEach(async function () {
     [owner, browserController, nonOwner, LSP7Holder, LSP8Holder] = await ethers.getSigners();
-    const browserControllerAddress = await owner.getAddress();
+    const browserControllerAddress = await browserController.getAddress();
 
     // deploy UP account
     const [universalProfile] = await setupProfileWithKeyManagerWithURD(owner, browserController);

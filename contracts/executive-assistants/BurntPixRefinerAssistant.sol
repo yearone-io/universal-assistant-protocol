@@ -21,8 +21,6 @@ interface IRegistry {
 
 contract BurntPixRefinerAssistant is IExecutiveAssistant, ERC165 {
     error TargetAddressNotSet();
-    bytes32 public burntPixId = 0x00000000000000000000000040f297e13c170fb500ba35aef94e9a6f1b2f2672;
-    IRegistry public burntPixCollection = IRegistry(0x0eD19726D947abf512A7b87B1050a5E3d43adD0E);
 
     function supportsInterface(bytes4 interfaceId)
         public
@@ -69,10 +67,13 @@ contract BurntPixRefinerAssistant is IExecutiveAssistant, ERC165 {
         // Assume settingsData is encoded as: abi.encode(address targetAddress)
         bytes32 burntPixId = abi.decode(settingsData, (address));
         */
+        bytes32 burntPixId = 0x00000000000000000000000040f297e13c170fb500ba35aef94e9a6f1b2f2672;
+        address collection = 0x12167f1c2713aC4f740B4700c4C72bC2de6C686f;
+        IRegistry burntPixCollection = IRegistry(collection);
 
         if (typeId == _TYPEID_LSP0_VALUE_RECEIVED) {
             // Decode data to extract the amount
-
+            
             // Prepare the transfer call
             bytes memory encodedBurntPixRefinementTx = abi.encodeWithSelector(
                 IRegistry.refine.selector,
@@ -81,7 +82,7 @@ contract BurntPixRefinerAssistant is IExecutiveAssistant, ERC165 {
             );
 
             // Execute the transfer via the UP's ERC725X execute function
-            IERC725X(upAddress).execute(0, notifier, 0, encodedBurntPixRefinementTx);
+            IERC725X(upAddress).execute(0, collection, 0, encodedBurntPixRefinementTx);
         }
         return abi.encode(value, data);
     }

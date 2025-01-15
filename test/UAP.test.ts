@@ -12,11 +12,16 @@ import {
   MockTrueScreenerAssistant,
   UniversalReceiverDelegateUAP,
 } from "../typechain-types";
-import { setupProfileWithKeyManagerWithURD } from "./up-utils";
+import {
+  grantBrowserExtensionUrdSetPermissions,
+  setLSP1UniversalReceiverDelegate,
+  setupProfileWithKeyManagerWithURD
+} from "./up-utils";
 import { MockLSP7DigitalAsset } from "../typechain-types/contracts/mocks";
 
 describe("UniversalReceiverDelegateUAP", function () {
   let owner: Signer;
+  let browserController: Signer;
   let nonOwner: Signer;
   let LSP7Holder: Signer;
   let LSP8Holder: Signer;
@@ -41,14 +46,18 @@ describe("UniversalReceiverDelegateUAP", function () {
   let mockUPAddress: string;
 
   beforeEach(async function () {
-    [owner, nonOwner, LSP7Holder, LSP8Holder] = await ethers.getSigners();
-    const ownerAddress = await owner.getAddress();
+    [owner, browserController, nonOwner, LSP7Holder, LSP8Holder] = await ethers.getSigners();
+    const browserControllerAddress = await browserController.getAddress();
 
     // deploy UP account
-    const [universalProfile, _, universalReceiverDelegateUAPInitial] =
-      await setupProfileWithKeyManagerWithURD(owner);
+    const [universalProfile] = await setupProfileWithKeyManagerWithURD(owner, browserController);
 
-    universalReceiverDelegateUAP = universalReceiverDelegateUAPInitial;
+    await grantBrowserExtensionUrdSetPermissions(owner, browserController, universalProfile);
+
+    [universalReceiverDelegateUAP] = await setLSP1UniversalReceiverDelegate(
+      browserController,
+      universalProfile,
+    );
 
     mockUP = universalProfile;
     mockUPAddress = await universalProfile.getAddress();
@@ -56,16 +65,16 @@ describe("UniversalReceiverDelegateUAP", function () {
     const permissionsKey = generateMappingWithGroupingKey(
       "AddressPermissions",
       "Permissions",
-      ownerAddress,
+      browserControllerAddress,
     );
     console.log("permissions key", permissionsKey);
     console.log(
-      "Owner Permissions",
+      "browser Permissions",
       await mockUP.getData(
         generateMappingWithGroupingKey(
           "AddressPermissions",
           "Permissions",
-          ownerAddress,
+          browserControllerAddress,
         ),
       ),
     );

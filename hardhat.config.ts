@@ -27,7 +27,7 @@ const config: HardhatUserConfig = {
 
   networks: {
      luksoTestnet: {
-       url: "https://lukso-testnet.rpc.thirdweb.com",
+       url: "https://rpc.testnet.lukso.network",
        chainId: 4201,
         accounts: getNetworkAccountsConfig("luksoTestnet").EOA_PRIVATE_KEY ? [ getNetworkAccountsConfig("luksoTestnet").EOA_PRIVATE_KEY as string] : []
      },

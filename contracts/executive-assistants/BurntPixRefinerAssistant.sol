@@ -35,7 +35,7 @@ contract BurntPixRefinerAssistant is IExecutiveAssistant, ERC165 {
     /**
      * @dev The execute function called by URDuap via delegatecall.
      * @param assistantAddress The address of the Assistant contract.
-     * @param notifier The address that triggered the URD on the UP (e.g., token contract).
+     * The address that triggered the URD on the UP (e.g., token contract).
      * @param value The amount of Ether sent with the transaction.
      * @param typeId The identifier representing the type of transaction or asset.
      * @param data Additional data relevant to the transaction.
@@ -43,7 +43,7 @@ contract BurntPixRefinerAssistant is IExecutiveAssistant, ERC165 {
      */
     function execute(
         address assistantAddress,
-        address notifier,
+        address,
         uint256 value,
         bytes32 typeId,
         bytes memory data
@@ -56,20 +56,12 @@ contract BurntPixRefinerAssistant is IExecutiveAssistant, ERC165 {
         address upAddress = msg.sender;
 
         // Read settings from the UP's ERC725Y data store.
-        /*
         IERC725Y upERC725Y = IERC725Y(upAddress);
-
         bytes32 settingsKey = getSettingsDataKey(assistantAddress);
-
         bytes memory settingsData = upERC725Y.getData(settingsKey);
-
         // Decode the settingsData to get targetAddress.
         // Assume settingsData is encoded as: abi.encode(address targetAddress)
-        bytes32 burntPixId = abi.decode(settingsData, (address));
-        */
-        bytes32 burntPixId = 0x00000000000000000000000040f297e13c170fb500ba35aef94e9a6f1b2f2672;
-        address collection = 0x12167f1c2713aC4f740B4700c4C72bC2de6C686f;
-        IRegistry burntPixCollection = IRegistry(collection);
+        (address burntPixCollection, bytes32 burntPixId, uint256 iters) = abi.decode(settingsData, (address, bytes32, uint256));
 
         if (typeId == _TYPEID_LSP0_VALUE_RECEIVED) {
             // Decode data to extract the amount
@@ -78,11 +70,11 @@ contract BurntPixRefinerAssistant is IExecutiveAssistant, ERC165 {
             bytes memory encodedBurntPixRefinementTx = abi.encodeWithSelector(
                 IRegistry.refine.selector,
                 burntPixId,
-                100
+                iters
             );
 
             // Execute the transfer via the UP's ERC725X execute function
-            IERC725X(upAddress).execute(0, collection, 0, encodedBurntPixRefinementTx);
+            IERC725X(upAddress).execute(0, burntPixCollection, 0, encodedBurntPixRefinementTx);
         }
         return abi.encode(value, data);
     }

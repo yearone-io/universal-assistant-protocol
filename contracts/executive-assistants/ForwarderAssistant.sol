@@ -2,32 +2,38 @@
 pragma solidity ^0.8.24;
 
 // Import interfaces and contracts
-import { IExecutiveAssistant } from "../IExecutiveAssistant.sol";
-import { IERC725Y } from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
-import { IERC725X } from "@erc725/smart-contracts/contracts/interfaces/IERC725X.sol";
-import { ILSP7DigitalAsset } from "@lukso/lsp-smart-contracts/contracts/LSP7DigitalAsset/ILSP7DigitalAsset.sol";
-import { ILSP8IdentifiableDigitalAsset } from "@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/ILSP8IdentifiableDigitalAsset.sol";
+import {IExecutiveAssistant} from "../IExecutiveAssistant.sol";
+import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
+import {IERC725X} from "@erc725/smart-contracts/contracts/interfaces/IERC725X.sol";
+import {ILSP7DigitalAsset} from "@lukso/lsp-smart-contracts/contracts/LSP7DigitalAsset/ILSP7DigitalAsset.sol";
+import {ILSP8IdentifiableDigitalAsset} from "@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/ILSP8IdentifiableDigitalAsset.sol";
 
 // Constants
-import { _TYPEID_LSP7_TOKENSRECIPIENT } from "@lukso/lsp-smart-contracts/contracts/LSP7DigitalAsset/LSP7Constants.sol";
-import { _TYPEID_LSP8_TOKENSRECIPIENT } from "@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/LSP8Constants.sol";
+import {_TYPEID_LSP7_TOKENSRECIPIENT} from "@lukso/lsp-smart-contracts/contracts/LSP7DigitalAsset/LSP7Constants.sol";
+import {_TYPEID_LSP8_TOKENSRECIPIENT} from "@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/LSP8Constants.sol";
 
 // Utils
-import { ERC165 } from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
-    event LSP7AssetForwarded(address asset, uint256 amount, address destination);
-    event LSP8AssetForwarded(address asset, bytes32 tokenId , address destination);
+    event LSP7AssetForwarded(
+        address asset,
+        uint256 amount,
+        address destination
+    );
+    event LSP8AssetForwarded(
+        address asset,
+        bytes32 tokenId,
+        address destination
+    );
     error TargetAddressNotSet();
 
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        virtual
-        override
-        returns (bool)
-    {
-        return interfaceId == type(IExecutiveAssistant).interfaceId || super.supportsInterface(interfaceId);
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view virtual override returns (bool) {
+        return
+            interfaceId == type(IExecutiveAssistant).interfaceId ||
+            super.supportsInterface(interfaceId);
     }
 
     /**
@@ -45,11 +51,7 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
         uint256 value,
         bytes32 typeId,
         bytes memory data
-    )
-        external
-        override
-        returns (bytes memory)
-    {
+    ) external override returns (bytes memory) {
         // Since we're called via delegatecall, msg.sender is the UP's address.
         address upAddress = msg.sender;
 
@@ -70,10 +72,13 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
 
         if (typeId == _TYPEID_LSP7_TOKENSRECIPIENT) {
             // Decode data to extract the amount
-            (address sender, address receiver, address operator, uint256 amount, bytes memory lsp7Data) = abi.decode(
-                data,
-                (address, address, address, uint256, bytes)
-            );
+            (
+                address sender,
+                address receiver,
+                address operator,
+                uint256 amount,
+                bytes memory lsp7Data
+            ) = abi.decode(data, (address, address, address, uint256, bytes));
 
             // Prepare the transfer call
             bytes memory encodedLSP7Tx = abi.encodeWithSelector(
@@ -90,17 +95,25 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
 
             // Modify the data to set amount to zero
             uint256 modifiedAmount = 0;
-            bytes memory modifiedData = abi.encode(sender, receiver, operator, modifiedAmount, lsp7Data);
+            bytes memory modifiedData = abi.encode(
+                sender,
+                receiver,
+                operator,
+                modifiedAmount,
+                lsp7Data
+            );
             emit LSP7AssetForwarded(notifier, amount, targetAddress);
             // Return the modified value and data
             return abi.encode(value, modifiedData);
-
         } else if (typeId == _TYPEID_LSP8_TOKENSRECIPIENT) {
             // Decode data to extract the tokenId
-            (address txSource, address from, address to, bytes32 tokenId, bytes memory txData) = abi.decode(
-                data,
-                (address, address, address, bytes32, bytes)
-            );
+            (
+                address txSource,
+                address from,
+                address to,
+                bytes32 tokenId,
+                bytes memory txData
+            ) = abi.decode(data, (address, address, address, bytes32, bytes));
 
             // Prepare the transfer call
             bytes memory encodedLSP8Tx = abi.encodeCall(
@@ -111,11 +124,16 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
             IERC725X(msg.sender).execute(0, notifier, 0, encodedLSP8Tx);
 
             // Modify the data to set tokenId to zero
-            bytes memory modifiedData = abi.encode(txSource, from, to, bytes32(0), txData);
+            bytes memory modifiedData = abi.encode(
+                txSource,
+                from,
+                to,
+                bytes32(0),
+                txData
+            );
             emit LSP8AssetForwarded(notifier, tokenId, targetAddress);
             // Return the modified value and data
             return abi.encode(value, modifiedData);
-
         }
 
         // If no action taken, return the original value and data
@@ -127,7 +145,9 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
      * @param assistantAddress The address of the assistant.
      * @return The bytes32 key.
      */
-    function getSettingsDataKey(address assistantAddress) internal pure returns (bytes32) {
+    function getSettingsDataKey(
+        address assistantAddress
+    ) internal pure returns (bytes32) {
         bytes32 firstWordHash = keccak256(bytes("UAPExecutiveConfig"));
 
         bytes memory temporaryBytes = bytes.concat(

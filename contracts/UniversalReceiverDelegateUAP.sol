@@ -2,14 +2,14 @@
 pragma solidity ^0.8.24;
 
 // Libraries
-import { LSP2Utils } from "@lukso/lsp-smart-contracts/contracts/LSP2ERC725YJSONSchema/LSP2Utils.sol";
+import {LSP2Utils} from "@lukso/lsp-smart-contracts/contracts/LSP2ERC725YJSONSchema/LSP2Utils.sol";
 // Interfaces
-import { LSP1UniversalReceiverDelegateUP } from "@lukso/lsp-smart-contracts/contracts/LSP1UniversalReceiver/LSP1UniversalReceiverDelegateUP/LSP1UniversalReceiverDelegateUP.sol";
-import { IERC725Y } from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
+import {LSP1UniversalReceiverDelegateUP} from "@lukso/lsp-smart-contracts/contracts/LSP1UniversalReceiver/LSP1UniversalReceiverDelegateUP/LSP1UniversalReceiverDelegateUP.sol";
+import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
 
 // Additional Interfaces
-import { IExecutiveAssistant } from "./IExecutiveAssistant.sol";
-import { IScreenerAssistant } from "./IScreenerAssistant.sol";
+import {IExecutiveAssistant} from "./IExecutiveAssistant.sol";
+import {IScreenerAssistant} from "./IScreenerAssistant.sol";
 
 /**
  * @title UniversalReceiverDelegateUAP
@@ -19,6 +19,12 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
     event TypeIdConfigFound(bytes32 typeId);
     event AssistantFound(address executiveAssistant);
     event AssistantInvoked(address executiveAssistant);
+    event URDCalled(
+        address indexed up,
+        address indexed notifier,
+        uint256 value,
+        bytes32 typeId
+    );
 
     // Custom errors
     error UntrustedAssistant(address assistant);
@@ -40,12 +46,12 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         bytes32 typeId,
         bytes memory data
     )
-    public
-    virtual
-    override(LSP1UniversalReceiverDelegateUP)
-    returns (bytes memory)
+        public
+        virtual
+        override(LSP1UniversalReceiverDelegateUP)
+        returns (bytes memory)
     {
-
+        emit URDCalled(msg.sender, notifier, value, typeId);
         // Generate the key for UAPTypeConfig
         bytes32 typeConfigKey = LSP2Utils.generateMappingKey(
             bytes10(keccak256("UAPTypeConfig")),
@@ -55,15 +61,19 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         bytes memory typeConfig = IERC725Y(msg.sender).getData(typeConfigKey);
         if (typeConfig.length == 0) {
             // No configurations found, invoke default behavior
-            return super.universalReceiverDelegate(notifier, value, typeId, data);
+            return
+                super.universalReceiverDelegate(notifier, value, typeId, data);
         }
         emit TypeIdConfigFound(typeId);
 
         // Decode the addresses of executive assistants
-        address[] memory orderedExecutiveAssistants = customDecodeAddresses(typeConfig);
+        address[] memory orderedExecutiveAssistants = customDecodeAddresses(
+            typeConfig
+        );
         if (orderedExecutiveAssistants.length == 0) {
             // No assistants found, invoke default behavior
-            return super.universalReceiverDelegate(notifier, value, typeId, data);
+            return
+                super.universalReceiverDelegate(notifier, value, typeId, data);
         }
         // Loop through each executive assistant
         for (uint256 i = 0; i < orderedExecutiveAssistants.length; i++) {
@@ -76,12 +86,15 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                 bytes20(executiveAssistant)
             );
             // Fetch the executive assistant configuration
-            bytes memory executiveAssistantScreeners = IERC725Y(msg.sender).getData(screenerAssistantsKey);
+            bytes memory executiveAssistantScreeners = IERC725Y(msg.sender)
+                .getData(screenerAssistantsKey);
 
             // Decode the addresses of screener assistants
-            address[] memory orderedScreenerAssistants = executiveAssistantScreeners.length > 0
-                ? customDecodeAddresses(executiveAssistantScreeners)
-                : new address[](0);
+            address[]
+                memory orderedScreenerAssistants = executiveAssistantScreeners
+                    .length > 0
+                    ? customDecodeAddresses(executiveAssistantScreeners)
+                    : new address[](0);
 
             bool delegateToExecutive = true;
 
@@ -95,23 +108,26 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                 }
 
                 // Call the screener assistant
-                (bool success, bytes memory returnData) = screenerAssistant.delegatecall(
-                    abi.encodeWithSelector(
-                        IScreenerAssistant.evaluate.selector,
-                        screenerAssistant,
-                        notifier,
-                        value,
-                        typeId,
-                        data
-                    )
-                );
+                (bool success, bytes memory returnData) = screenerAssistant
+                    .delegatecall(
+                        abi.encodeWithSelector(
+                            IScreenerAssistant.evaluate.selector,
+                            screenerAssistant,
+                            notifier,
+                            value,
+                            typeId,
+                            data
+                        )
+                    );
 
                 if (!success) {
                     revert ScreenerEvaluationFailed(screenerAssistant);
                 }
 
                 bool delegateToExecutiveResult = abi.decode(returnData, (bool));
-                delegateToExecutive = delegateToExecutive && delegateToExecutiveResult;
+                delegateToExecutive =
+                    delegateToExecutive &&
+                    delegateToExecutiveResult;
 
                 if (!delegateToExecutive) {
                     break;
@@ -123,7 +139,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                     revert UntrustedAssistant(executiveAssistant);
                 }
 
-                (bool success,) = executiveAssistant.delegatecall(
+                (bool success, ) = executiveAssistant.delegatecall(
                     abi.encodeWithSelector(
                         IExecutiveAssistant.execute.selector,
                         executiveAssistant,
@@ -150,7 +166,9 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
      * @param encoded The encoded bytes array.
      * @return An array of addresses.
      */
-    function customDecodeAddresses(bytes memory encoded) public pure returns (address[] memory) {
+    function customDecodeAddresses(
+        bytes memory encoded
+    ) public pure returns (address[] memory) {
         if (encoded.length < 2) {
             revert InvalidEncodedData();
         }
@@ -177,7 +195,9 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
      * @dev Checks if an assistant contract is trusted.
      * @return True if the assistant is trusted, false otherwise.
      */
-    function isTrustedAssistant(address /*assistant*/) internal view returns (bool) {
+    function isTrustedAssistant(
+        address /*assistant*/
+    ) internal view returns (bool) {
         return true;
     }
 }

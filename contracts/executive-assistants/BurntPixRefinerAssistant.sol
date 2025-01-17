@@ -21,7 +21,6 @@ interface IRegistry {
 
 contract BurntPixRefinerAssistant is IExecutiveAssistant, ERC165 {
     error TargetAddressNotSet();
-    event BurnPixAssitantUsageLogged(address indexed up);
 
     function supportsInterface(
         bytes4 interfaceId
@@ -49,7 +48,6 @@ contract BurntPixRefinerAssistant is IExecutiveAssistant, ERC165 {
     ) external override returns (bytes memory) {
         // Since we're called via delegatecall, msg.sender is the UP's address.
         address upAddress = msg.sender;
-        emit BurnPixAssitantUsageLogged(upAddress);
 
         // Read settings from the UP's ERC725Y data store.
         IERC725Y upERC725Y = IERC725Y(upAddress);

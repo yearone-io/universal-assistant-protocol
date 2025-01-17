@@ -18,12 +18,9 @@ import {IScreenerAssistant} from "./IScreenerAssistant.sol";
 contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
     event TypeIdConfigFound(bytes32 typeId);
     event AssistantFound(address executiveAssistant);
-    event AssistantInvoked(address executiveAssistant);
-    event URDCalled(
-        address indexed up,
-        address indexed notifier,
-        uint256 value,
-        bytes32 typeId
+    event AssistantInvoked(
+        address indexed subscriber,
+        address indexed executiveAssistant
     );
 
     // Custom errors
@@ -51,7 +48,6 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         override(LSP1UniversalReceiverDelegateUP)
         returns (bytes memory)
     {
-        emit URDCalled(msg.sender, notifier, value, typeId);
         // Generate the key for UAPTypeConfig
         bytes32 typeConfigKey = LSP2Utils.generateMappingKey(
             bytes10(keccak256("UAPTypeConfig")),
@@ -138,7 +134,6 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                 if (!isTrustedAssistant(executiveAssistant)) {
                     revert UntrustedAssistant(executiveAssistant);
                 }
-
                 (bool success, ) = executiveAssistant.delegatecall(
                     abi.encodeWithSelector(
                         IExecutiveAssistant.execute.selector,
@@ -154,7 +149,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                     revert AssistantExecutionFailed(executiveAssistant);
                 }
 
-                emit AssistantInvoked(executiveAssistant);
+                emit AssistantInvoked(msg.sender, executiveAssistant);
             }
         }
         // Proceed with the default universal receiver behavior

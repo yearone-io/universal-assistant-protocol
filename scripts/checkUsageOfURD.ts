@@ -4,7 +4,7 @@ const { ethers } = require("ethers");
 const RPC_URL = "https://rpc.l16.lukso.network"; // or another network RPC
 const URD_CONTRACT_ADDRESS = "0xYourDeployedURDContract";
 const URD_ABI = [
-  "event URDCalled(address indexed up, address indexed notifier, uint256 value, bytes32 typeId)"
+  "event AssistantInvoked(address indexed subscriber, address indexed executiveAssistant)"
 ];
 
 async function main() {

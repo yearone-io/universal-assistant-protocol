@@ -2,15 +2,15 @@
 pragma solidity ^0.8.24;
 
 // Import interfaces and contracts
-import { IExecutiveAssistant } from "../IExecutiveAssistant.sol";
-import { IERC725Y } from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
-import { IERC725X } from "@erc725/smart-contracts/contracts/interfaces/IERC725X.sol";
+import {IExecutiveAssistant} from "../IExecutiveAssistant.sol";
+import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
+import {IERC725X} from "@erc725/smart-contracts/contracts/interfaces/IERC725X.sol";
 
 // Constants
-import { _TYPEID_LSP0_VALUE_RECEIVED } from "@lukso/lsp0-contracts/contracts/LSP0Constants.sol";
+import {_TYPEID_LSP0_VALUE_RECEIVED} from "@lukso/lsp0-contracts/contracts/LSP0Constants.sol";
 
 // Utils
-import { ERC165 } from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 interface IRegistry {
     function refine(bytes32 burntPixId, uint256 iters) external;
@@ -22,14 +22,12 @@ interface IRegistry {
 contract BurntPixRefinerAssistant is IExecutiveAssistant, ERC165 {
     error TargetAddressNotSet();
 
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        virtual
-        override
-        returns (bool)
-    {
-        return interfaceId == type(IExecutiveAssistant).interfaceId || super.supportsInterface(interfaceId);
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view virtual override returns (bool) {
+        return
+            interfaceId == type(IExecutiveAssistant).interfaceId ||
+            super.supportsInterface(interfaceId);
     }
 
     /**
@@ -47,11 +45,7 @@ contract BurntPixRefinerAssistant is IExecutiveAssistant, ERC165 {
         uint256 value,
         bytes32 typeId,
         bytes memory data
-    )
-        external
-        override
-        returns (bytes memory)
-    {
+    ) external override returns (bytes memory) {
         // Since we're called via delegatecall, msg.sender is the UP's address.
         address upAddress = msg.sender;
 
@@ -61,11 +55,12 @@ contract BurntPixRefinerAssistant is IExecutiveAssistant, ERC165 {
         bytes memory settingsData = upERC725Y.getData(settingsKey);
         // Decode the settingsData to get targetAddress.
         // Assume settingsData is encoded as: abi.encode(address targetAddress)
-        (address burntPixCollection, bytes32 burntPixId, uint256 iters) = abi.decode(settingsData, (address, bytes32, uint256));
+        (address burntPixCollection, bytes32 burntPixId, uint256 iters) = abi
+            .decode(settingsData, (address, bytes32, uint256));
 
         if (typeId == _TYPEID_LSP0_VALUE_RECEIVED) {
             // Decode data to extract the amount
-            
+
             // Prepare the transfer call
             bytes memory encodedBurntPixRefinementTx = abi.encodeWithSelector(
                 IRegistry.refine.selector,
@@ -74,7 +69,12 @@ contract BurntPixRefinerAssistant is IExecutiveAssistant, ERC165 {
             );
 
             // Execute the transfer via the UP's ERC725X execute function
-            IERC725X(upAddress).execute(0, burntPixCollection, 0, encodedBurntPixRefinementTx);
+            IERC725X(upAddress).execute(
+                0,
+                burntPixCollection,
+                0,
+                encodedBurntPixRefinementTx
+            );
         }
         return abi.encode(value, data);
     }
@@ -84,7 +84,9 @@ contract BurntPixRefinerAssistant is IExecutiveAssistant, ERC165 {
      * @param assistantAddress The address of the assistant.
      * @return The bytes32 key.
      */
-    function getSettingsDataKey(address assistantAddress) internal pure returns (bytes32) {
+    function getSettingsDataKey(
+        address assistantAddress
+    ) internal pure returns (bytes32) {
         bytes32 firstWordHash = keccak256(bytes("UAPExecutiveConfig"));
 
         bytes memory temporaryBytes = bytes.concat(

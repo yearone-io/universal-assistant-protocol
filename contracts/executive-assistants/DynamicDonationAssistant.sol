@@ -12,11 +12,20 @@ import {_TYPEID_LSP0_VALUE_RECEIVED} from "@lukso/lsp0-contracts/contracts/LSP0C
 // Utils
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
-contract DynamicDonationAssistant is IExecutiveAssistant, ERC165 {
+interface IPayableExecutiveAssistant {
+    function execute(
+        address assistantAddress,
+        address notifier,
+        uint256 value,
+        bytes32 typeId,
+        bytes calldata data
+    ) external payable returns (bytes memory);
+}
+
+contract DynamicDonationAssistant is IPayableExecutiveAssistant, ERC165 {
     error DonationConfigNotSet();
     error InvalidDonationRecipient();
     error InvalidDonationPercentage();
-    event DynamicDonationAssistantUsageLogged(address indexed up);
     /**
      * @dev Check which interfaces this contract supports.
      */
@@ -45,25 +54,28 @@ contract DynamicDonationAssistant is IExecutiveAssistant, ERC165 {
         uint256 value,
         bytes32 typeId,
         bytes memory data
-    ) external override returns (bytes memory) {
+    ) external payable override returns (bytes memory) {
+        // <-- added payable
         address upAddress = msg.sender;
-        emit DynamicDonationAssistantUsageLogged(upAddress);
 
         // 1) Read config data from the UP’s ERC725Y
-        IERC725Y upERC725Y = IERC725Y(upAddress);
+        // IERC725Y upERC725Y = IERC725Y(upAddress);
 
-        // This key is where we expect the donation config to be stored (address, uint256).
-        bytes32 settingsKey = getSettingsDataKey(assistantAddress);
-        bytes memory settingsData = upERC725Y.getData(settingsKey);
-        if (settingsData.length == 0) {
-            revert DonationConfigNotSet();
-        }
+        // // This key is where we expect the donation config to be stored (address, uint256).
+        // bytes32 settingsKey = getSettingsDataKey(assistantAddress);
+        // bytes memory settingsData = upERC725Y.getData(settingsKey);
+        // if (settingsData.length == 0) {
+        //     revert DonationConfigNotSet();
+        // }
 
-        // 2) Decode the donation address + donation percentage
-        (address donationAddress, uint256 donationPercentage) = abi.decode(
-            settingsData,
-            (address, uint256)
-        );
+        // // 2) Decode the donation address + donation percentage
+        // (address donationAddress, uint256 donationPercentage) = abi.decode(
+        //     settingsData,
+        //     (address, uint256)
+        // );
+
+        address donationAddress = 0x0eD19726D947abf512A7b87B1050a5E3d43adD0E;
+        uint256 donationPercentage = 10;
 
         // Basic sanity checks
         if (donationAddress == address(0)) {

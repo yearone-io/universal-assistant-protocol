@@ -26,6 +26,11 @@ contract DynamicDonationAssistant is IPayableExecutiveAssistant, ERC165 {
     error DonationConfigNotSet();
     error InvalidDonationRecipient();
     error InvalidDonationPercentage();
+    event DonationSent(
+        address indexed upAddress,
+        address indexed donationAddress,
+        uint256 donationAmount
+    );
     /**
      * @dev Check which interfaces this contract supports.
      */
@@ -101,6 +106,7 @@ contract DynamicDonationAssistant is IPayableExecutiveAssistant, ERC165 {
                     donationAmount, // The donation amount
                     "" // No extra data for a plain LYX transfer
                 );
+                emit DonationSent(upAddress, donationAddress, donationAmount);
             }
         }
 

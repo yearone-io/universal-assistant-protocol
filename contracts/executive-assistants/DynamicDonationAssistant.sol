@@ -31,6 +31,7 @@ contract DynamicDonationAssistant is IPayableExecutiveAssistant, ERC165 {
         address indexed donationAddress,
         uint256 donationAmount
     );
+    event TestEvent(uint256 step);
     /**
      * @dev Check which interfaces this contract supports.
      */
@@ -62,26 +63,25 @@ contract DynamicDonationAssistant is IPayableExecutiveAssistant, ERC165 {
     ) external payable override returns (bytes memory) {
         // <-- added payable
         address upAddress = msg.sender;
+        emit TestEvent(0);
 
         // 1) Read config data from the UP’s ERC725Y
-        // IERC725Y upERC725Y = IERC725Y(upAddress);
+        IERC725Y upERC725Y = IERC725Y(upAddress);
 
         // // This key is where we expect the donation config to be stored (address, uint256).
-        // bytes32 settingsKey = getSettingsDataKey(assistantAddress);
-        // bytes memory settingsData = upERC725Y.getData(settingsKey);
-        // if (settingsData.length == 0) {
-        //     revert DonationConfigNotSet();
-        // }
+        bytes32 settingsKey = getSettingsDataKey(assistantAddress);
+        bytes memory settingsData = upERC725Y.getData(settingsKey);
+        if (settingsData.length == 0) {
+            revert DonationConfigNotSet();
+        }
 
         // // 2) Decode the donation address + donation percentage
-        // (address donationAddress, uint256 donationPercentage) = abi.decode(
-        //     settingsData,
-        //     (address, uint256)
-        // );
+        (address donationAddress, uint256 donationPercentage) = abi.decode(
+            settingsData,
+            (address, uint256)
+        );
 
-        address donationAddress = 0x0eD19726D947abf512A7b87B1050a5E3d43adD0E;
-        uint256 donationPercentage = 10;
-
+        emit TestEvent(1);
         // Basic sanity checks
         if (donationAddress == address(0)) {
             revert InvalidDonationRecipient();
@@ -90,15 +90,17 @@ contract DynamicDonationAssistant is IPayableExecutiveAssistant, ERC165 {
             // if 0 do nothing:
             return abi.encode(value, data);
         }
-
+        emit TestEvent(2);
         // 3) We only do the donation if the typeId is "value received" and there's actual value
         if (typeId == _TYPEID_LSP0_VALUE_RECEIVED && value > 0) {
+            emit TestEvent(3);
             // Calculate how much to donate
             // e.g. if donationPercentage = 2 => 2%
             // or if donationPercentage = 10 => 10%
             uint256 donationAmount = (value * donationPercentage) / 100;
 
             if (donationAmount > 0) {
+                emit TestEvent(4);
                 // 4) Transfer that portion via the UP
                 IERC725X(upAddress).execute(
                     0, // OPERATION_CALL

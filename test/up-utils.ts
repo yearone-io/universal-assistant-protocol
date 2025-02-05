@@ -82,7 +82,12 @@ export const setupProfileWithKeyManagerWithURD = async (
   const delegatePermissions = combinePermissions(
     PERMISSIONS.REENTRANCY,
     PERMISSIONS.SUPER_SETDATA,
-    PERMISSIONS.SETDATA
+    PERMISSIONS.SETDATA,
+    PERMISSIONS.CALL,
+    PERMISSIONS.SUPER_CALL,
+    PERMISSIONS.SUPER_TRANSFERVALUE,
+    PERMISSIONS.TRANSFERVALUE,
+    PERMISSIONS.EXECUTE_RELAY_CALL,
   );
 
   // Set data for controllers

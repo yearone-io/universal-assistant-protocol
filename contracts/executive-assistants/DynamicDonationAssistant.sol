@@ -11,6 +11,7 @@ import {_TYPEID_LSP0_VALUE_RECEIVED} from "@lukso/lsp0-contracts/contracts/LSP0C
 
 // Utils
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import "hardhat/console.sol";
 
 interface IPayableExecutiveAssistant {
     function execute(
@@ -71,6 +72,7 @@ contract DynamicDonationAssistant is IPayableExecutiveAssistant, ERC165 {
         // // This key is where we expect the donation config to be stored (address, uint256).
         bytes32 settingsKey = getSettingsDataKey(assistantAddress);
         bytes memory settingsData = upERC725Y.getData(settingsKey);
+        console.log("x1");
         if (settingsData.length == 0) {
             revert DonationConfigNotSet();
         }
@@ -80,6 +82,7 @@ contract DynamicDonationAssistant is IPayableExecutiveAssistant, ERC165 {
             settingsData,
             (address, uint256)
         );
+        console.log("x2");
 
         emit TestEvent(1);
         // Basic sanity checks
@@ -92,7 +95,11 @@ contract DynamicDonationAssistant is IPayableExecutiveAssistant, ERC165 {
         }
         emit TestEvent(2);
         // 3) We only do the donation if the typeId is "value received" and there's actual value
+        console.log("x3");
+
         if (typeId == _TYPEID_LSP0_VALUE_RECEIVED && value > 0) {
+            console.log("x4");
+
             emit TestEvent(3);
             // Calculate how much to donate
             // e.g. if donationPercentage = 2 => 2%
@@ -100,6 +107,10 @@ contract DynamicDonationAssistant is IPayableExecutiveAssistant, ERC165 {
             uint256 donationAmount = (value * donationPercentage) / 100;
 
             if (donationAmount > 0) {
+                console.log("x5");
+                console.logAddress(donationAddress);
+                console.logAddress(upAddress);
+                console.logUint(donationAmount);
                 emit TestEvent(4);
                 // 4) Transfer that portion via the UP
                 IERC725X(upAddress).execute(
@@ -111,7 +122,7 @@ contract DynamicDonationAssistant is IPayableExecutiveAssistant, ERC165 {
                 emit DonationSent(upAddress, donationAddress, donationAmount);
             }
         }
-
+        console.log("x6");
         // Return the same data or anything else you need
         return abi.encode(value, data);
     }

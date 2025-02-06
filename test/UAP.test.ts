@@ -220,9 +220,9 @@ describe("UniversalReceiverDelegateUAP", function () {
           ),
       )
         .to.emit(universalReceiverDelegateUAP, "AssistantInvoked")
-        .withArgs(mockAssistantAddress)
+        .withArgs(mockUPAddress, mockAssistantAddress)
         .to.emit(universalReceiverDelegateUAP, "AssistantInvoked")
-        .withArgs(mockAssistantAddress);
+        .withArgs(mockUPAddress, mockAssistantAddress);
     });
 
     it("should invoke executive assistants after evaluating true screener assistant", async function () {
@@ -255,7 +255,7 @@ describe("UniversalReceiverDelegateUAP", function () {
           ),
       )
         .to.emit(universalReceiverDelegateUAP, "AssistantInvoked")
-        .withArgs(mockAssistantAddress);
+        .withArgs(mockUPAddress, mockAssistantAddress);
     });
 
     it("should not invoke executive assistants after evaluating false screener assistant", async function () {

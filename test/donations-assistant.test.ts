@@ -2,7 +2,7 @@ import { ethers } from "hardhat";
 import { expect } from "chai";
 import { Signer } from "ethers";
 import { LSP1_TYPE_IDS, OPERATION_TYPES, PERMISSIONS } from "@lukso/lsp-smart-contracts";
-import {UniversalProfile} from "../typechain-types";
+import { UniversalProfile, UniversalReceiverDelegateUAP } from "../typechain-types";
 import {
   grantBrowserExtensionUrdSetPermissions,
   setLSP1UniversalReceiverDelegate,
@@ -18,6 +18,7 @@ describe("DynamicDonationAssistant", function () {
   let browserController: Signer;
   let lyxSenderController: Signer;
   let senderUniversalProfile: UniversalProfile;
+  let universalReceiverDelegateUAP: UniversalReceiverDelegateUAP;
   let universalProfile: UniversalProfile;
   let lyxSender: Signer;
   let lyxDonationReceiver: Signer;
@@ -33,7 +34,8 @@ describe("DynamicDonationAssistant", function () {
 
     await grantBrowserExtensionUrdSetPermissions(owner, browserController, universalProfile);
 
-    await setLSP1UniversalReceiverDelegate(
+
+    [universalReceiverDelegateUAP] = await setLSP1UniversalReceiverDelegate(
       browserController,
       universalProfile,
       [
@@ -73,20 +75,26 @@ describe("DynamicDonationAssistant", function () {
       await universalProfile.setData(assistantInstructionsKey, encodedInstructions);
 
       //verify before balances
-      const beforeBalance = await provider.getBalance(await lyxDonationReceiver.getAddress())
+      const lyxReceiverBeforeBalance = await provider.getBalance(await universalProfile.getAddress())
+      const donationReceiverBeforeBalance = await provider.getBalance(await lyxDonationReceiver.getAddress())
 
       // Transfer lyx to target
-      await senderUniversalProfile
-        .connect(lyxSender)
-        .execute(
-          OPERATION_TYPES.CALL,
-          await universalProfile.getAddress(),
-          ethers.parseEther('1'),
-          '0x',
-        );
+      await expect(
+        await senderUniversalProfile
+          .connect(lyxSender)
+          .execute(
+            OPERATION_TYPES.CALL,
+            await universalProfile.getAddress(),
+            ethers.parseEther('1'),
+            '0x',
+          )
+      )
+        .to.emit(universalReceiverDelegateUAP, "AssistantInvoked")
+        .withArgs(await universalProfile.getAddress(), dynamicDonationAssistantAddress);
 
       // check lyx balance of lyxReceiver
-      expect(await provider.getBalance(await lyxDonationReceiver.getAddress())).to.equal(BigInt(beforeBalance) + BigInt("100000000000000000"));
+      expect(await provider.getBalance(await universalProfile.getAddress())).to.equal(BigInt(lyxReceiverBeforeBalance) + ethers.parseEther('0.9'));
+      expect(await provider.getBalance(await lyxDonationReceiver.getAddress())).to.equal(BigInt(donationReceiverBeforeBalance) + ethers.parseEther('0.1'));
     });
   });
 });

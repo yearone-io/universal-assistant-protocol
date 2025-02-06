@@ -1,7 +1,7 @@
 import { ethers } from "hardhat";
 import { expect } from "chai";
 import { Signer } from "ethers";
-import { LSP1_TYPE_IDS } from "@lukso/lsp-smart-contracts";
+import { LSP1_TYPE_IDS, PERMISSIONS } from "@lukso/lsp-smart-contracts";
 import {
   ForwarderAssistant,
   MockAssistant,
@@ -57,6 +57,7 @@ describe("UniversalReceiverDelegateUAP", function () {
     [universalReceiverDelegateUAP] = await setLSP1UniversalReceiverDelegate(
       browserController,
       universalProfile,
+      [PERMISSIONS.SUPER_CALL],
     );
 
     mockUP = universalProfile;

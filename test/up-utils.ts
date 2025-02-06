@@ -82,12 +82,7 @@ export const setupProfileWithKeyManagerWithURD = async (
   const delegatePermissions = combinePermissions(
     PERMISSIONS.REENTRANCY,
     PERMISSIONS.SUPER_SETDATA,
-    PERMISSIONS.SETDATA,
-    PERMISSIONS.CALL,
-    PERMISSIONS.SUPER_CALL,
-    PERMISSIONS.SUPER_TRANSFERVALUE,
-    PERMISSIONS.TRANSFERVALUE,
-    PERMISSIONS.EXECUTE_RELAY_CALL,
+    PERMISSIONS.SETDATA
   );
 
   // Set data for controllers
@@ -160,6 +155,7 @@ export const grantBrowserExtensionUrdSetPermissions = async (
 export const setLSP1UniversalReceiverDelegate = async (
   browserController: Signer,
   universalProfile: UniversalProfile,
+  permissions: string[],
 ) => {
 
   const UniversalReceiverDelegateUAPFactory = await ethers.getContractFactory(
@@ -174,9 +170,7 @@ export const setLSP1UniversalReceiverDelegate = async (
 
   const permissionDataKey = ERC725YDataKeys.LSP6["AddressPermissions:Permissions"] +
     urdAddress.substring(2);
-  const permissionDataValue = combinePermissions(
-    PERMISSIONS.SUPER_CALL,
-  );
+  const permissionDataValue = combinePermissions(...permissions);
   await universalProfile
     .connect(browserController)
     .setDataBatch(

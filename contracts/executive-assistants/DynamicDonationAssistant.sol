@@ -11,19 +11,9 @@ import {_TYPEID_LSP0_VALUE_RECEIVED} from "@lukso/lsp0-contracts/contracts/LSP0C
 
 // Utils
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
-import "hardhat/console.sol";
 
-interface IPayableExecutiveAssistant {
-    function execute(
-        address assistantAddress,
-        address notifier,
-        uint256 value,
-        bytes32 typeId,
-        bytes calldata data
-    ) external payable returns (bytes memory);
-}
 
-contract DynamicDonationAssistant is IPayableExecutiveAssistant, ERC165 {
+contract DynamicDonationAssistant is IExecutiveAssistant, ERC165 {
     error DonationConfigNotSet();
     error InvalidDonationRecipient();
     error InvalidDonationPercentage();
@@ -32,7 +22,6 @@ contract DynamicDonationAssistant is IPayableExecutiveAssistant, ERC165 {
         address indexed donationAddress,
         uint256 donationAmount
     );
-    event TestEvent(uint256 step);
     /**
      * @dev Check which interfaces this contract supports.
      */
@@ -61,10 +50,9 @@ contract DynamicDonationAssistant is IPayableExecutiveAssistant, ERC165 {
         uint256 value,
         bytes32 typeId,
         bytes memory data
-    ) external payable override returns (bytes memory) {
+    ) external override returns (bytes memory) {
         // <-- added payable
         address upAddress = msg.sender;
-        emit TestEvent(0);
 
         // 1) Read config data from the UP’s ERC725Y
         IERC725Y upERC725Y = IERC725Y(upAddress);
@@ -72,7 +60,6 @@ contract DynamicDonationAssistant is IPayableExecutiveAssistant, ERC165 {
         // // This key is where we expect the donation config to be stored (address, uint256).
         bytes32 settingsKey = getSettingsDataKey(assistantAddress);
         bytes memory settingsData = upERC725Y.getData(settingsKey);
-        console.log("x1");
         if (settingsData.length == 0) {
             revert DonationConfigNotSet();
         }
@@ -82,9 +69,7 @@ contract DynamicDonationAssistant is IPayableExecutiveAssistant, ERC165 {
             settingsData,
             (address, uint256)
         );
-        console.log("x2");
 
-        emit TestEvent(1);
         // Basic sanity checks
         if (donationAddress == address(0)) {
             revert InvalidDonationRecipient();
@@ -93,25 +78,15 @@ contract DynamicDonationAssistant is IPayableExecutiveAssistant, ERC165 {
             // if 0 do nothing:
             return abi.encode(value, data);
         }
-        emit TestEvent(2);
         // 3) We only do the donation if the typeId is "value received" and there's actual value
-        console.log("x3");
 
         if (typeId == _TYPEID_LSP0_VALUE_RECEIVED && value > 0) {
-            console.log("x4");
-
-            emit TestEvent(3);
             // Calculate how much to donate
             // e.g. if donationPercentage = 2 => 2%
             // or if donationPercentage = 10 => 10%
             uint256 donationAmount = (value * donationPercentage) / 100;
 
             if (donationAmount > 0) {
-                console.log("x5");
-                console.logAddress(donationAddress);
-                console.logAddress(upAddress);
-                console.logUint(donationAmount);
-                emit TestEvent(4);
                 // 4) Transfer that portion via the UP
                 IERC725X(upAddress).execute(
                     0, // OPERATION_CALL
@@ -122,7 +97,6 @@ contract DynamicDonationAssistant is IPayableExecutiveAssistant, ERC165 {
                 emit DonationSent(upAddress, donationAddress, donationAmount);
             }
         }
-        console.log("x6");
         // Return the same data or anything else you need
         return abi.encode(value, data);
     }

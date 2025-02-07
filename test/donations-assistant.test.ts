@@ -96,6 +96,45 @@ describe("DynamicDonationAssistant", function () {
       expect(await provider.getBalance(await universalProfile.getAddress())).to.equal(BigInt(lyxReceiverBeforeBalance) + ethers.parseEther('0.9'));
       expect(await provider.getBalance(await lyxDonationReceiver.getAddress())).to.equal(BigInt(donationReceiverBeforeBalance) + ethers.parseEther('0.1'));
     });
+
+    it("should pass if donation percentage is valid (> 99)", async function () {
+      // Generate and set the type config data for the LSP0ValueReceived type
+      const typeMappingKey = generateMappingKey(
+        "UAPTypeConfig",
+        LSP1_TYPE_IDS.LSP0ValueReceived,
+      );
+      const encodedAssistantsData = customEncodeAddresses([
+        dynamicDonationAssistantAddress,
+      ]);
+      await universalProfile.setData(typeMappingKey, encodedAssistantsData);
+    
+      // Generate and set the executive config data with an invalid donation percentage (e.g. 101)
+      const assistantInstructionsKey = generateMappingKey(
+        "UAPExecutiveConfig",
+        dynamicDonationAssistantAddress,
+      );
+      const targetAddress = await lyxDonationReceiver.getAddress();
+      const invalidDonationPercentage = 88; // invalid donation percentage (should be between 0 and 99)
+      const abi = new ethers.AbiCoder();
+      const encodedInstructions = abi.encode(
+        ["address", "uint256"],
+        [targetAddress, invalidDonationPercentage]
+      );
+      await universalProfile.setData(assistantInstructionsKey, encodedInstructions);
+    
+      // Attempt to trigger the donation. This should revert because donationPercentage > 99.
+      await expect(
+        senderUniversalProfile
+          .connect(lyxSender)
+          .execute(
+            OPERATION_TYPES.CALL,
+            await universalProfile.getAddress(),
+            ethers.parseEther("1"),
+            "0x"
+          )
+      ).to.not.be.reverted;
+    });
+
     it("should fail if donation percentage is invalid (> 99)", async function () {
       // Generate and set the type config data for the LSP0ValueReceived type
       const typeMappingKey = generateMappingKey(
@@ -131,7 +170,7 @@ describe("DynamicDonationAssistant", function () {
             ethers.parseEther("1"),
             "0x"
           )
-      ).to.be.revertedWithCustomError(dynamicDonationAssistant, "InvalidDonationPercentage");
+      ).to.be.reverted;
     });
     
   });

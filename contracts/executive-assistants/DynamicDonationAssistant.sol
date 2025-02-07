@@ -12,7 +12,6 @@ import {_TYPEID_LSP0_VALUE_RECEIVED} from "@lukso/lsp0-contracts/contracts/LSP0C
 // Utils
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
-
 contract DynamicDonationAssistant is IExecutiveAssistant, ERC165 {
     error DonationConfigNotSet();
     error InvalidDonationRecipient();
@@ -51,20 +50,19 @@ contract DynamicDonationAssistant is IExecutiveAssistant, ERC165 {
         bytes32 typeId,
         bytes memory data
     ) external override returns (bytes memory) {
-        // <-- added payable
         address upAddress = msg.sender;
 
         // 1) Read config data from the UP’s ERC725Y
         IERC725Y upERC725Y = IERC725Y(upAddress);
 
-        // // This key is where we expect the donation config to be stored (address, uint256).
+        // This key is where we expect the donation config to be stored (address, uint256).
         bytes32 settingsKey = getSettingsDataKey(assistantAddress);
         bytes memory settingsData = upERC725Y.getData(settingsKey);
         if (settingsData.length == 0) {
             revert DonationConfigNotSet();
         }
 
-        // // 2) Decode the donation address + donation percentage
+        // 2) Decode the donation address + donation percentage
         (address donationAddress, uint256 donationPercentage) = abi.decode(
             settingsData,
             (address, uint256)
@@ -74,12 +72,16 @@ contract DynamicDonationAssistant is IExecutiveAssistant, ERC165 {
         if (donationAddress == address(0)) {
             revert InvalidDonationRecipient();
         }
+        // Ensure donation percentage is between 0 and 99.
+        if (donationPercentage > 99) {
+            revert InvalidDonationPercentage();
+        }
         if (donationPercentage == 0) {
-            // if 0 do nothing:
+            // if 0, do nothing.
             return abi.encode(value, data);
         }
-        // 3) We only do the donation if the typeId is "value received" and there's actual value
 
+        // 3) We only do the donation if the typeId is "value received" and there's actual value
         if (typeId == _TYPEID_LSP0_VALUE_RECEIVED && value > 0) {
             // Calculate how much to donate
             // e.g. if donationPercentage = 2 => 2%

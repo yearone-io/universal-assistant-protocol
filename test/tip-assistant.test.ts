@@ -9,11 +9,11 @@ import {
   setupProfileWithKeyManagerWithURD
 } from "./up-utils";
 import {
-  DynamicDonationAssistant
-} from "../typechain-types/contracts/executive-assistants/DynamicDonationAssistant.sol";
+  TipAssistant
+} from "../typechain-types/contracts/executive-assistants/TipAssistant.sol";
 export const provider = ethers.provider;
 
-describe("DynamicDonationAssistant", function () {
+describe("TipAssistant", function () {
   let owner: Signer;
   let browserController: Signer;
   let lyxSenderController: Signer;
@@ -21,12 +21,12 @@ describe("DynamicDonationAssistant", function () {
   let universalReceiverDelegateUAP: UniversalReceiverDelegateUAP;
   let universalProfile: UniversalProfile;
   let lyxSender: Signer;
-  let lyxDonationReceiver: Signer;
-  let dynamicDonationAssistant: DynamicDonationAssistant;
-  let dynamicDonationAssistantAddress: string;
+  let lyxTipReceiver: Signer;
+  let tipAssistant: TipAssistant;
+  let tipAssistantAddress: string;
 
   beforeEach(async function () {
-    [owner, browserController, lyxSender, lyxSenderController, lyxDonationReceiver] = await ethers.getSigners();
+    [owner, browserController, lyxSender, lyxSenderController, lyxTipReceiver] = await ethers.getSigners();
 
     // deploy UP account
     [universalProfile] = await setupProfileWithKeyManagerWithURD(owner, browserController);
@@ -43,15 +43,15 @@ describe("DynamicDonationAssistant", function () {
       ]
     );
 
-    const DynamicDonationAssistantFactory =
-      await ethers.getContractFactory("DynamicDonationAssistant");
-    dynamicDonationAssistant =
-      (await DynamicDonationAssistantFactory.deploy()) as DynamicDonationAssistant;
-    await dynamicDonationAssistant.waitForDeployment();
-    dynamicDonationAssistantAddress = await dynamicDonationAssistant.getAddress();
+    const TipAssistantFactory =
+      await ethers.getContractFactory("TipAssistant");
+    tipAssistant =
+      (await TipAssistantFactory.deploy()) as TipAssistant;
+    await tipAssistant.waitForDeployment();
+    tipAssistantAddress = await tipAssistant.getAddress();
   });
   
-  describe("DynamicDonationAssistant", function () {
+  describe("TipAssistant", function () {
 
     it("should donate some lyx to target account", async function () {
       // Generate and set the type config data
@@ -60,23 +60,23 @@ describe("DynamicDonationAssistant", function () {
         LSP1_TYPE_IDS.LSP0ValueReceived,
       );
       const encodedAssistantsData = customEncodeAddresses([
-        dynamicDonationAssistantAddress,
+        tipAssistantAddress,
       ]);
       await universalProfile.setData(typeMappingKey, encodedAssistantsData);
 
       // Generate and set the executive config data
       const assistantInstructionsKey = generateMappingKey(
         "UAPExecutiveConfig",
-        dynamicDonationAssistantAddress,
+        tipAssistantAddress,
       );
-      const targetAddress = await lyxDonationReceiver.getAddress();
+      const targetAddress = await lyxTipReceiver.getAddress();
       const abi = new ethers.AbiCoder();
       const encodedInstructions = abi.encode(["address", "uint256"], [targetAddress, 10]);
       await universalProfile.setData(assistantInstructionsKey, encodedInstructions);
 
       //verify before balances
       const lyxReceiverBeforeBalance = await provider.getBalance(await universalProfile.getAddress())
-      const donationReceiverBeforeBalance = await provider.getBalance(await lyxDonationReceiver.getAddress())
+      const tipReceiverBeforeBalance = await provider.getBalance(await lyxTipReceiver.getAddress())
 
       // Transfer lyx to target
       await expect(
@@ -90,11 +90,11 @@ describe("DynamicDonationAssistant", function () {
           )
       )
         .to.emit(universalReceiverDelegateUAP, "AssistantInvoked")
-        .withArgs(await universalProfile.getAddress(), dynamicDonationAssistantAddress);
+        .withArgs(await universalProfile.getAddress(), tipAssistantAddress);
 
       // check lyx balance of lyxReceiver
       expect(await provider.getBalance(await universalProfile.getAddress())).to.equal(BigInt(lyxReceiverBeforeBalance) + ethers.parseEther('0.9'));
-      expect(await provider.getBalance(await lyxDonationReceiver.getAddress())).to.equal(BigInt(donationReceiverBeforeBalance) + ethers.parseEther('0.1'));
+      expect(await provider.getBalance(await lyxTipReceiver.getAddress())).to.equal(BigInt(tipReceiverBeforeBalance) + ethers.parseEther('0.1'));
     });
   });
 });

@@ -13,14 +13,14 @@ import {_TYPEID_LSP0_VALUE_RECEIVED} from "@lukso/lsp0-contracts/contracts/LSP0C
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 
-contract DynamicDonationAssistant is IExecutiveAssistant, ERC165 {
-    error DonationConfigNotSet();
-    error InvalidDonationRecipient();
-    error InvalidDonationPercentage();
-    event DonationSent(
+contract TipAssistant is IExecutiveAssistant, ERC165 {
+    error TipConfigNotSet();
+    error InvalidTipRecipient();
+    error InvalidTipPercentage();
+    event TipSent(
         address indexed upAddress,
-        address indexed donationAddress,
-        uint256 donationAmount
+        address indexed tipAddress,
+        uint256 tipAmount
     );
     /**
      * @dev Check which interfaces this contract supports.
@@ -57,44 +57,44 @@ contract DynamicDonationAssistant is IExecutiveAssistant, ERC165 {
         // 1) Read config data from the UP’s ERC725Y
         IERC725Y upERC725Y = IERC725Y(upAddress);
 
-        // // This key is where we expect the donation config to be stored (address, uint256).
+        // // This key is where we expect the tip config to be stored (address, uint256).
         bytes32 settingsKey = getSettingsDataKey(assistantAddress);
         bytes memory settingsData = upERC725Y.getData(settingsKey);
         if (settingsData.length == 0) {
-            revert DonationConfigNotSet();
+            revert TipConfigNotSet();
         }
 
-        // // 2) Decode the donation address + donation percentage
-        (address donationAddress, uint256 donationPercentage) = abi.decode(
+        // // 2) Decode the tip address + tip percentage
+        (address tipAddress, uint256 tipPercentage) = abi.decode(
             settingsData,
             (address, uint256)
         );
 
         // Basic sanity checks
-        if (donationAddress == address(0)) {
-            revert InvalidDonationRecipient();
+        if (tipAddress == address(0)) {
+            revert InvalidTipRecipient();
         }
-        if (donationPercentage == 0) {
+        if (tipPercentage == 0) {
             // if 0 do nothing:
             return abi.encode(value, data);
         }
-        // 3) We only do the donation if the typeId is "value received" and there's actual value
+        // 3) We only do the tip if the typeId is "value received" and there's actual value
 
         if (typeId == _TYPEID_LSP0_VALUE_RECEIVED && value > 0) {
             // Calculate how much to donate
-            // e.g. if donationPercentage = 2 => 2%
-            // or if donationPercentage = 10 => 10%
-            uint256 donationAmount = (value * donationPercentage) / 100;
+            // e.g. if tipPercentage = 2 => 2%
+            // or if tipPercentage = 10 => 10%
+            uint256 tipAmount = (value * tipPercentage) / 100;
 
-            if (donationAmount > 0) {
+            if (tipAmount > 0) {
                 // 4) Transfer that portion via the UP
                 IERC725X(upAddress).execute(
                     0, // OPERATION_CALL
-                    donationAddress, // The address that receives the donation
-                    donationAmount, // The donation amount
+                    tipAddress, // The address that receives the tip
+                    tipAmount, // The tip amount
                     "" // No extra data for a plain LYX transfer
                 );
-                emit DonationSent(upAddress, donationAddress, donationAmount);
+                emit TipSent(upAddress, tipAddress, tipAmount);
             }
         }
         // Return the same data or anything else you need

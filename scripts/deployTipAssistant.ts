@@ -11,7 +11,7 @@ async function main() {
   const deployer = UP_ADDR_CONTROLLED_BY_EOA;
   console.log("Deploying contracts with the account:", deployer);
   const AssistantContract = await ethers.getContractFactory(
-    "DynamicDonationAssistant",
+    "TipAssistant",
     {},
   );
   const assistantContract = await AssistantContract.deploy();
@@ -20,7 +20,7 @@ async function main() {
 
   // print contract address
   const address = await assistantContract.getAddress();
-  console.log("✅ DynamicDonationAssistant deployed to:", address);
+  console.log("✅ TipAssistant deployed to:", address);
 
   try {
     await hre.run("verify:verify", {
@@ -28,7 +28,7 @@ async function main() {
       network,
       constructorArguments: [],
       contract:
-        "contracts/executive-assistants/DynamicDonationAssistant.sol:DynamicDonationAssistant",
+        "contracts/executive-assistants/TipAssistant.sol:TipAssistant",
     });
     console.log("Contract verified");
   } catch (error) {

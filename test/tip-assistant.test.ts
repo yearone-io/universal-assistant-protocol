@@ -96,6 +96,77 @@ describe("TipAssistant", function () {
       expect(await provider.getBalance(await universalProfile.getAddress())).to.equal(BigInt(lyxReceiverBeforeBalance) + ethers.parseEther('0.9'));
       expect(await provider.getBalance(await lyxTipReceiver.getAddress())).to.equal(BigInt(tipReceiverBeforeBalance) + ethers.parseEther('0.1'));
     });
+
+
+    it.only("multiple assistants should work as expected", async function () {
+
+      const [lyxTipReceiver2, lyxTipReceiver3] = await ethers.getSigners();
+      const TipAssistantFactory =
+        await ethers.getContractFactory("TipAssistant");
+      const tipAssistant2 =
+        (await TipAssistantFactory.deploy()) as TipAssistant;
+      await tipAssistant2.waitForDeployment();
+      const tipAssistantAddress2 = await tipAssistant2.getAddress();
+
+      const tipAssistant3 =
+        (await TipAssistantFactory.deploy()) as TipAssistant;
+      await tipAssistant3.waitForDeployment();
+      const tipAssistantAddress3 = await tipAssistant3.getAddress();
+
+      // Generate and set the type config data
+      const typeMappingKey = generateMappingKey(
+        "UAPTypeConfig",
+        LSP1_TYPE_IDS.LSP0ValueReceived,
+      );
+
+      const encodedAssistantsData = customEncodeAddresses([
+        tipAssistantAddress,
+        tipAssistantAddress2,
+        tipAssistantAddress3
+      ]);
+      await universalProfile.setData(typeMappingKey, encodedAssistantsData);
+
+      // Generate and set the executive config data
+      const abi = new ethers.AbiCoder();
+      await universalProfile.setDataBatch(
+        [
+          generateMappingKey("UAPExecutiveConfig", tipAssistantAddress),
+          generateMappingKey("UAPExecutiveConfig", tipAssistantAddress2),
+          generateMappingKey("UAPExecutiveConfig", tipAssistantAddress3)
+        ],
+        [
+          abi.encode(["address", "uint256"], [await lyxTipReceiver.getAddress(), 10]),
+          abi.encode(["address", "uint256"], [await lyxTipReceiver2.getAddress(), 10]),
+          abi.encode(["address", "uint256"], [await lyxTipReceiver3.getAddress(), 10])
+        ]
+      );
+
+      //verify before balances
+      const lyxReceiverBeforeBalance = await provider.getBalance(await universalProfile.getAddress())
+      const tipReceiverBeforeBalance = await provider.getBalance(await lyxTipReceiver.getAddress())
+
+      // Transfer lyx to target
+      await expect(
+        await senderUniversalProfile
+          .connect(lyxSender)
+          .execute(
+            OPERATION_TYPES.CALL,
+            await universalProfile.getAddress(),
+            ethers.parseEther('1'),
+            '0x',
+          )
+      )
+        .to.emit(universalReceiverDelegateUAP, "AssistantFound")
+        .withArgs(tipAssistantAddress)
+        .to.emit(universalReceiverDelegateUAP, "AssistantFound")
+        .withArgs(tipAssistantAddress2)
+        .to.emit(universalReceiverDelegateUAP, "AssistantFound")
+        .withArgs(tipAssistantAddress3);
+
+      // check lyx balance of lyxReceiver
+      // expect(await provider.getBalance(await universalProfile.getAddress())).to.equal(BigInt(lyxReceiverBeforeBalance) + ethers.parseEther('0.9'));
+      // expect(await provider.getBalance(await lyxTipReceiver.getAddress())).to.equal(BigInt(tipReceiverBeforeBalance) + ethers.parseEther('0.1'));
+    });
   });
 });
 

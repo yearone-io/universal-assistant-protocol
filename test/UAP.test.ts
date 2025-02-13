@@ -447,9 +447,9 @@ describe("UniversalReceiverDelegateUAP", function () {
       expect(tokenOwner).to.equal(targetAddress);
     });
 
-    it("should fail if calling setFeePaused without the correct permissions", async function () {
+    it("should fail if calling setFeeEnabled without the correct permissions", async function () {
       await expect(
-        universalReceiverDelegateUAP.connect(nonOwner).setFeePaused(true),
+        universalReceiverDelegateUAP.connect(nonOwner).setFeeEnabled(true),
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 

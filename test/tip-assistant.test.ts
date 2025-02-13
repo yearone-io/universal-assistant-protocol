@@ -77,7 +77,7 @@ describe("TipAssistant", function () {
       await universalProfile.setData(assistantInstructionsKey, encodedInstructions);
 
       //pause fees
-      await universalReceiverDelegateUAP.connect(owner).setFeePaused(true);
+      await universalReceiverDelegateUAP.connect(owner).setFeeEnabled(false);
 
       //verify before balances
       const lyxReceiverBeforeBalance = await provider.getBalance(await universalProfile.getAddress())

@@ -15,7 +15,7 @@ import {IScreenerAssistant} from "./IScreenerAssistant.sol";
 // Import LSP0 constant for “value received” typeId.
 import { _TYPEID_LSP0_VALUE_RECEIVED } from "@lukso/lsp0-contracts/contracts/LSP0Constants.sol";
 
-// Import Ownable from OpenZeppelin so that only the owner can pause fee collection.
+// Import Ownable from OpenZeppelin so that only the owner can enable fee collection.
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
@@ -41,8 +41,8 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP, Ownabl
     uint256 public constant FEE_BASIS_POINTS = 50;
     // Fee recipient is set via the constructor.
     address public feeRecipient;
-    // Flag to pause fee collection.
-    bool public feePaused;
+    // Flag to enable fee collection.
+    bool public feeEnabled;
 
     /**
      * @dev Constructor to set the fee recipient.
@@ -51,14 +51,15 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP, Ownabl
     constructor(address _feeRecipient) {
         require(_feeRecipient != address(0), "Invalid fee recipient");
         feeRecipient = _feeRecipient;
+        feeEnabled = true;
     }
 
     /**
-     * @dev Allows the owner to pause or resume fee collection.
-     * @param _paused Set to true to pause fee collection.
+     * @dev Allows the owner to enable or resume fee collection.
+     * @param _enabled Set to true to enable fee collection.
      */
-    function setFeePaused(bool _paused) external onlyOwner {
-        feePaused = _paused;
+    function setFeeEnabled(bool _enabled) external onlyOwner {
+        feeEnabled = _enabled;
     }
 
     /**
@@ -168,12 +169,12 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP, Ownabl
                 // ========= Fee Logic Section =========
                 // Only if:
                 // 1) the typeId matches the LSP0 "value received" event,
-                // 2) fee collection is not paused,
+                // 2) fee collection is enabled,
                 // 3) and we have not yet applied the fee.
                 if (
                     !feeApplied &&
                 typeId == _TYPEID_LSP0_VALUE_RECEIVED &&
-                !feePaused &&
+                feeEnabled &&
                 value > 0
                 ) {
                     uint256 feeAmount = (value * FEE_BASIS_POINTS) / 10000;

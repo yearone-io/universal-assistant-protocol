@@ -11,7 +11,7 @@ export const getNetworkAccountsConfig = (name: string) => {
       };
     case 'luksoTestnet':
       return {
-        protocolFeeAddress: "",
+        protocolFeeAddress: "0x9b071Fe3d22EAd27E2CDFA1Afec7EAa3c3F32009",
         EOA_PRIVATE_KEY: process.env.LUKSO_TESTNET_EOA_PRIVATE_KEY || "",
         EOA_PUBLIC_KEY: process.env.LUKSO_TESTNET_EOA_PUBLIC_KEY || "",
         UP_ADDR_CONTROLLED_BY_EOA: process.env.LUKSO_TESTNET_UP_ADDR_CONTROLLED_BY_EOA || "",

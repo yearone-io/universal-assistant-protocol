@@ -25,6 +25,7 @@ describe("UniversalReceiverDelegateUAP", function () {
   let nonOwner: Signer;
   let LSP7Holder: Signer;
   let LSP8Holder: Signer;
+  let protocolFeeRecipient: Signer;
   let universalReceiverDelegateUAP: UniversalReceiverDelegateUAP;
   let mockAssistant: MockAssistant;
   let mockAssistantAddress: string;
@@ -46,7 +47,7 @@ describe("UniversalReceiverDelegateUAP", function () {
   let mockUPAddress: string;
 
   beforeEach(async function () {
-    [owner, browserController, nonOwner, LSP7Holder, LSP8Holder] = await ethers.getSigners();
+    [owner, browserController, nonOwner, LSP7Holder, LSP8Holder, protocolFeeRecipient] = await ethers.getSigners();
     const browserControllerAddress = await browserController.getAddress();
 
     // deploy UP account
@@ -55,6 +56,7 @@ describe("UniversalReceiverDelegateUAP", function () {
     await grantBrowserExtensionUrdSetPermissions(owner, browserController, universalProfile);
 
     [universalReceiverDelegateUAP] = await setLSP1UniversalReceiverDelegate(
+      protocolFeeRecipient,
       browserController,
       universalProfile,
       [PERMISSIONS.SUPER_CALL],
@@ -443,6 +445,12 @@ describe("UniversalReceiverDelegateUAP", function () {
       // Check that the token has been forwarded to the target address
       const tokenOwner = await mockLSP8.tokenOwnerOf(tokenId);
       expect(tokenOwner).to.equal(targetAddress);
+    });
+
+    it("should fail if calling setFeePaused without the correct permissions", async function () {
+      await expect(
+        universalReceiverDelegateUAP.connect(nonOwner).setFeePaused(true),
+      ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
     it.skip("should revert if a screener assistant is not trusted", async function () {});

@@ -153,6 +153,7 @@ export const grantBrowserExtensionUrdSetPermissions = async (
 
 
 export const setLSP1UniversalReceiverDelegate = async (
+  protocolFeeRecipient: Signer,
   browserController: Signer,
   universalProfile: UniversalProfile,
   permissions: string[],
@@ -162,7 +163,7 @@ export const setLSP1UniversalReceiverDelegate = async (
     "UniversalReceiverDelegateUAP",
   );
   const universalReceiverDelegateUAP =
-    (await UniversalReceiverDelegateUAPFactory.deploy()) as UniversalReceiverDelegateUAP;
+    (await UniversalReceiverDelegateUAPFactory.deploy(await protocolFeeRecipient.getAddress())) as UniversalReceiverDelegateUAP;
   await universalReceiverDelegateUAP.waitForDeployment();
 
   const dataKey = ERC725YDataKeys.LSP1.LSP1UniversalReceiverDelegate;

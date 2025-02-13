@@ -40,7 +40,7 @@ async function main() {
     },
   );
   const universalReceiverDelegateUAP =
-    await UniversalReceiverDelegateUAP.deploy();
+    await UniversalReceiverDelegateUAP.deploy(protocolFeeAddress);
   // wait until the contract is mined
   await universalReceiverDelegateUAP.waitForDeployment();
 

@@ -11,11 +11,7 @@ import {IERC725X} from "@erc725/smart-contracts/contracts/interfaces/IERC725X.so
 // Additional Interfaces
 import {IExecutiveAssistant} from "./IExecutiveAssistant.sol";
 import {IScreenerAssistant} from "./IScreenerAssistant.sol";
-
-// Import LSP0 constant for “value received” typeId.
 import { _TYPEID_LSP0_VALUE_RECEIVED } from "@lukso/lsp0-contracts/contracts/LSP0Constants.sol";
-
-// Import Ownable from OpenZeppelin so that only the owner can enable fee collection.
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
@@ -79,10 +75,10 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP, Ownabl
         bytes32 typeId,
         bytes memory data
     )
-    public
-    virtual
-    override(LSP1UniversalReceiverDelegateUP)
-    returns (bytes memory)
+        public
+        virtual
+        override(LSP1UniversalReceiverDelegateUP)
+        returns (bytes memory)
     {
         // effectiveValue will be passed to each delegatecall.
         uint256 effectiveValue = value;
@@ -94,68 +90,77 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP, Ownabl
             bytes10(keccak256("UAPTypeConfig")),
             bytes20(typeId)
         );
-        // Fetch the type configuration.
+        // Fetch the type configuration
         bytes memory typeConfig = IERC725Y(msg.sender).getData(typeConfigKey);
         if (typeConfig.length == 0) {
-            // No configurations found, invoke default behavior.
-            return super.universalReceiverDelegate(notifier, value, typeId, data);
+            // No configurations found, invoke default behavior
+            return
+                super.universalReceiverDelegate(notifier, value, typeId, data);
         }
         emit TypeIdConfigFound(typeId);
 
-        // Decode the addresses of executive assistants.
-        address[] memory orderedExecutiveAssistants = customDecodeAddresses(typeConfig);
+        // Decode the addresses of executive assistants
+        address[] memory orderedExecutiveAssistants = customDecodeAddresses(
+            typeConfig
+        );
         if (orderedExecutiveAssistants.length == 0) {
-            // No assistants found, invoke default behavior.
-            return super.universalReceiverDelegate(notifier, value, typeId, data);
+            // No assistants found, invoke default behavior
+            return
+                super.universalReceiverDelegate(notifier, value, typeId, data);
         }
-
-        // Loop through each executive assistant.
+        // Loop through each executive assistant
         for (uint256 i = 0; i < orderedExecutiveAssistants.length; i++) {
             address executiveAssistant = orderedExecutiveAssistants[i];
             emit AssistantFound(executiveAssistant);
 
-            // Generate the key for UAPExecutiveScreeners.
+            // Generate the key for UAPExecutiveScreeners
             bytes32 screenerAssistantsKey = LSP2Utils.generateMappingKey(
                 bytes10(keccak256("UAPExecutiveScreeners")),
                 bytes20(executiveAssistant)
             );
-            // Fetch the executive assistant configuration.
-            bytes memory executiveAssistantScreeners = IERC725Y(msg.sender).getData(screenerAssistantsKey);
+            // Fetch the executive assistant configuration
+            bytes memory executiveAssistantScreeners = IERC725Y(msg.sender)
+                .getData(screenerAssistantsKey);
 
-            // Decode the addresses of screener assistants.
-            address[] memory orderedScreenerAssistants = executiveAssistantScreeners.length > 0
-                ? customDecodeAddresses(executiveAssistantScreeners)
-                : new address[](0);
+            // Decode the addresses of screener assistants
+            address[]
+                memory orderedScreenerAssistants = executiveAssistantScreeners
+                    .length > 0
+                    ? customDecodeAddresses(executiveAssistantScreeners)
+                    : new address[](0);
 
             bool delegateToExecutive = true;
 
-            // Evaluate each screener assistant.
+            // Evaluate each screener assistant
             for (uint256 j = 0; j < orderedScreenerAssistants.length; j++) {
                 address screenerAssistant = orderedScreenerAssistants[j];
 
-                // Ensure the screener assistant is trusted.
+                // Ensure the screener assistant is trusted
                 if (!isTrustedAssistant(screenerAssistant)) {
                     revert UntrustedAssistant(screenerAssistant);
                 }
 
-                // Call the screener assistant.
-                (bool success, bytes memory returnData) = screenerAssistant.delegatecall(
-                    abi.encodeWithSelector(
-                        IScreenerAssistant.evaluate.selector,
-                        screenerAssistant,
-                        notifier,
-                        value,
-                        typeId,
-                        data
-                    )
-                );
+                // Call the screener assistant
+                (bool success, bytes memory returnData) = screenerAssistant
+                    .delegatecall(
+                        abi.encodeWithSelector(
+                            IScreenerAssistant.evaluate.selector,
+                            screenerAssistant,
+                            notifier,
+                            value,
+                            typeId,
+                            data
+                        )
+                    );
 
                 if (!success) {
                     revert ScreenerEvaluationFailed(screenerAssistant);
                 }
 
                 bool delegateToExecutiveResult = abi.decode(returnData, (bool));
-                delegateToExecutive = delegateToExecutive && delegateToExecutiveResult;
+                delegateToExecutive =
+                    delegateToExecutive &&
+                    delegateToExecutiveResult;
 
                 if (!delegateToExecutive) {
                     break;
@@ -211,7 +216,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP, Ownabl
                 emit AssistantInvoked(msg.sender, executiveAssistant);
             }
         }
-        // Proceed with the default universal receiver behavior.
+        // Proceed with the default universal receiver behavior
         return super.universalReceiverDelegate(notifier, value, typeId, data);
     }
 

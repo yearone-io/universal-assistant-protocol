@@ -3,7 +3,7 @@ import { getNetworkAccountsConfig } from "../constants/network";
 
 const network = hre.network.name;
 console.log("network: ", network);
-const { UP_ADDR_CONTROLLED_BY_EOA } = getNetworkAccountsConfig(
+const { UP_ADDR_CONTROLLED_BY_EOA, protocolFeeAddress } = getNetworkAccountsConfig(
   network as string,
 );
 
@@ -52,7 +52,7 @@ async function main() {
     await hre.run("verify:verify", {
       address: universalReceiverDelegateUAP.target,
       network,
-      constructorArguments: [],
+      constructorArguments: [protocolFeeAddress],
       contract:
         "contracts/UniversalReceiverDelegateUAP.sol:UniversalReceiverDelegateUAP",
     });

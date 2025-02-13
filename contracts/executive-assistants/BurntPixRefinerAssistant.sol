@@ -58,24 +58,20 @@ contract BurntPixRefinerAssistant is IExecutiveAssistant, ERC165 {
         (address burntPixCollection, bytes32 burntPixId, uint256 iters) = abi
             .decode(settingsData, (address, bytes32, uint256));
 
-        if (typeId == _TYPEID_LSP0_VALUE_RECEIVED) {
-            // Decode data to extract the amount
+        // Prepare the transfer call
+        bytes memory encodedBurntPixRefinementTx = abi.encodeWithSelector(
+            IRegistry.refine.selector,
+            burntPixId,
+            iters
+        );
 
-            // Prepare the transfer call
-            bytes memory encodedBurntPixRefinementTx = abi.encodeWithSelector(
-                IRegistry.refine.selector,
-                burntPixId,
-                iters
-            );
-
-            // Execute the transfer via the UP's ERC725X execute function
-            IERC725X(upAddress).execute(
-                0,
-                burntPixCollection,
-                0,
-                encodedBurntPixRefinementTx
-            );
-        }
+        // Execute the transfer via the UP's ERC725X execute function
+        IERC725X(upAddress).execute(
+            0,
+            burntPixCollection,
+            0,
+            encodedBurntPixRefinementTx
+        );
         return abi.encode(value, data);
     }
 

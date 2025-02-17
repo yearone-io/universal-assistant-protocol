@@ -35,7 +35,6 @@ contract BurntPixRefinerAssistant is IExecutiveAssistant, ERC165 {
      * @param assistantAddress The address of the Assistant contract.
      * The address that triggered the URD on the UP (e.g., token contract).
      * @param value The amount of Ether sent with the transaction.
-     * @param typeId The identifier representing the type of transaction or asset.
      * @param data Additional data relevant to the transaction.
      * @return A bytes array containing the updated value and data.
      */
@@ -43,7 +42,7 @@ contract BurntPixRefinerAssistant is IExecutiveAssistant, ERC165 {
         address assistantAddress,
         address,
         uint256 value,
-        bytes32 typeId,
+        bytes32,
         bytes memory data
     ) external override returns (bytes memory) {
         // Since we're called via delegatecall, msg.sender is the UP's address.

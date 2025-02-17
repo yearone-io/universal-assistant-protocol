@@ -9,7 +9,6 @@ import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.so
 
 // Additional Interfaces
 import {IExecutiveAssistant} from "./IExecutiveAssistant.sol";
-import {IScreenerAssistant} from "./IScreenerAssistant.sol";
 
 /**
  * @title UniversalReceiverDelegateUAP
@@ -25,7 +24,6 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
 
     // Custom errors
     error UntrustedAssistant(address assistant);
-    error ScreenerEvaluationFailed(address screener);
     error AssistantExecutionFailed(address assistant);
     error InvalidEncodedData();
 
@@ -75,82 +73,20 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         for (uint256 i = 0; i < orderedExecutiveAssistants.length; i++) {
             address executiveAssistant = orderedExecutiveAssistants[i];
             emit AssistantFound(executiveAssistant);
-
-            // Generate the key for UAPExecutiveScreeners
-            bytes32 screenerAssistantsKey = LSP2Utils.generateMappingKey(
-                bytes10(keccak256("UAPExecutiveScreeners")),
-                bytes20(executiveAssistant)
+            (bool success, ) = executiveAssistant.delegatecall(
+                abi.encodeWithSelector(
+                    IExecutiveAssistant.execute.selector,
+                    executiveAssistant,
+                    notifier,
+                    value,
+                    typeId,
+                    data
+                )
             );
-            // Fetch the executive assistant configuration
-            bytes memory executiveAssistantScreeners = IERC725Y(msg.sender)
-                .getData(screenerAssistantsKey);
-
-            // Decode the addresses of screener assistants
-            address[]
-                memory orderedScreenerAssistants = executiveAssistantScreeners
-                    .length > 0
-                    ? customDecodeAddresses(executiveAssistantScreeners)
-                    : new address[](0);
-
-            bool delegateToExecutive = true;
-
-            // Evaluate each screener assistant
-            for (uint256 j = 0; j < orderedScreenerAssistants.length; j++) {
-                address screenerAssistant = orderedScreenerAssistants[j];
-
-                // Ensure the screener assistant is trusted
-                if (!isTrustedAssistant(screenerAssistant)) {
-                    revert UntrustedAssistant(screenerAssistant);
-                }
-
-                // Call the screener assistant
-                (bool success, bytes memory returnData) = screenerAssistant
-                    .delegatecall(
-                        abi.encodeWithSelector(
-                            IScreenerAssistant.evaluate.selector,
-                            screenerAssistant,
-                            notifier,
-                            value,
-                            typeId,
-                            data
-                        )
-                    );
-
-                if (!success) {
-                    revert ScreenerEvaluationFailed(screenerAssistant);
-                }
-
-                bool delegateToExecutiveResult = abi.decode(returnData, (bool));
-                delegateToExecutive =
-                    delegateToExecutive &&
-                    delegateToExecutiveResult;
-
-                if (!delegateToExecutive) {
-                    break;
-                }
+            if (!success) {
+                revert AssistantExecutionFailed(executiveAssistant);
             }
-
-            if (delegateToExecutive) {
-                if (!isTrustedAssistant(executiveAssistant)) {
-                    revert UntrustedAssistant(executiveAssistant);
-                }
-                (bool success, ) = executiveAssistant.delegatecall(
-                    abi.encodeWithSelector(
-                        IExecutiveAssistant.execute.selector,
-                        executiveAssistant,
-                        notifier,
-                        value,
-                        typeId,
-                        data
-                    )
-                );
-
-                if (!success) {
-                    revert AssistantExecutionFailed(executiveAssistant);
-                }
-
-                emit AssistantInvoked(msg.sender, executiveAssistant);
-            }
+            emit AssistantInvoked(msg.sender, executiveAssistant);
         }
         // Proceed with the default universal receiver behavior
         return super.universalReceiverDelegate(notifier, value, typeId, data);
@@ -184,15 +120,5 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         }
 
         return addresses;
-    }
-
-    /**
-     * @dev Checks if an assistant contract is trusted.
-     * @return True if the assistant is trusted, false otherwise.
-     */
-    function isTrustedAssistant(
-        address /*assistant*/
-    ) internal view returns (bool) {
-        return true;
     }
 }

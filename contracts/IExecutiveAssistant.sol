@@ -13,7 +13,7 @@ interface IExecutiveAssistant {
      *      "UAPAssistantInstructions:<assistantAddress>".
      *      Since this function is called via delegatecall, the Assistant's code runs in the context of URDuap,
      *      and `msg.sender` will be the UP's address.
-     * @param assistantAddress The address of the Assistant contract.
+     * @param upAddress The address of the Universal Profile.
      * @param notifier The address that triggered the Universal Receiver Delegate on the UP (e.g., token contract).
      * @param value The amount of Ether sent with the transaction.
      * @param typeId The identifier representing the type of transaction or asset.
@@ -21,7 +21,7 @@ interface IExecutiveAssistant {
      * @return A bytes array containing the updated value and data, encoded as `abi.encode(value, data)`.
      */
     function execute(
-        address assistantAddress,
+        address upAddress,
         address notifier,
         uint256 value,
         bytes32 typeId,

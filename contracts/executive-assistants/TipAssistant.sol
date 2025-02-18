@@ -4,7 +4,6 @@ pragma solidity ^0.8.24;
 // Import interfaces
 import {IExecutiveAssistant} from "../IExecutiveAssistant.sol";
 import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
-import {IERC725X} from "@erc725/smart-contracts/contracts/interfaces/IERC725X.sol";
 
 // Constants
 import {_TYPEID_LSP0_VALUE_RECEIVED} from "@lukso/lsp0-contracts/contracts/LSP0Constants.sol";
@@ -14,8 +13,6 @@ import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 
 contract TipAssistant is IExecutiveAssistant, ERC165 {
-    event TipRequested(address indexed up, address indexed recipient, uint256 amount);
-
     error TipConfigNotSet();
     error InvalidTipRecipient();
     error InvalidTipPercentage();
@@ -50,11 +47,9 @@ contract TipAssistant is IExecutiveAssistant, ERC165 {
         address ,
         uint256 value,
         bytes32 typeId,
-        bytes memory
+        bytes memory data
     ) external override returns (bytes memory) {
-
         IERC725Y upERC725Y = IERC725Y(upAddress);
-
         // This key is where we expect the tip config to be stored (address, uint256).
         bytes32 settingsKey = getSettingsDataKey(address(this));
         bytes memory settingsData = upERC725Y.getData(settingsKey);
@@ -65,15 +60,13 @@ contract TipAssistant is IExecutiveAssistant, ERC165 {
             settingsData,
             (address, uint256)
         );
-
         // Basic sanity checks
         if (tipAddress == address(0)) revert InvalidTipRecipient();
         if (typeId != _TYPEID_LSP0_VALUE_RECEIVED) revert InvalidTipType();
         if (tipPercentage == 0 || tipPercentage > 100) revert InvalidTipPercentage();
-        uint256 tipAmount = (value * tipPercentage) / 100;
-        emit TipRequested(upAddress, tipAddress, tipAmount);
+        uint256 tipAmount = value > 0 ? (value * tipPercentage) / 100 : 0;
         emit TipSent(upAddress, tipAddress, tipAmount);
-        return abi.encode(0, tipAddress, tipAmount, "");
+        return abi.encode(0, tipAddress, tipAmount, "", abi.encode(value - tipAmount, data));
     }
 
     /**

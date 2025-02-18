@@ -18,7 +18,7 @@ interface IExecutiveAssistant {
      * @param value The amount of Ether sent with the transaction.
      * @param typeId The identifier representing the type of transaction or asset.
      * @param data Additional data relevant to the transaction.
-     * @return A bytes array containing the updated value and data, encoded as `abi.encode(operationType, notifier, value, execData, newDataAfterExec)`.
+     * @return A bytes array containing the updated value and call data: (operationType, notifier, value, execData, newDataAfterExec).
      */
     function execute(
         address upAddress,

@@ -4,10 +4,6 @@ pragma solidity ^0.8.24;
 // Import interfaces and contracts
 import {IExecutiveAssistant} from "../IExecutiveAssistant.sol";
 import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
-import {IERC725X} from "@erc725/smart-contracts/contracts/interfaces/IERC725X.sol";
-
-// Constants
-import {_TYPEID_LSP0_VALUE_RECEIVED} from "@lukso/lsp0-contracts/contracts/LSP0Constants.sol";
 
 // Utils
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
@@ -32,25 +28,19 @@ contract BurntPixRefinerAssistant is IExecutiveAssistant, ERC165 {
 
     /**
      * @dev The execute function called by URDuap via delegatecall.
-     * @param assistantAddress The address of the Assistant contract.
-     * The address that triggered the URD on the UP (e.g., token contract).
-     * @param value The amount of Ether sent with the transaction.
-     * @param data Additional data relevant to the transaction.
+     * @param upAddress The universal profile address
      * @return A bytes array containing the updated value and data.
      */
     function execute(
-        address assistantAddress,
+        address upAddress,
         address,
-        uint256 value,
+        uint256,
         bytes32,
-        bytes memory data
-    ) external override returns (bytes memory) {
-        // Since we're called via delegatecall, msg.sender is the UP's address.
-        address upAddress = msg.sender;
-
+        bytes memory
+    ) external override view returns (uint256, address, uint256, bytes memory, bytes memory) {
         // Read settings from the UP's ERC725Y data store.
         IERC725Y upERC725Y = IERC725Y(upAddress);
-        bytes32 settingsKey = getSettingsDataKey(assistantAddress);
+        bytes32 settingsKey = getSettingsDataKey(address(this));
         bytes memory settingsData = upERC725Y.getData(settingsKey);
         // Decode the settingsData to get targetAddress.
         // Assume settingsData is encoded as: abi.encode(address targetAddress)
@@ -63,15 +53,12 @@ contract BurntPixRefinerAssistant is IExecutiveAssistant, ERC165 {
             burntPixId,
             iters
         );
-
-        // Execute the transfer via the UP's ERC725X execute function
-        IERC725X(upAddress).execute(
-            0,
+        return (0,
             burntPixCollection,
             0,
-            encodedBurntPixRefinementTx
+            encodedBurntPixRefinementTx,
+            ""
         );
-        return abi.encode(value, data);
     }
 
     /**

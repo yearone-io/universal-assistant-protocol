@@ -5,10 +5,12 @@ pragma solidity ^0.8.24;
 import {LSP2Utils} from "@lukso/lsp-smart-contracts/contracts/LSP2ERC725YJSONSchema/LSP2Utils.sol";
 // Interfaces
 import {LSP1UniversalReceiverDelegateUP} from "@lukso/lsp-smart-contracts/contracts/LSP1UniversalReceiver/LSP1UniversalReceiverDelegateUP/LSP1UniversalReceiverDelegateUP.sol";
+import {IERC725X} from "@erc725/smart-contracts/contracts/interfaces/IERC725X.sol";
 import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
 
 // Additional Interfaces
 import {IExecutiveAssistant} from "./IExecutiveAssistant.sol";
+
 
 /**
  * @title UniversalReceiverDelegateUAP
@@ -70,26 +72,35 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                 super.universalReceiverDelegate(notifier, value, typeId, data);
         }
         // Loop through each executive assistant
+        bytes memory currentData = data;
+        uint256 currentValue = value;
         for (uint256 i = 0; i < orderedExecutiveAssistants.length; i++) {
             address executiveAssistant = orderedExecutiveAssistants[i];
             emit AssistantFound(executiveAssistant);
-            (bool success, ) = executiveAssistant.delegatecall(
+            (bool success, bytes memory returnData) = executiveAssistant.call(
                 abi.encodeWithSelector(
                     IExecutiveAssistant.execute.selector,
-                    executiveAssistant,
+                    msg.sender,
                     notifier,
-                    value,
+                    currentValue,
                     typeId,
-                    data
+                    currentData
                 )
             );
             if (!success) {
                 revert AssistantExecutionFailed(executiveAssistant);
             }
+            (uint256 execOperationType, address execTarget, uint256 execValue, bytes memory execData, bytes memory execResultData) =
+                abi.decode(returnData, (uint256, address, uint256, bytes, bytes));
+            if (execResultData.length > 0) {
+                (uint256 newValue, bytes memory newTxData) =  abi.decode(execResultData, (uint256, bytes));
+                currentValue = newValue;
+                currentData = newTxData;
+            }
+            IERC725X(msg.sender).execute(execOperationType, execTarget, execValue, execData);
             emit AssistantInvoked(msg.sender, executiveAssistant);
         }
-        // Proceed with the default universal receiver behavior
-        return super.universalReceiverDelegate(notifier, value, typeId, data);
+        return super.universalReceiverDelegate(notifier, currentValue, typeId, currentData);
     }
 
     /**

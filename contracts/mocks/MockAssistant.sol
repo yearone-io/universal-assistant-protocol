@@ -13,8 +13,8 @@ contract MockAssistant is IExecutiveAssistant {
         external
         override
         pure
-        returns (bytes memory)
+        returns (uint256, address, uint256, bytes memory, bytes memory)
     {
-        return abi.encode(0, upAddress, value, "");
+        return (0, upAddress, value, "", "");
     }
 }

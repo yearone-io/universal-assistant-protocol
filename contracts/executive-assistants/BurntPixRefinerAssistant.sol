@@ -37,7 +37,7 @@ contract BurntPixRefinerAssistant is IExecutiveAssistant, ERC165 {
         uint256,
         bytes32,
         bytes memory
-    ) external override view returns (bytes memory) {
+    ) external override view returns (uint256, address, uint256, bytes memory, bytes memory) {
         // Read settings from the UP's ERC725Y data store.
         IERC725Y upERC725Y = IERC725Y(upAddress);
         bytes32 settingsKey = getSettingsDataKey(address(this));
@@ -53,7 +53,7 @@ contract BurntPixRefinerAssistant is IExecutiveAssistant, ERC165 {
             burntPixId,
             iters
         );
-        return abi.encode(0,
+        return (0,
             burntPixCollection,
             0,
             encodedBurntPixRefinementTx,

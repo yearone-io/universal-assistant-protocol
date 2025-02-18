@@ -48,7 +48,7 @@ contract TipAssistant is IExecutiveAssistant, ERC165 {
         uint256 value,
         bytes32 typeId,
         bytes memory data
-    ) external override returns (bytes memory) {
+    ) external override returns (uint256, address, uint256, bytes memory, bytes memory) {
         IERC725Y upERC725Y = IERC725Y(upAddress);
         // This key is where we expect the tip config to be stored (address, uint256).
         bytes32 settingsKey = getSettingsDataKey(address(this));
@@ -66,7 +66,7 @@ contract TipAssistant is IExecutiveAssistant, ERC165 {
         if (tipPercentage == 0 || tipPercentage > 100) revert InvalidTipPercentage();
         uint256 tipAmount = value > 0 ? (value * tipPercentage) / 100 : 0;
         emit TipSent(upAddress, tipAddress, tipAmount);
-        return abi.encode(0, tipAddress, tipAmount, "", abi.encode(value - tipAmount, data));
+        return (0, tipAddress, tipAmount, "", abi.encode(value - tipAmount, data));
     }
 
     /**

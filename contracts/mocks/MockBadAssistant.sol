@@ -14,9 +14,9 @@ contract MockBadAssistant is IExecutiveAssistant {
     )
         external
         override
-        returns (bytes memory)
+        returns (uint256, address, uint256, bytes memory, bytes memory)
     {
         require(false, "always false");
-        return "";
+        return (0, address(0), 0, "", "");
     }
 }

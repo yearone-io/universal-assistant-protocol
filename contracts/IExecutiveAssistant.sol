@@ -26,5 +26,5 @@ interface IExecutiveAssistant {
         uint256 value,
         bytes32 typeId,
         bytes memory data
-    ) external returns (bytes memory);
+    ) external returns (uint256, address, uint256, bytes memory, bytes memory);
 }

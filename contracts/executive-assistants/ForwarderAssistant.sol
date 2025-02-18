@@ -51,9 +51,9 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
         uint256 value,
         bytes32 typeId,
         bytes memory data
-    ) external override returns (bytes memory) {
+    ) external override returns (uint256, address, uint256, bytes memory, bytes memory) {
         if (data.length == 0) {
-            return abi.encode(0, notifier, value, "", "");
+            return (0, notifier, value, "", "");
         }
         // Read settings from the UP's ERC725Y data store.
         IERC725Y upERC725Y = IERC725Y(upAddress);
@@ -95,7 +95,7 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
                 lsp7Data
             );
             emit LSP7AssetForwarded(notifier, amount, targetAddress);
-            return abi.encode(0, notifier, value, encodedLSP7Tx, abi.encode(value, ""));
+            return (0, notifier, value, encodedLSP7Tx, abi.encode(value, ""));
         } else if (typeId == _TYPEID_LSP8_TOKENSRECIPIENT) {
             // Decode data to extract the tokenId
             (
@@ -113,7 +113,7 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
             );
 
             emit LSP8AssetForwarded(notifier, tokenId, targetAddress);
-            return abi.encode(0, notifier, value, encodedLSP8Tx, abi.encode(value, ""));
+            return (0, notifier, value, encodedLSP8Tx, abi.encode(value, ""));
         }
         revert InvalidTypeId();
     }

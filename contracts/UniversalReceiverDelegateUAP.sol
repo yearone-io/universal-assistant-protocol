@@ -90,9 +90,8 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
             if (!success) {
                 revert AssistantExecutionFailed(executiveAssistant);
             }
-            (bytes memory rawReturnData) = abi.decode(returnData, (bytes));
             (uint256 execOperationType, address execTarget, uint256 execValue, bytes memory execData, bytes memory execResultData) =
-                abi.decode(rawReturnData, (uint256, address, uint256, bytes, bytes));
+                abi.decode(returnData, (uint256, address, uint256, bytes, bytes));
             if (execResultData.length > 0) {
                 (uint256 newValue, bytes memory newTxData) =  abi.decode(execResultData, (uint256, bytes));
                 currentValue = newValue;

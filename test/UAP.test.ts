@@ -205,10 +205,8 @@ describe("UniversalReceiverDelegateUAP", function () {
 
       // Mock getData to return the encoded addresses
       await mockUP.setData(typeMappingKey, encodedData);
-      console.log("typeMappingKey: ", typeMappingKey, mockAssistantAddress);
       const amount = 1;
       await mockLSP7.connect(LSP7Holder).mint(LSP7Holder, amount);
-      console.log("LSP7Holder minted LSP7 tokens");
       await expect(
         await mockLSP7
           .connect(LSP7Holder)

@@ -5,6 +5,7 @@ import { IExecutiveAssistant } from "../IExecutiveAssistant.sol";
 
 
 contract MockBadAssistant is IExecutiveAssistant {
+    error AlwaysFalseError();
     function execute(
         address /*assistantAddress */,
         address /*notifier */,
@@ -16,7 +17,6 @@ contract MockBadAssistant is IExecutiveAssistant {
         override
         returns (uint256, address, uint256, bytes memory, bytes memory)
     {
-        require(false, "always false");
-        return (0, address(0), 0, "", "");
+        revert AlwaysFalseError();
     }
 }

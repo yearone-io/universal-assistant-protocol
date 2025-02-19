@@ -4,7 +4,6 @@ pragma solidity ^0.8.24;
 // Import interfaces and contracts
 import {IExecutiveAssistant} from "../IExecutiveAssistant.sol";
 import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
-import {IERC725X} from "@erc725/smart-contracts/contracts/interfaces/IERC725X.sol";
 import {ILSP7DigitalAsset} from "@lukso/lsp-smart-contracts/contracts/LSP7DigitalAsset/ILSP7DigitalAsset.sol";
 import {ILSP8IdentifiableDigitalAsset} from "@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/ILSP8IdentifiableDigitalAsset.sol";
 
@@ -27,6 +26,7 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
         address destination
     );
     error TargetAddressNotSet();
+    error InvalidTypeId();
 
     function supportsInterface(
         bytes4 interfaceId
@@ -38,7 +38,7 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
 
     /**
      * @dev The execute function called by URDuap via delegatecall.
-     * @param assistantAddress The address of the Assistant contract.
+     * @param upAddress The address of the Universal Profile
      * @param notifier The address that triggered the URD on the UP (e.g., token contract).
      * @param value The amount of Ether sent with the transaction.
      * @param typeId The identifier representing the type of transaction or asset.
@@ -46,32 +46,27 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
      * @return A bytes array containing the updated value and data.
      */
     function execute(
-        address assistantAddress,
+        address upAddress,
         address notifier,
         uint256 value,
         bytes32 typeId,
         bytes memory data
-    ) external override returns (bytes memory) {
-        // Since we're called via delegatecall, msg.sender is the UP's address.
-        address upAddress = msg.sender;
-
+    ) external override returns (uint256, address, uint256, bytes memory, bytes memory) {
+        if (data.length == 0) {
+            return (0, notifier, value, "", "");
+        }
         // Read settings from the UP's ERC725Y data store.
         IERC725Y upERC725Y = IERC725Y(upAddress);
-
-        bytes32 settingsKey = getSettingsDataKey(assistantAddress);
-
+        bytes32 settingsKey = getSettingsDataKey(address(this));
         bytes memory settingsData = upERC725Y.getData(settingsKey);
-
         // Decode the settingsData to get targetAddress.
         // Assume settingsData is encoded as: abi.encode(address targetAddress)
         address targetAddress = abi.decode(settingsData, (address));
-
         if (targetAddress == address(0)) {
             revert TargetAddressNotSet();
         }
-
         if (typeId == _TYPEID_LSP7_TOKENSRECIPIENT) {
-            // Decode data to extract the amount
+            // Decode the lsp1 data to extract the amount
             (
                 address sender,
                 address receiver,
@@ -90,12 +85,9 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
                 lsp7Data
             );
 
-            // Execute the transfer via the UP's ERC725X execute function
-            IERC725X(upAddress).execute(0, notifier, 0, encodedLSP7Tx);
-
             // Modify the data to set amount to zero
             uint256 modifiedAmount = 0;
-            bytes memory modifiedData = abi.encode(
+            bytes memory newLSP7TransferData = abi.encode(
                 sender,
                 receiver,
                 operator,
@@ -103,41 +95,27 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
                 lsp7Data
             );
             emit LSP7AssetForwarded(notifier, amount, targetAddress);
-            // Return the modified value and data
-            return abi.encode(value, modifiedData);
+            return (0, notifier, value, encodedLSP7Tx, abi.encode(value, ""));
         } else if (typeId == _TYPEID_LSP8_TOKENSRECIPIENT) {
             // Decode data to extract the tokenId
             (
-                address txSource,
-                address from,
-                address to,
+                address sender,
+                address receiver,
+                address operator,
                 bytes32 tokenId,
-                bytes memory txData
+                bytes memory lsp8Data
             ) = abi.decode(data, (address, address, address, bytes32, bytes));
 
             // Prepare the transfer call
             bytes memory encodedLSP8Tx = abi.encodeCall(
                 ILSP8IdentifiableDigitalAsset.transfer,
-                (msg.sender, targetAddress, tokenId, true, data)
+                (upAddress, targetAddress, tokenId, true, data)
             );
-            // Execute the transfer via the UP's ERC725X execute function
-            IERC725X(msg.sender).execute(0, notifier, 0, encodedLSP8Tx);
 
-            // Modify the data to set tokenId to zero
-            bytes memory modifiedData = abi.encode(
-                txSource,
-                from,
-                to,
-                bytes32(0),
-                txData
-            );
             emit LSP8AssetForwarded(notifier, tokenId, targetAddress);
-            // Return the modified value and data
-            return abi.encode(value, modifiedData);
+            return (0, notifier, value, encodedLSP8Tx, abi.encode(value, ""));
         }
-
-        // If no action taken, return the original value and data
-        return abi.encode(value, data);
+        revert InvalidTypeId();
     }
 
     /**

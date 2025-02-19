@@ -88,7 +88,14 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                 )
             );
             if (!success) {
-                revert AssistantExecutionFailed(executiveAssistant);
+                // If there's revert data, bubble it up exactly as returned.
+                if (returnData.length > 0) {
+                    assembly {
+                        revert(add(returnData, 32), mload(returnData))
+                    }
+                } else {
+                    revert AssistantExecutionFailed(executiveAssistant);
+                }
             }
             (uint256 execOperationType, address execTarget, uint256 execValue, bytes memory execData, bytes memory execResultData) =
                 abi.decode(returnData, (uint256, address, uint256, bytes, bytes));

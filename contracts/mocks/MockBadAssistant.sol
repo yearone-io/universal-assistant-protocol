@@ -7,7 +7,7 @@ import { IExecutiveAssistant } from "../IExecutiveAssistant.sol";
 contract MockBadAssistant is IExecutiveAssistant {
     error AlwaysFalseError();
     function execute(
-        address /*assistantAddress */,
+        address /*upAddress */,
         address /*notifier */,
         uint256 /*value */,
         bytes32 /*typeId */,

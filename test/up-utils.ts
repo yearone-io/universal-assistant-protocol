@@ -2,7 +2,9 @@ import { ethers } from "hardhat";
 import {
   LSP1UniversalReceiverDelegateUP__factory,
   LSP6KeyManager__factory, UniversalProfile,
-  UniversalProfile__factory
+  LSP6KeyManager,
+  UniversalProfile__factory,
+  LSP1UniversalReceiverDelegateUP
 } from "../typechain-types";
 import { ALL_PERMISSIONS, PERMISSIONS } from "@lukso/lsp-smart-contracts";
 import { toBigInt, zeroPadValue, toBeHex, Signer } from "ethers";
@@ -54,7 +56,7 @@ const browserControllerPermissions = [
 export const setupProfileWithKeyManagerWithURD = async (
   EOA: Signer,
   browserController: Signer
-) => {
+): Promise<[UniversalProfile, LSP6KeyManager, LSP1UniversalReceiverDelegateUP]> => {
   // Deploy Universal Profile
   let ownerAddress = await EOA.getAddress();
   let browserControllerAddress = await browserController.getAddress();

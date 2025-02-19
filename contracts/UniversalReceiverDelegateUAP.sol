@@ -11,7 +11,6 @@ import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.so
 // Additional Interfaces
 import {IExecutiveAssistant} from "./IExecutiveAssistant.sol";
 
-
 /**
  * @title UniversalReceiverDelegateUAP
  * @dev Universal Receiver Delegate for the Universal Assistant Protocol.
@@ -77,6 +76,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         for (uint256 i = 0; i < orderedExecutiveAssistants.length; i++) {
             address executiveAssistant = orderedExecutiveAssistants[i];
             emit AssistantFound(executiveAssistant);
+            // solhint-disable-next-line avoid-low-level-calls
             (bool success, bytes memory returnData) = executiveAssistant.call(
                 abi.encodeWithSelector(
                     IExecutiveAssistant.execute.selector,
@@ -116,6 +116,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         }
 
         uint16 numAddresses;
+        // solhint-disable-next-line no-inline-assembly
         assembly {
             numAddresses := shr(240, mload(add(encoded, 32)))
         }
@@ -124,6 +125,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
 
         for (uint256 i = 0; i < numAddresses; i++) {
             address addr;
+            // solhint-disable-next-line no-inline-assembly
             assembly {
                 addr := shr(96, mload(add(encoded, add(34, mul(i, 20)))))
             }

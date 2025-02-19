@@ -67,14 +67,7 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
         }
         if (typeId == _TYPEID_LSP7_TOKENSRECIPIENT) {
             // Decode the lsp1 data to extract the amount
-            (
-                address sender,
-                address receiver,
-                address operator,
-                uint256 amount,
-                bytes memory lsp7Data
-            ) = abi.decode(data, (address, address, address, uint256, bytes));
-
+            (,,,uint256 amount,bytes memory lsp7Data) = abi.decode(data, (address, address, address, uint256, bytes));
             // Prepare the transfer call
             bytes memory encodedLSP7Tx = abi.encodeWithSelector(
                 ILSP7DigitalAsset.transfer.selector,
@@ -84,34 +77,16 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
                 true,
                 lsp7Data
             );
-
-            // Modify the data to set amount to zero
-            uint256 modifiedAmount = 0;
-            bytes memory newLSP7TransferData = abi.encode(
-                sender,
-                receiver,
-                operator,
-                modifiedAmount,
-                lsp7Data
-            );
             emit LSP7AssetForwarded(notifier, amount, targetAddress);
             return (0, notifier, value, encodedLSP7Tx, abi.encode(value, ""));
         } else if (typeId == _TYPEID_LSP8_TOKENSRECIPIENT) {
             // Decode data to extract the tokenId
-            (
-                address sender,
-                address receiver,
-                address operator,
-                bytes32 tokenId,
-                bytes memory lsp8Data
-            ) = abi.decode(data, (address, address, address, bytes32, bytes));
-
+            (,,,bytes32 tokenId,) = abi.decode(data, (address, address, address, bytes32, bytes));
             // Prepare the transfer call
             bytes memory encodedLSP8Tx = abi.encodeCall(
                 ILSP8IdentifiableDigitalAsset.transfer,
                 (upAddress, targetAddress, tokenId, true, data)
             );
-
             emit LSP8AssetForwarded(notifier, tokenId, targetAddress);
             return (0, notifier, value, encodedLSP8Tx, abi.encode(value, ""));
         }

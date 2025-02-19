@@ -4,6 +4,8 @@ pragma solidity ^0.8.24;
 import { IScreenerAssistant } from "../IScreenerAssistant.sol";
 
 contract MockBadScreenerAssistant is IScreenerAssistant {
+    error AlwaysFalseError();
+
     function evaluate(
         address /*filterAddress */,
         address /*notifier */,
@@ -11,7 +13,6 @@ contract MockBadScreenerAssistant is IScreenerAssistant {
         bytes32 /*typeId */,
         bytes memory /*data */
     ) external override(IScreenerAssistant) returns (bool) {
-        require(false, "always false");
-        return false;
+        revert AlwaysFalseError();
     }
 }

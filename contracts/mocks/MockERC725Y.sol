@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import { IERC725Y } from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
 
 contract MockERC725Y is IERC725Y {
+    error KeysValuesArrayMismatch();
     mapping(bytes32 => bytes) private store;
 
     function getData(bytes32 dataKey) external view override(IERC725Y) returns (bytes memory values) {
@@ -24,14 +25,16 @@ contract MockERC725Y is IERC725Y {
     }
 
     function setDataBatch(bytes32[] memory keys, bytes[] memory values) external payable override(IERC725Y) {
-        require(keys.length == values.length, "Keys/values array mismatch");
+        if (keys.length != values.length) {
+            revert KeysValuesArrayMismatch();
+        }
         for (uint256 i = 0; i < keys.length; i++) {
             store[keys[i]] = values[i];
             emit IERC725Y.DataChanged(keys[i], values[i]);
         }
     }
 
-     function supportsInterface(bytes4 interfaceId) external view returns (bool) {
+     function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
         return interfaceId == type(IERC725Y).interfaceId ;
      }
 }

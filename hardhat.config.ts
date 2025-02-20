@@ -4,6 +4,7 @@ import "@nomicfoundation/hardhat-toolbox";
 import * as dotenv from "dotenv";
 import { getNetworkAccountsConfig } from "./constants/network";
 import './tasks/deployContracts';
+import './tasks/verifyContracts';
 require("hardhat-contract-sizer");
 
 // load env vars

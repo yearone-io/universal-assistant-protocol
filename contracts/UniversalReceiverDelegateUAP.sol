@@ -90,6 +90,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
             if (!success) {
                 // If there's revert data, bubble it up exactly as returned.
                 if (returnData.length > 0) {
+                    // solhint-disable-next-line no-inline-assembly
                     assembly {
                         revert(add(returnData, 32), mload(returnData))
                     }

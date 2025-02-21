@@ -1,5 +1,7 @@
 # Deployments
 
+Ensure your .env file is configured.
+
 Deploy the UAP URD and multiple assistants at once:
 
 ```bash

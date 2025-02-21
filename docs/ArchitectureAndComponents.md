@@ -18,7 +18,7 @@ end
 
 Tokens[Digital Asset Contracts - LSP7/LSP8 or Other Payloads] -->|Send Transactions| UP
 
-UP -->|Delegates to| URDuap[UAP - Universal Receiver Delegate]
+UP -->|Delegates to| URDuap[Universal Receiver Delegate - Universal Assistant Protocol]
 
 URDuap -->|Accesses Configurations from| ERC725Y
 
@@ -35,7 +35,7 @@ URDuap -->|Defaults to| LSP1
 
 ## Detailed Component Descriptions and Interactions
 
-### 1. Universal Profile (UP) - LSP0
+### 1. LUKSO Universal Profile (UP) - LSP0
 
 **Components:**
 
@@ -52,7 +52,7 @@ URDuap -->|Defaults to| LSP1
 **Interactions:**
 
 - **Receives transactions** from digital asset contracts (e.g., LSP7 or LSP8).
-- **Delegates incoming transactions** to the Universal Receiver Delegate (`URDuap`).
+- **Delegates incoming transactions** to the Universal Assistant Protocol's Universal Receiver Delegate (`URDuap`).
 - **Access controlled** by the Key Manager (KM).
 
 ---
@@ -88,11 +88,11 @@ URDuap -->|Defaults to| LSP1
 
 ---
 
-### 4. Universal Receiver Delegate for UAP (URDuap)
+### 4. Universal Receiver Delegate for Universal Assistant Protocol (URDuap)
 
 **Role:**
 
-- The UAP’s specialized Universal Receiver Delegate that handles incoming transactions.
+- The Universal Assistant Protocol’s specialized Universal Receiver Delegate that handles incoming transactions.
 
 **Responsibilities:**
 
@@ -158,7 +158,7 @@ URDuap -->|Defaults to| LSP1
 
 **Role:**
 
-- **Future Feature**: Equivalent to what was previously described as “Filters.”
+- **Future Feature**:
 - Will intercept incoming transactions/data to decide if any Executive Assistants should be invoked or if the transaction should be rejected/modified beforehand.
 
 **Responsibilities:**
@@ -175,24 +175,7 @@ URDuap -->|Defaults to| LSP1
 
 ---
 
-### 8. Vault Contracts - LSP9 (Optional)
-
-**Role:**
-
-- Secure storage for assets or tokens routed by Assistants.
-
-**Responsibilities:**
-
-- Holds assets if an Executive Assistant (or a future Screener) decides to redirect them.
-- Provides a secure separation from the main UP for specialized asset management.
-
-**Interactions:**
-
-- Invoked by Assistants if user-defined logic requires moving tokens/assets off the main UP.
-
----
-
-### 9. Default Universal Receiver Delegate (LSP1)
+### 8. Default Universal Receiver Delegate (LSP1)
 
 **Role:**
 

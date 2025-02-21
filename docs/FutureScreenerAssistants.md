@@ -1,6 +1,6 @@
 # Future: Screener Assistants
 
-**Screener Assistants** (equivalent to previously described “Filters”) will be introduced in a future release. 
+**Screener Assistants** will be introduced in a future release. 
 
 They are intended to:
 

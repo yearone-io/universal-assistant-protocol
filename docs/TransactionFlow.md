@@ -54,7 +54,7 @@ sequenceDiagram
 ### **Flow Explanation**
 
 1. **User Initiates Transaction:**
-   - A **User** uses an LSP7/LSP8 token contract to transfer tokens to their **Universal Profile (UP)**.
+   - A **User** sends a transaction to a **Universal Profile (UP)** (i.e. interacts with an LSP7/LSP8 token contract to transfer tokens).
    - The **token contract** calls the UP’s Universal Receiver function with `typeId` and `data`.
 
 2. **UP Delegates to `URDuap`:**

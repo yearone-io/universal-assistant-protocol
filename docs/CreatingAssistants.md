@@ -54,9 +54,9 @@ You must return:
 
 ### 3. Storing and Reading Configuration
 
-Often, your Assistant needs additional settings or instructions (for example, a recipient address, a percentage, or a specific token ID). Because Assistants run in their **own** contract context when called by the URDuap, they can either:
+Often, your Assistant needs additional settings or instructions (for example, a recipient address, a percentage, or a specific token ID). Because Assistants run in their **own** contract context when called by the URDuap, they can:
 
-1. **Use the UP’s ERC725Y Storage**  
+**Use the UP’s ERC725Y Storage**  
    - Store configuration under a known key derived from your Assistant’s address.  
    - For example, the code uses a key like `UAPExecutiveConfig:<assistantAddress>` to store arbitrary settings.  
    - You can read from the UP’s storage with something like:
@@ -66,9 +66,6 @@ Often, your Assistant needs additional settings or instructions (for example, a 
      bytes memory settingsData = upERC725Y.getData(settingsKey);
      // decode settingsData to retrieve your config
      ```
-2. **Use Your Assistant’s Own Storage**  
-   - Since the call from URDuap is a standard `.call()`, your Assistant has its own storage space.  
-   - You can store configuration internally if you prefer, although it’s often more transparent and user-friendly to keep all per-UP settings in that UP’s ERC725Y store.
 
 **Example** (taken from `TipAssistant`):
 ```solidity
@@ -251,6 +248,7 @@ With that, whenever a transfer or call with the matching `typeId` arrives, the U
 
 ## Final Thoughts
 
+- Reach out to the YearOne team for integrating the Executive Assistant you build directly into the https://upassistants.com UI.
 - **Executive Assistants** give developers modular, composable “plugins” to process incoming transactions on a Universal Profile.
 - By storing or reading settings from the UP’s `ERC725Y` data store, you can create highly configurable logic for specific token types (`typeId`), event types, or other scenarios.
 - Always design and **test** your Assistants carefully to avoid security pitfalls or unexpected behaviors.  

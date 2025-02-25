@@ -55,7 +55,7 @@ describe("UniversalReceiverDelegateUAP", function () {
     [universalReceiverDelegateUAP] = await setLSP1UniversalReceiverDelegate(
       browserController,
       universalProfile,
-      [PERMISSIONS.SUPER_CALL],
+      [PERMISSIONS.SUPER_CALL, PERMISSIONS.REENTRANCY],
     );
 
     mockUP = universalProfile;

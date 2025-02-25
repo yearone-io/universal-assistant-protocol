@@ -17,7 +17,7 @@ import {
   setLSP1UniversalReceiverDelegate,
   setupProfileWithKeyManagerWithURD,
 } from "./up-utils";
-import { MockLSP7DigitalAsset } from "../typechain-types/contracts/mocks";
+import { MockLSP7DigitalAsset } from "../typechain-types/MockLSP7DigitalAsset";
 import { customEncodeAddresses } from "./helpers/encoding";
 
 describe("UniversalReceiverDelegateUAP", function () {
@@ -248,16 +248,7 @@ describe("UniversalReceiverDelegateUAP", function () {
       const encodedInstructions = abi.encode(["address"], [targetAddress]);
       await mockUP.setData(assistantInstructionsKey, encodedInstructions);
 
-      const mintPayload = mockLSP7.interface.encodeFunctionData("mint", [
-        mockUPAddress, // Address to receive the tokens
-        1              // Amount of tokens to mint
-      ]);
-      const tx = await mockUP.connect(owner).execute(
-        0,                    // operationType: CALL
-        await mockLSP7.getAddress(), // target: mockLSP7 contract
-        0,                    // value: 0 (no ETH transfer)
-        mintPayload           // data: encoded mint call
-      );
+      const tx = await mockLSP7.connect(owner).mint(mockUPAddress, 1);
       await tx.wait();
       const balance = await mockLSP7.balanceOf(targetAddress);
       expect(balance).to.equal(1);

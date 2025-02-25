@@ -481,4 +481,75 @@ describe("BurntPixRefinerAssistant & Mixed Assistants", function () {
     // Now `assistantInvokedLogs` is an array of parsed "AssistantInvoked" logs
     expect(assistantInvokedLogs.length).to.equal(1);
   });
+  it("should mint LSP7 tokens via UP and trigger BurntPixRefinerAssistant for LSP7", async function () {
+    // Subscribe the UP to BurntPixRefinerAssistant for LSP7 events.
+    const typeMappingKey = generateMappingKey("UAPTypeConfig", LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification);
+    const encodedAssistantsData = customEncodeAddresses([await burntPixAssistant.getAddress()]);
+    await universalProfile.setData(typeMappingKey, encodedAssistantsData);
+  
+    // Set up the BurntPix configuration for the assistant.
+    // Here we encode the registry address, the pixId, and the number of iterations.
+    const execKey = generateMappingKey("UAPExecutiveConfig", await burntPixAssistant.getAddress());
+    const pixId = "0x1234000000000000000000000000000000000000000000000000000000000000";
+    const iters = 2;
+    const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(
+      ["address", "bytes32", "uint256"],
+      [mockRegistry.target, pixId, iters]
+    );
+    await universalProfile.setData(execKey, encodedConfig);
+    const upAddr = await universalProfile.getAddress();
+
+    // Mint LSP7 tokens by having the UP execute the mint call.
+    const mintPayload = mockLSP7.interface.encodeFunctionData("mint", [
+      upAddr, // UP receives the minted tokens
+      1              // Mint 1 token
+    ]);
+    
+    // Expect that the refine() call is triggered on the registry (event "Refined")
+    await expect(
+      universalProfile.connect(owner).execute(
+        0,                          // operationType: CALL
+        await mockLSP7.getAddress(), // target: LSP7 contract address
+        0,                          // value: 0 ETH
+        mintPayload                 // data: encoded mint call
+      )
+    ).to.emit(mockRegistry, "Refined").withArgs(pixId, iters);
+  });
+
+  it("should mint LSP8 tokens via UP and trigger BurntPixRefinerAssistant for LSP8", async function () {
+    // Subscribe the UP to BurntPixRefinerAssistant for LSP8 events.
+    const typeMappingKey = generateMappingKey("UAPTypeConfig", LSP1_TYPE_IDS.LSP8Tokens_RecipientNotification);
+    const encodedAssistantsData = customEncodeAddresses([await burntPixAssistant.getAddress()]);
+    await universalProfile.setData(typeMappingKey, encodedAssistantsData);
+  
+    // Set up the BurntPix configuration for the assistant.
+    const execKey = generateMappingKey("UAPExecutiveConfig", await burntPixAssistant.getAddress());
+    const pixId = "0xabcdef0000000000000000000000000000000000000000000000000000000000";
+    const iters = 3;
+    const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(
+      ["address", "bytes32", "uint256"],
+      [mockRegistry.target, pixId, iters]
+    );
+    await universalProfile.setData(execKey, encodedConfig);
+    const upAddr = await universalProfile.getAddress();
+
+    // For LSP8 tokens, we need to mint with a tokenId.
+    const tokenId = ethers.toBeHex(1, 32);
+    const mintPayload = mockLSP8.interface.encodeFunctionData("mint", [
+      upAddr, // UP receives the minted token
+      tokenId      // The tokenId for the LSP8 asset
+    ]);
+    
+    // Expect that the refine() call is triggered on the registry (event "Refined")
+    await expect(
+      universalProfile.connect(owner).execute(
+        0,                          // operationType: CALL
+        await mockLSP8.getAddress(), // target: LSP8 contract address
+        0,                          // value: 0 ETH
+        mintPayload                 // data: encoded mint call
+      )
+    ).to.emit(mockRegistry, "Refined").withArgs(pixId, iters);
+  });
+  
+  
 });

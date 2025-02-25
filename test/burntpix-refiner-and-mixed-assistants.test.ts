@@ -59,7 +59,7 @@ describe("BurntPixRefinerAssistant & Mixed Assistants", function () {
     [universalReceiverDelegateUAP] = await setLSP1UniversalReceiverDelegate(
       browserController,
       universalProfile,
-      [PERMISSIONS.SUPER_CALL, PERMISSIONS.SUPER_TRANSFERVALUE]
+      [PERMISSIONS.SUPER_CALL, PERMISSIONS.SUPER_TRANSFERVALUE, PERMISSIONS.REENTRANCY]
     );
 
     const BurntPixFactory = await ethers.getContractFactory("BurntPixRefinerAssistant");

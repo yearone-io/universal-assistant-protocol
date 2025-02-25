@@ -17,7 +17,7 @@ import {
   setLSP1UniversalReceiverDelegate,
   setupProfileWithKeyManagerWithURD,
 } from "./up-utils";
-import { MockLSP7DigitalAsset } from "../typechain-types/contracts/mocks";
+import { MockLSP7DigitalAsset } from "../typechain-types/MockLSP7DigitalAsset";
 import { customEncodeAddresses } from "./helpers/encoding";
 
 describe("UniversalReceiverDelegateUAP", function () {

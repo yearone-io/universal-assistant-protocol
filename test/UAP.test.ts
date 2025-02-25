@@ -218,6 +218,36 @@ describe("UniversalReceiverDelegateUAP", function () {
       expect(await mockLSP7.balanceOf(targetAddress)).to.equal(1);
     });
 
+    it("should forward minted LSP7 tokens to the target address using the ForwarderAssistant", async function () {
+      const typeMappingKey = generateMappingKey(
+        "UAPTypeConfig",
+        LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification,
+      );
+      const encodedAssistantsData = customEncodeAddresses([forwarderAssistantAddress]);
+      await mockUP.setData(typeMappingKey, encodedAssistantsData);
+
+      const assistantInstructionsKey = generateMappingKey("UAPExecutiveConfig", forwarderAssistantAddress);
+      const targetAddress = await nonOwner.getAddress();
+      const abi = new ethers.AbiCoder();
+      const encodedInstructions = abi.encode(["address"], [targetAddress]);
+      await mockUP.setData(assistantInstructionsKey, encodedInstructions);
+
+      const mintPayload = mockLSP7.interface.encodeFunctionData("mint", [
+        mockUPAddress, // Address to receive the tokens
+        1              // Amount of tokens to mint
+      ]);
+      const tx = await mockUP.connect(owner).execute(
+        0,                    // operationType: CALL
+        await mockLSP7.getAddress(), // target: mockLSP7 contract
+        0,                    // value: 0 (no ETH transfer)
+        mintPayload           // data: encoded mint call
+      );
+      await tx.wait();
+      const balance = await mockLSP7.balanceOf(targetAddress);
+      expect(balance).to.equal(1);
+
+    });
+
     it("should forward LSP8 tokens to the target address using the ForwarderAssistant", async function () {
       const typeMappingKey = generateMappingKey(
         "UAPTypeConfig",

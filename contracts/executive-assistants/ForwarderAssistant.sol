@@ -14,6 +14,8 @@ import {_TYPEID_LSP8_TOKENSRECIPIENT} from "@lukso/lsp-smart-contracts/contracts
 // Utils
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
+
+
 contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
     event LSP7AssetForwarded(
         address asset,
@@ -61,13 +63,21 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
         bytes memory settingsData = upERC725Y.getData(settingsKey);
         // Decode the settingsData to get targetAddress.
         // Assume settingsData is encoded as: abi.encode(address targetAddress)
-        address targetAddress = abi.decode(settingsData, (address));
+        (address targetAddress, bool skipOwnTx) = abi.decode(settingsData, (address, bool));
         if (targetAddress == address(0)) {
             revert TargetAddressNotSet();
         }
         if (typeId == _TYPEID_LSP7_TOKENSRECIPIENT) {
-            // Decode the lsp1 data to extract the amount
-            (,,,uint256 amount,bytes memory lsp7Data) = abi.decode(data, (address, address, address, uint256, bytes));
+            (
+                address sender,
+                ,
+                ,
+                uint256 amount,
+                bytes memory lsp7Data
+            ) = abi.decode(data, (address, address, address, uint256, bytes));
+            if (sender == upAddress && skipOwnTx) {
+                return (0, notifier, value, data, "");
+            }
             // Prepare the transfer call
             bytes memory encodedLSP7Tx = abi.encodeWithSelector(
                 ILSP7DigitalAsset.transfer.selector,
@@ -81,7 +91,15 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
             return (0, notifier, value, encodedLSP7Tx, abi.encode(value, ""));
         } else if (typeId == _TYPEID_LSP8_TOKENSRECIPIENT) {
             // Decode data to extract the tokenId
-            (,,,bytes32 tokenId,) = abi.decode(data, (address, address, address, bytes32, bytes));
+            (
+                address sender,
+                ,
+                ,
+                bytes32 tokenId,
+            ) = abi.decode(data, (address, address, address, bytes32, bytes));
+            if (sender == upAddress && skipOwnTx) {
+                return (0, notifier, value, data, "");
+            }
             // Prepare the transfer call
             bytes memory encodedLSP8Tx = abi.encodeCall(
                 ILSP8IdentifiableDigitalAsset.transfer,

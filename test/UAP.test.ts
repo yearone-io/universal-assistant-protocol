@@ -207,7 +207,7 @@ describe("UniversalReceiverDelegateUAP", function () {
       const assistantInstructionsKey = generateMappingKey("UAPExecutiveConfig", forwarderAssistantAddress);
       const targetAddress = await nonOwner.getAddress();
       const abi = new ethers.AbiCoder();
-      const encodedInstructions = abi.encode(["address"], [targetAddress]);
+      const encodedInstructions = abi.encode(["address", "bool"], [targetAddress, true]);
       await mockUP.setData(assistantInstructionsKey, encodedInstructions);
 
       await mockLSP7.connect(LSP7Holder).mint(LSP7Holder, 1);
@@ -245,7 +245,7 @@ describe("UniversalReceiverDelegateUAP", function () {
       const assistantInstructionsKey = generateMappingKey("UAPExecutiveConfig", forwarderAssistantAddress);
       const targetAddress = await nonOwner.getAddress();
       const abi = new ethers.AbiCoder();
-      const encodedInstructions = abi.encode(["address"], [targetAddress]);
+      const encodedInstructions = abi.encode(["address", "bool"], [targetAddress, true]);
       await mockUP.setData(assistantInstructionsKey, encodedInstructions);
 
       const mintPayload = mockLSP7.interface.encodeFunctionData("mint", [
@@ -263,6 +263,57 @@ describe("UniversalReceiverDelegateUAP", function () {
       expect(balance).to.equal(1);
     });
 
+    it("should transfer LSP7 tokens to the target address using the ForwarderAssistant if you send them to yourself after configuring an assistant", async function () {
+      await mockLSP7.connect(LSP7Holder).mint(mockUPAddress, 1);
+      const transferPayload = mockLSP7.interface.encodeFunctionData("transfer", [
+        mockUPAddress, // Address to receive the tokens
+        mockUPAddress,
+        1,              // Amount of tokens to mint
+        true,
+        "0x"
+      ]);
+      const typeMappingKey = generateMappingKey(
+        "UAPTypeConfig",
+        LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification,
+      );
+      const encodedAssistantsData = customEncodeAddresses([forwarderAssistantAddress]);
+      await mockUP.setData(typeMappingKey, encodedAssistantsData);
+
+      const assistantInstructionsKey = generateMappingKey("UAPExecutiveConfig", forwarderAssistantAddress);
+      const targetAddress = await nonOwner.getAddress();
+      const abi = new ethers.AbiCoder();
+      const encodedInstructions = abi.encode(["address", "bool"], [targetAddress, true]);
+      await mockUP.setData(assistantInstructionsKey, encodedInstructions);
+      const tx = await mockUP.connect(owner).execute(
+        0,
+        await mockLSP7.getAddress(),
+        0,
+        transferPayload
+      );
+      await tx.wait();
+      const balance = await mockLSP7.balanceOf(targetAddress);
+      expect(balance).to.equal(1);
+    });
+
+    it("should forward minted LSP7 tokens to the target address using the ForwarderAssistant even if not minted by receiving UP", async function () {
+      const typeMappingKey = generateMappingKey(
+        "UAPTypeConfig",
+        LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification,
+      );
+      const encodedAssistantsData = customEncodeAddresses([forwarderAssistantAddress]);
+      await mockUP.setData(typeMappingKey, encodedAssistantsData);
+
+      const assistantInstructionsKey = generateMappingKey("UAPExecutiveConfig", forwarderAssistantAddress);
+      const targetAddress = await nonOwner.getAddress();
+      const abi = new ethers.AbiCoder();
+      const encodedInstructions = abi.encode(["address", "bool"], [targetAddress, true]);
+      await mockUP.setData(assistantInstructionsKey, encodedInstructions);
+
+      await mockLSP7.connect(LSP7Holder).mint(mockUPAddress, 1);
+      const balance = await mockLSP7.balanceOf(targetAddress);
+      expect(balance).to.equal(1);
+    });
+
     it("should forward LSP8 tokens to the target address using the ForwarderAssistant", async function () {
       const typeMappingKey = generateMappingKey(
         "UAPTypeConfig",
@@ -274,7 +325,7 @@ describe("UniversalReceiverDelegateUAP", function () {
       const assistantInstructionsKey = generateMappingKey("UAPExecutiveConfig", forwarderAssistantAddress);
       const targetAddress = await nonOwner.getAddress();
       const abi = new ethers.AbiCoder();
-      const encodedInstructions = abi.encode(["address"], [targetAddress]);
+      const encodedInstructions = abi.encode(["address", "bool"], [targetAddress, true]);
       await mockUP.setData(assistantInstructionsKey, encodedInstructions);
 
       const tokenId =

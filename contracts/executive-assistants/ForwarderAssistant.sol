@@ -42,7 +42,7 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
      * @param notifier The address that triggered the URD on the UP (e.g., token contract).
      * @param value The amount of Ether sent with the transaction.
      * @param typeId The identifier representing the type of transaction or asset.
-     * @param data Additional data relevant to the transaction.
+     * @param lsp1Data Additional data relevant to the transaction.
      * @return A bytes array containing the updated value and data.
      */
     function execute(
@@ -50,9 +50,9 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
         address notifier,
         uint256 value,
         bytes32 typeId,
-        bytes memory data
+        bytes memory lsp1Data
     ) external override returns (uint256, address, uint256, bytes memory, bytes memory) {
-        if (data.length == 0) {
+        if (lsp1Data.length == 0) {
             return (0, notifier, value, "", "");
         }
         // Read settings from the UP's ERC725Y data store.
@@ -61,13 +61,20 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
         bytes memory settingsData = upERC725Y.getData(settingsKey);
         // Decode the settingsData to get targetAddress.
         // Assume settingsData is encoded as: abi.encode(address targetAddress)
-        address targetAddress = abi.decode(settingsData, (address));
+        (address targetAddress) = abi.decode(settingsData, (address));
         if (targetAddress == address(0)) {
             revert TargetAddressNotSet();
         }
         if (typeId == _TYPEID_LSP7_TOKENSRECIPIENT) {
-            // Decode the lsp1 data to extract the amount
-            (,,,uint256 amount,bytes memory lsp7Data) = abi.decode(data, (address, address, address, uint256, bytes));
+            // lsp1Data when minting https://github.com/lukso-network/lsp-smart-contracts/blob/7ec72e7c549f1e071a440f343e5c8a7fef22cf55/packages/lsp7-contracts/contracts/LSP7DigitalAsset.sol#L609
+            // lsp1Data when transferring https://github.com/lukso-network/lsp-smart-contracts/blob/7ec72e7c549f1e071a440f343e5c8a7fef22cf55/packages/lsp7-contracts/contracts/LSP7DigitalAsset.sol#L754
+            (
+                , // address operator,
+                , // address sender,
+                , // address receiver,
+                uint256 amount,
+                bytes memory lsp7Data
+            ) = abi.decode(lsp1Data, (address, address, address, uint256, bytes));
             // Prepare the transfer call
             bytes memory encodedLSP7Tx = abi.encodeWithSelector(
                 ILSP7DigitalAsset.transfer.selector,
@@ -80,12 +87,18 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
             emit LSP7AssetForwarded(notifier, amount, targetAddress);
             return (0, notifier, value, encodedLSP7Tx, abi.encode(value, ""));
         } else if (typeId == _TYPEID_LSP8_TOKENSRECIPIENT) {
-            // Decode data to extract the tokenId
-            (,,,bytes32 tokenId,) = abi.decode(data, (address, address, address, bytes32, bytes));
+            // lsp1Data when minting https://github.com/lukso-network/lsp-smart-contracts/blob/7ec72e7c549f1e071a440f343e5c8a7fef22cf55/packages/lsp8-contracts/contracts/LSP8IdentifiableDigitalAsset.sol#L731
+            // lsp1Data when transferring https://github.com/lukso-network/lsp-smart-contracts/blob/7ec72e7c549f1e071a440f343e5c8a7fef22cf55/packages/lsp8-contracts/contracts/LSP8IdentifiableDigitalAsset.sol#L858
+            (
+                , // address operator,
+                , // address sender,
+                , // address receiver,
+                bytes32 tokenId,
+            ) = abi.decode(lsp1Data, (address, address, address, bytes32, bytes));
             // Prepare the transfer call
             bytes memory encodedLSP8Tx = abi.encodeCall(
                 ILSP8IdentifiableDigitalAsset.transfer,
-                (upAddress, targetAddress, tokenId, true, data)
+                (upAddress, targetAddress, tokenId, true, lsp1Data)
             );
             emit LSP8AssetForwarded(notifier, tokenId, targetAddress);
             return (0, notifier, value, encodedLSP8Tx, abi.encode(value, ""));

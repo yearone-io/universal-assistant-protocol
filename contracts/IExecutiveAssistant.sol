@@ -17,7 +17,7 @@ interface IExecutiveAssistant {
      * @param notifier The address that triggered the Universal Receiver Delegate on the UP (e.g., token contract).
      * @param value The amount of Ether sent with the transaction.
      * @param typeId The identifier representing the type of transaction or asset.
-     * @param data Additional data relevant to the transaction.
+     * @param lsp1Data Additional data relevant to the notification
      * @return A bytes array containing the updated value and call data: (operationType, notifier, value, execData, newDataAfterExec).
      */
     function execute(
@@ -25,6 +25,6 @@ interface IExecutiveAssistant {
         address notifier,
         uint256 value,
         bytes32 typeId,
-        bytes memory data
+        bytes memory lsp1Data
     ) external returns (uint256, address, uint256, bytes memory, bytes memory);
 }

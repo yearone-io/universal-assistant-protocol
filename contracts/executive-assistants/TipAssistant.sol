@@ -39,6 +39,7 @@ contract TipAssistant is IExecutiveAssistant, ERC165 {
      * @param upAddress The address of the Universal Profile.
      * @param value The amount of native tokens (e.g. LYX) sent with the transaction.
      * @param typeId The identifier representing the type of transaction or asset.
+     * @param lsp1Data Additional data relevant to the notification
      *
      * @return A bytes array containing any data you wish to return.
      */
@@ -47,7 +48,7 @@ contract TipAssistant is IExecutiveAssistant, ERC165 {
         address ,
         uint256 value,
         bytes32 typeId,
-        bytes memory data
+        bytes memory lsp1Data
     ) external override returns (uint256, address, uint256, bytes memory, bytes memory) {
         IERC725Y upERC725Y = IERC725Y(upAddress);
         // This key is where we expect the tip config to be stored (address, uint256).
@@ -66,7 +67,7 @@ contract TipAssistant is IExecutiveAssistant, ERC165 {
         if (tipPercentage == 0 || tipPercentage > 100) revert InvalidTipPercentage();
         uint256 tipAmount = value > 0 ? (value * tipPercentage) / 100 : 0;
         emit TipSent(upAddress, tipAddress, tipAmount);
-        return (0, tipAddress, tipAmount, "", abi.encode(value - tipAmount, data));
+        return (0, tipAddress, tipAmount, "", abi.encode(value - tipAmount, lsp1Data));
     }
 
     /**

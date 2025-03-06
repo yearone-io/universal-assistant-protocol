@@ -5,12 +5,12 @@ import { IScreenerAssistant } from "../IScreenerAssistant.sol";
 
 contract MockTrueScreenerAssistant is IScreenerAssistant {
     function evaluate(
-        address /*filterAddress */,
+        bytes32 /*screenerAddress */,
         address /*notifier */,
         uint256 /*value */,
         bytes32 /*typeId */,
         bytes memory /*data */
-    ) external override(IScreenerAssistant) returns (bool) {
+    ) external view override(IScreenerAssistant) returns (bool) {
         return true;
     }
 }

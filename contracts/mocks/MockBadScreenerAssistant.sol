@@ -7,12 +7,12 @@ contract MockBadScreenerAssistant is IScreenerAssistant {
     error AlwaysFalseError();
 
     function evaluate(
-        address /*filterAddress */,
+        bytes32 /*screenerAddress */,
         address /*notifier */,
         uint256 /*value */,
         bytes32 /*typeId */,
         bytes memory /*data */
-    ) external override(IScreenerAssistant) returns (bool) {
+    ) external view override(IScreenerAssistant) returns (bool) {
         revert AlwaysFalseError();
     }
 }

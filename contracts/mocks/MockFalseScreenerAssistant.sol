@@ -5,7 +5,7 @@ import { IScreenerAssistant } from  "../IScreenerAssistant.sol";
 
 contract MockFalseScreenerAssistant is IScreenerAssistant {
     function evaluate(
-        bytes32 /*screenerAddress */,
+        bytes32 /*screener config key */,
         address /*notifier */,
         uint256 /*value */,
         bytes32 /*typeId */,

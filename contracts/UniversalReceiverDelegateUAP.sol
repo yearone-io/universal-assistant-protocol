@@ -40,7 +40,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
     )
         public
         virtual
-        override
+        override(LSP1UniversalReceiverDelegateUP)
         returns (bytes memory)
     {
         // Fetch type configuration

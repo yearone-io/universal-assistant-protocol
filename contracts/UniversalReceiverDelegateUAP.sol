@@ -24,6 +24,14 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
     error AssistantExecutionFailed(address assistant);
     error InvalidEncodedData();
 
+    /**
+     * @dev Handles incoming transactions by evaluating Filters and invoking Assistants.
+     * @param notifier The address that triggered the URD on the Universal Profile.
+     * @param value The amount of Ether sent with the transaction.
+     * @param typeId The identifier representing the type of transaction or asset.
+     * @param data Additional data relevant to the transaction.
+     * @return A bytes array containing any returned data from the Assistant(s).
+     */
     function universalReceiverDelegate(
         address notifier,
         uint256 value,

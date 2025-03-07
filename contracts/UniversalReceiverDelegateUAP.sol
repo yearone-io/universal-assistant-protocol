@@ -11,6 +11,8 @@ import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.so
 import {IScreenerAssistant} from "./IScreenerAssistant.sol";
 import {IExecutiveAssistant} from "./IExecutiveAssistant.sol";
 
+import {console} from "hardhat/console.sol";
+
 /**
  * @title UniversalReceiverDelegateUAP
  * @dev Universal Receiver Delegate for the Universal Assistant Protocol.
@@ -19,9 +21,8 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
     event TypeIdConfigFound(bytes32 typeId);
     event AssistantFound(address executiveAssistant);
     event AssistantInvoked(address indexed subscriber, address indexed executiveAssistant);
-    
-    error UntrustedAssistant(address assistant);
-    error AssistantExecutionFailed(address assistant);
+    error ExecutiveAssistantExecutionFailed(address executiveAssistant, bytes32 typeId);
+    error ScreenerAssistantExecutionFailed(address executiveAssistant, address screenerAssistant, bytes32 typeId);
     error InvalidEncodedData();
 
     /**
@@ -66,7 +67,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
             address executiveAssistant = executiveAssistants[i];
 
             // Fetch and evaluate screener assistants
-            bytes32 screenerKey = keccak256(abi.encode("UAPExecutiveScreenersByType", typeId, executiveAssistant));
+            bytes32 screenerKey = generateExecutiveScreenersKey(typeId, executiveAssistant);
             bytes memory screenerData = IERC725Y(msg.sender).getData(screenerKey);
             bool shouldExecute = true;
 
@@ -74,19 +75,29 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                 address[] memory screeners = customDecodeAddresses(screenerData);
                 for (uint256 j = 0; j < screeners.length; j++) {
                     address screener = screeners[j];
-                    bytes32 screenerConfigKey = generateScreenerConfigKey(executiveAssistant, screener, typeId);
+                    bytes32 screenerConfigKey = generateScreenerConfigKey(typeId, executiveAssistant, screener);
                     // solhint-disable-next-line avoid-low-level-calls
                     (bool success, bytes memory ret) = screener.delegatecall(
                         abi.encodeWithSelector(
                             IScreenerAssistant.evaluate.selector,
-                            screenerConfigKey, // Pass screener config key
+                            screenerConfigKey,
                             notifier,
                             currentValue,
                             typeId,
                             currentData
                         )
                     );
-                    if (!success || !abi.decode(ret, (bool))) {
+                    if (!success) {
+                        console.log("Error in screener");
+                        if (ret.length > 0) {
+                            // solhint-disable-next-line no-inline-assembly
+                            assembly {
+                                revert(add(ret, 32), mload(ret))
+                            }
+                        } else {
+                            revert ScreenerAssistantExecutionFailed(executiveAssistant, screener, typeId);
+                        }
+                    } else if (success && !abi.decode(ret, (bool))) {
                         shouldExecute = false;
                         break;
                     }
@@ -114,7 +125,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                             revert(add(returnData, 32), mload(returnData))
                         }
                     } else {
-                        revert AssistantExecutionFailed(executiveAssistant);
+                        revert ExecutiveAssistantExecutionFailed(executiveAssistant, typeId);
                     }
                 }
 
@@ -139,17 +150,53 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         return super.universalReceiverDelegate(notifier, currentValue, typeId, currentData);
     }
 
-    function generateScreenerConfigKey(
-        address executiveAssistant,
-        address screenerAssistant,
-        bytes32 typeId
+    /**
+    * @dev Modeled after the LSP2Utils.generateMappingWithGroupingKey function. Generates a
+     * data key of key type MappingWithGrouping by using two strings "UAPExecutiveScreeners"
+     * mapped to a typeId mapped itself to a specific executive address `executiveAddress`. As:
+     *
+     * ```
+     * bytes6(keccak256("UAPExecutiveScreeners")):bytes4(<bytes32>):0000:<address>
+     * ```
+     */
+    function generateExecutiveScreenersKey(
+        bytes32 typeId,
+        address executiveAddress
     ) internal pure returns (bytes32) {
-        return keccak256(abi.encode(
-            "UAPScreenerConfig",
-            executiveAssistant,
-            screenerAssistant,
-            typeId
-        ));
+        bytes32 firstWordHash = keccak256(bytes("UAPExecutiveScreeners"));
+        bytes memory temporaryBytes = bytes.concat(
+            bytes6(firstWordHash),
+            bytes4(typeId),
+            bytes2(0),
+            bytes20(executiveAddress)
+        );
+
+        return bytes32(temporaryBytes);
+    }
+
+    /**
+    * @dev Modeled after the LSP2Utils.generateMappingWithGroupingKey function.  "UAPScreenerConfig"
+     * mapped to a typeId mapped itself to a specific executive address `executiveAddress` and a specific
+     * screener address `screenerAddress`. As:
+     *
+     * ```
+     * bytes6(keccak256("UAPExecutiveScreeners")):bytes4(<bytes32>):bytes10(<executiveAddress>):bytes10(<screenerAddress>)
+     * ```
+     */
+    function generateScreenerConfigKey(
+        bytes32 typeId,
+        address executiveAssistant,
+        address screenerAssistant
+    ) internal pure returns (bytes32) {
+        bytes32 firstWordHash = keccak256(bytes("UAPScreenerConfig"));
+        bytes memory temporaryBytes = bytes.concat(
+            bytes6(firstWordHash),
+            bytes4(typeId),
+            bytes2(0),
+            bytes10(bytes20(executiveAssistant)),
+            bytes10(bytes20(screenerAssistant))
+        );
+        return bytes32(temporaryBytes);
     }
 
     /**

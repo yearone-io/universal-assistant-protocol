@@ -366,4 +366,18 @@ export const generateMappingWithGroupingKey = (
   return "0x" + first6Bytes + second4Bytes + "0000" + last20Bytes;
 };
 
+export const generateExecutiveScreenersKey = (typeId: string, executiveAddress: string): string => {
+  const hashedFirstWord = ethers.keccak256(ethers.toUtf8Bytes("UAPExecutiveScreeners"));
+  const first6Bytes = hashedFirstWord.slice(2, 14);
+  const second4Bytes = typeId.slice(2, 10);
+  const last20Bytes = executiveAddress.slice(2, 42);
+  return "0x" + first6Bytes + second4Bytes + "0000" + last20Bytes;
+};
 
+export const generateScreenerConfigKey = (typeId: string, executiveAddress: string, screenerAddress: string): string => {
+  const hashedFirstWord = ethers.keccak256(ethers.toUtf8Bytes("UAPScreenerConfig"));
+  const first6Bytes = hashedFirstWord.slice(2, 14);
+  const second4Bytes = typeId.slice(2, 10);
+  const last20Bytes = executiveAddress.slice(2, 22) + screenerAddress.slice(2, 22);
+  return "0x" + first6Bytes + second4Bytes + "0000" + last20Bytes;
+}

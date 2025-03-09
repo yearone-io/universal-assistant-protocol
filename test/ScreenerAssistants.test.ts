@@ -24,7 +24,7 @@ import {
 import { customEncodeAddresses } from "./helpers/encoding";
 import { generateExecutiveScreenersKey, generateMappingKey, generateScreenerConfigKey } from "./UAP.test";
 
-describe("UniversalReceiverDelegateUAP - Executive and Screener Combinations", function () {
+describe("UniversalReceiverDelegateUAP", function () {
   let owner: Signer;
   let browserController: Signer;
   let lsp7Holder: Signer;
@@ -119,7 +119,7 @@ describe("UniversalReceiverDelegateUAP - Executive and Screener Combinations", f
     const configKey = generateMappingKey("UAPExecutiveConfig", executive);
     await up.setData(configKey, config);
   }
-  describe.only("Executive and Screener Combinations", function () {
+  describe("Executive and Screener Combinations", function () {
     it("should invoke ForwarderAssistant with TrueScreener for LSP7", async function () {
       const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
       await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAssistantAddress]));

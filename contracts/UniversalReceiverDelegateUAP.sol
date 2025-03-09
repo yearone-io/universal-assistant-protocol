@@ -11,8 +11,6 @@ import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.so
 import {IScreenerAssistant} from "./IScreenerAssistant.sol";
 import {IExecutiveAssistant} from "./IExecutiveAssistant.sol";
 
-import {console} from "hardhat/console.sol";
-
 /**
  * @title UniversalReceiverDelegateUAP
  * @dev Universal Receiver Delegate for the Universal Assistant Protocol.
@@ -88,7 +86,6 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                         )
                     );
                     if (!success) {
-                        console.log("Error in screener");
                         if (ret.length > 0) {
                             // solhint-disable-next-line no-inline-assembly
                             assembly {

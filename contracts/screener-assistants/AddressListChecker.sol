@@ -7,13 +7,13 @@ import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.so
 
 // Utils
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
-import {LSP2Utils} from "@lukso/lsp-smart-contracts/contracts/LSP2ERC725YJSONSchema/LSP2Utils.sol";
 
 /**
  * @title AddressListChecker
  * @dev Screener Assistant that checks if the notifier is in an allowed addresses list stored under a screenerConfigKey.
  */
 contract AddressListChecker is IScreenerAssistant, ERC165 {
+    error InvalidEncodedData();
     /**
      * @dev Check which interfaces this contract supports.
      */
@@ -52,14 +52,16 @@ contract AddressListChecker is IScreenerAssistant, ERC165 {
      * @return An array of addresses.
      */
     function customDecodeAddresses(bytes memory encoded) internal pure returns (address[] memory) {
-        if (encoded.length < 2) revert("InvalidEncodedData");
+        if (encoded.length < 2) revert InvalidEncodedData();
         uint16 numAddresses;
+        // solhint-disable-next-line no-inline-assembly
         assembly {
             numAddresses := shr(240, mload(add(encoded, 32)))
         }
         address[] memory addresses = new address[](numAddresses);
         for (uint256 i = 0; i < numAddresses; i++) {
             address addr;
+            // solhint-disable-next-line no-inline-assembly
             assembly {
                 addr := shr(96, mload(add(encoded, add(34, mul(i, 20)))))
             }

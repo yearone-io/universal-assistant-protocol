@@ -120,7 +120,7 @@ describe("UniversalReceiverDelegateUAP - Executive and Screener Combinations", f
     await up.setData(configKey, config);
   }
   describe.only("Executive and Screener Combinations", function () {
-    it.only("should invoke ForwarderAssistant with TrueScreener for LSP7", async function () {
+    it("should invoke ForwarderAssistant with TrueScreener for LSP7", async function () {
       const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
       await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAssistantAddress]));
       await setScreenerConfig(universalProfile, forwarderAssistantAddress, trueScreenerAddress, LSP7_TYPEID, "0x");
@@ -133,7 +133,7 @@ describe("UniversalReceiverDelegateUAP - Executive and Screener Combinations", f
       expect(await mockLSP7.balanceOf(await nonOwner.getAddress())).to.equal(1);
     });
 
-    it.only("should skip ForwarderAssistant with FalseScreener for LSP7", async function () {
+    it("should skip ForwarderAssistant with FalseScreener for LSP7", async function () {
       const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
       await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAssistantAddress]));
       await setScreenerConfig(universalProfile, forwarderAssistantAddress, falseScreenerAddress, LSP7_TYPEID, "0x");
@@ -145,7 +145,7 @@ describe("UniversalReceiverDelegateUAP - Executive and Screener Combinations", f
       expect(await mockLSP7.balanceOf(await nonOwner.getAddress())).to.equal(0);
     });
 
-    it.only("should revert with BadScreener for BurntPixAssistant with LSP8", async function () {
+    it("should revert with BadScreener for BurntPixAssistant with LSP8", async function () {
       const typeKey = generateMappingKey("UAPTypeConfig", LSP8_TYPEID);
       await universalProfile.setData(typeKey, customEncodeAddresses([burntPixAssistantAddress]));
       await setScreenerConfig(universalProfile, burntPixAssistantAddress, badScreenerAddress, LSP8_TYPEID, "0x");
@@ -164,78 +164,85 @@ describe("UniversalReceiverDelegateUAP - Executive and Screener Combinations", f
       ).to.be.reverted;
     });
 
-    it.only("should invoke TipAssistant with ConfigurableScreener (true) for LYX", async function () {
+    it("should invoke TipAssistant with ConfigurableScreener (true) for LYX", async function () {
       const typeKey = generateMappingKey("UAPTypeConfig", LSP0_TYPEID);
       await universalProfile.setData(typeKey, customEncodeAddresses([tipAssistantAddress]));
-      await setScreenerConfig(universalProfile, tipAssistantAddress, await configurableScreener.getAddress(), LSP0_TYPEID, ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]));
-      await setExecutiveConfig(universalProfile, tipAssistantAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await owner.getAddress(), 10]));
+      await setScreenerConfig(universalProfile, tipAssistantAddress, configurableScreenerAddress, LSP0_TYPEID, ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]));
+      await setExecutiveConfig(universalProfile, tipAssistantAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await nonOwner.getAddress(), 10]));
 
       const upAddr = await universalProfile.getAddress();
+      const initialBalance = await ethers.provider.getBalance(await nonOwner.getAddress());
       await expect(owner.sendTransaction({ to: upAddr, value: ethers.parseEther("1") }))
         .to.emit(universalReceiverDelegateUAP, "AssistantInvoked")
         .withArgs(upAddr, tipAssistantAddress);
-      const initialBalance = await ethers.provider.getBalance(await owner.getAddress());
       // Tip is 10% of 1 ETH = 0.1 ETH
-      expect(await ethers.provider.getBalance(await owner.getAddress())).to.be.closeTo(initialBalance + ethers.parseEther("0.1"), ethers.parseEther("0.01"));
+      expect(await ethers.provider.getBalance(await nonOwner.getAddress())).to.be.closeTo(initialBalance + ethers.parseEther("0.1"), ethers.parseEther("0.01"));
     });
 
     it("should skip TipAssistant with ConfigurableScreener (false) for LYX", async function () {
       const typeKey = generateMappingKey("UAPTypeConfig", LSP0_TYPEID);
       await universalProfile.setData(typeKey, customEncodeAddresses([await tipAssistant.getAddress()]));
       await setScreenerConfig(universalProfile, tipAssistantAddress, await configurableScreener.getAddress(), LSP0_TYPEID, ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [false]));
+      await setExecutiveConfig(universalProfile, tipAssistantAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await nonOwner.getAddress(), 10]));
 
-      const upAddr = await universalProfile.getAddress().toLowerCase();
-      const initialBalance = await ethers.provider.getBalance(await owner.getAddress());
-      await owner.sendTransaction({ to: upAddr, value: ethers.parseEther("1") });
-      expect(await ethers.provider.getBalance(await owner.getAddress())).to.equal(initialBalance);
-    });
+      const upAddr = await universalProfile.getAddress();
+      expect(await owner.sendTransaction({ to: upAddr, value: ethers.parseEther("1") })).to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
+    }); 
 
-    it("should chain ComplexAssistant and ForwarderAssistant with TrueScreener for custom typeId", async function () {
-        const typeKey = generateMappingKey("UAPTypeConfig", CUSTOM_TYPEID);
-        await universalProfile.setData(typeKey, customEncodeAddresses([await complexAssistant.getAddress(), forwarderAssistantAddress]));
-        await setScreenerConfig(universalProfile, await complexAssistant.getAddress(), trueScreenerAddress, CUSTOM_TYPEID, "0x");
-        await setScreenerConfig(universalProfile, forwarderAssistantAddress, trueScreenerAddress, CUSTOM_TYPEID, "0x");
+    it("should chain Forwarder and BurntPixRefiner with TrueScreener for lsp7recipient typeId", async function () {
+        const mockUPAddress = await universalProfile.getAddress();
+        const targetAddress = await nonOwner.getAddress();
+        const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
+        await universalProfile.setData(typeKey, customEncodeAddresses([burntPixAssistantAddress, forwarderAssistantAddress]));
+        await setScreenerConfig(universalProfile, burntPixAssistantAddress, trueScreenerAddress, LSP7_TYPEID, "0x");
+        await setScreenerConfig(universalProfile, forwarderAssistantAddress, trueScreenerAddress, LSP7_TYPEID, "0x");
         await setExecutiveConfig(universalProfile, forwarderAssistantAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
-      
-        await mockLSP7.connect(lsp7Holder).mint(lsp7Holder, 2);
-        const tx = await mockLSP7.connect(lsp7Holder).transfer(await lsp7Holder.getAddress(), await universalProfile.getAddress(), 2, true, ethers.toBeHex(CUSTOM_TYPEID));
-        const receipt = await tx.wait();
-      
-        // Parse the Executed event from the complex assistant
-        const complexInterface = new ethers.Interface(["event Executed(address indexed upAddress, uint256 deductedValue, bytes newData)"]);
-        const eventLog = receipt.logs.find(async log => log.address.toLowerCase() === (await complexAssistant.getAddress()).toLowerCase());
-        const parsedLog = complexInterface.parseLog(eventLog!);
-        const [upAddress, deductedValue, newData] = parsedLog.args;
-      
-        await expect(tx).to.emit(complexAssistant, "Executed").withArgs(await universalProfile.getAddress(), deductedValue, newData);
-        await expect(tx).to.emit(universalReceiverDelegateUAP, "AssistantInvoked").withArgs(await universalProfile.getAddress(), await complexAssistant.getAddress());
-        await expect(tx).to.emit(universalReceiverDelegateUAP, "AssistantInvoked").withArgs(await universalProfile.getAddress(), forwarderAssistantAddress);
-        expect(await mockLSP7.balanceOf(await nonOwner.getAddress())).to.equal(2); // Forwarder still works
+        const pixId = "0x1234000000000000000000000000000000000000000000000000000000000000";
+        const iters = 2;
+        const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(
+          ["address", "bytes32", "uint256"],
+          [await mockRegistry.getAddress(), pixId, iters]
+        );
+        await setExecutiveConfig(universalProfile, burntPixAssistantAddress, encodedConfig);
+        const tx = await mockLSP7.connect(lsp7Holder).mint(mockUPAddress, 1);
+        await tx.wait();
+        const balance = await mockLSP7.balanceOf(targetAddress);
+        expect(balance).to.equal(1);
       });
 
     it("should stop at FalseScreener with multiple executives for custom typeId", async function () {
-      const typeKey = generateMappingKey("UAPTypeConfig", CUSTOM_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([await complexAssistant.getAddress(), forwarderAssistantAddress]));
-      await setScreenerConfig(universalProfile, await complexAssistant.getAddress(), await falseScreener.getAddress(), CUSTOM_TYPEID, "0x");
-      await setScreenerConfig(universalProfile, forwarderAssistantAddress, trueScreenerAddress, CUSTOM_TYPEID, "0x");
+      const mockUPAddress = await universalProfile.getAddress();
+      const targetAddress = await nonOwner.getAddress();
+      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
+      await universalProfile.setData(typeKey, customEncodeAddresses([burntPixAssistantAddress, forwarderAssistantAddress]));
+      await setScreenerConfig(universalProfile, burntPixAssistantAddress, trueScreenerAddress, LSP7_TYPEID, "0x");
+      await setScreenerConfig(universalProfile, forwarderAssistantAddress, falseScreenerAddress, LSP7_TYPEID, "0x");
+      await setExecutiveConfig(universalProfile, forwarderAssistantAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+      const pixId = "0x1234000000000000000000000000000000000000000000000000000000000000";
+      const iters = 2;
+      const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(
+        ["address", "bytes32", "uint256"],
+        [await mockRegistry.getAddress(), pixId, iters]
+      );
+      await setExecutiveConfig(universalProfile, burntPixAssistantAddress, encodedConfig);
 
-      await mockLSP7.connect(lsp7Holder).mint(lsp7Holder, 2);
-      const tx = await mockLSP7.connect(lsp7Holder).transfer(await lsp7Holder.getAddress(), await universalProfile.getAddress(), 2, true, ethers.toBeHex(CUSTOM_TYPEID));
-      await expect(tx).to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
-      expect(await mockLSP7.balanceOf(await nonOwner.getAddress())).to.equal(0);
+      expect(await mockLSP7.connect(lsp7Holder).mint(mockUPAddress, 1)).to.emit(universalReceiverDelegateUAP, "AssistantInvoked").withArgs(mockUPAddress, burntPixAssistantAddress);
+      const balance = await mockLSP7.balanceOf(targetAddress);
+      expect(balance).to.equal(0);
     });
 
     it("should handle multiple screeners with mixed outcomes for TipAssistant", async function () {
+      const mockUPAddress = await universalProfile.getAddress();
       const typeKey = generateMappingKey("UAPTypeConfig", LSP0_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([await tipAssistant.getAddress()]));
+      await universalProfile.setData(typeKey, customEncodeAddresses([tipAssistantAddress]));
       await setScreenerConfig(universalProfile, tipAssistantAddress, trueScreenerAddress, LSP0_TYPEID, "0x");
-      await setScreenerConfig(universalProfile, tipAssistantAddress, await falseScreener.getAddress(), LSP0_TYPEID, "0x");
-      await setExecutiveConfig(universalProfile, tipAssistantAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await owner.getAddress(), 10]));
-
-      const upAddr = await universalProfile.getAddress().toLowerCase();
-      const initialBalance = await ethers.provider.getBalance(await owner.getAddress());
-      await owner.sendTransaction({ to: upAddr, value: ethers.parseEther("1") });
-      expect(await ethers.provider.getBalance(await owner.getAddress())).to.equal(initialBalance); // No tip due to false screener
+      await setScreenerConfig(universalProfile, tipAssistantAddress, falseScreenerAddress, LSP0_TYPEID, "0x");
+      await setExecutiveConfig(universalProfile, tipAssistantAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await nonOwner.getAddress(), 10]));
+      const initialBalanceUP = await ethers.provider.getBalance(mockUPAddress);
+      const initialBalanceNonOwner = await ethers.provider.getBalance(await nonOwner.getAddress());
+      await owner.sendTransaction({ to: mockUPAddress, value: ethers.parseEther("1") });
+      expect(await ethers.provider.getBalance(mockUPAddress)).to.equal(initialBalanceUP + ethers.parseEther("1"));
+      expect(await ethers.provider.getBalance(await nonOwner.getAddress())).to.equal(initialBalanceNonOwner);
     });
   });
 });

@@ -11,7 +11,6 @@ import {
   ForwarderAssistant,
   BurntPixRefinerAssistant,
   TipAssistant,
-  MockComplexExecutiveAssistant,
   MockLSP7DigitalAsset,
   MockLSP8IdentifiableDigitalAsset,
   MockBurntPixRegistry,
@@ -46,8 +45,6 @@ describe("UniversalReceiverDelegateUAP", function () {
   let burntPixAssistantAddress: string;
   let tipAssistant: TipAssistant;
   let tipAssistantAddress: string;
-  let complexAssistant: MockComplexExecutiveAssistant;
-  let complexAssistantAddress: string;
   let mockRegistry: MockBurntPixRegistry;
   let mockLSP7: MockLSP7DigitalAsset;
   let mockLSP8: MockLSP8IdentifiableDigitalAsset;
@@ -94,9 +91,6 @@ describe("UniversalReceiverDelegateUAP", function () {
     const TipFactory = await ethers.getContractFactory("TipAssistant");
     tipAssistant = await TipFactory.deploy();
     tipAssistantAddress = await tipAssistant.getAddress();
-    const ComplexFactory = await ethers.getContractFactory("MockComplexExecutiveAssistant");
-    complexAssistant = await ComplexFactory.deploy();
-    complexAssistantAddress = (await complexAssistant.getAddress()).toLowerCase();
 
     // Deploy mocks
     const RegistryFactory = await ethers.getContractFactory("MockBurntPixRegistry");

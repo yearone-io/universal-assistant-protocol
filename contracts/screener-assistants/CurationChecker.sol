@@ -60,7 +60,7 @@ contract CurationChecker is IScreenerAssistant, ERC165 {
     }
 
 
-    function isAddressInCuratedList(address curatedListAddress, address targetAddress) public view returns (bool) {
+    function isAddressInCuratedList(address curatedListAddress, address targetAddress) internal view returns (bool) {
         // Pad the target address with zeros to create the token ID
         bytes32 tokenId = bytes32(uint256(uint160(targetAddress)));
         

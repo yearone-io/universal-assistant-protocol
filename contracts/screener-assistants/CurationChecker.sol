@@ -5,15 +5,16 @@ pragma solidity ^0.8.24;
 import {IScreenerAssistant} from "../IScreenerAssistant.sol";
 import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
 import {ILSP8IdentifiableDigitalAsset} from "@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/ILSP8IdentifiableDigitalAsset.sol";
+import {LSP8Enumerable} from "@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/extensions/LSP8Enumerable.sol";
 
 // Utils
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 /**
- * @title CuratedListFilter
+ * @title CurationChecker
  * @dev Screener Assistant that checks if the notifier is in a curated list stored as an LSP8IdentifiableDigitalAsset.
  */
-contract CuratedListFilter is IScreenerAssistant, ERC165 {
+contract CurationChecker is IScreenerAssistant, ERC165 {
     /**
      * @dev Check which interfaces this contract supports.
      */
@@ -58,25 +59,18 @@ contract CuratedListFilter is IScreenerAssistant, ERC165 {
         return result;
     }
 
-    /**
-     * @dev Checks if a given address is in the curated list.
-     * @param curatedListAddress The address of the curated list contract (LSP8IdentifiableDigitalAsset).
-     * @param targetAddress The address to check for membership in the curated list.
-     * @return True if the address is in the curated list, false otherwise.
-     */
-    function isAddressInCuratedList(address curatedListAddress, address targetAddress) internal view returns (bool) {
+
+    function isAddressInCuratedList(address curatedListAddress, address targetAddress) public view returns (bool) {
         // Pad the target address with zeros to create the token ID
         bytes32 tokenId = bytes32(uint256(uint160(targetAddress)));
         
         // Instantiate the curated list contract instance
         ILSP8IdentifiableDigitalAsset curatedList = ILSP8IdentifiableDigitalAsset(curatedListAddress);
         
-        // Check if the token exists (i.e., is minted)
-        try curatedList.tokenOwnerOf(tokenId) returns (address /* owner */) {
-            // If the token exists, return true
+        // Check if the token exists
+        try curatedList.tokenOwnerOf(tokenId) {
             return true;
-        } catch {
-            // If the token does not exist, return false
+        } catch (bytes memory) {
             return false;
         }
     }

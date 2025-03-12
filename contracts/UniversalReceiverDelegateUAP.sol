@@ -70,7 +70,8 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
             bool shouldExecute = true;
 
             if (screenerData.length > 0) {
-                address[] memory screeners = customDecodeAddresses(screenerData);
+                (bytes memory screenerAddresses, bool isAndChain) = abi.decode(screenerData, (bytes, bool));
+                address[] memory screeners = customDecodeAddresses(screenerAddresses);
                 for (uint256 j = 0; j < screeners.length; j++) {
                     address screener = screeners[j];
                     bytes32 screenerConfigKey = generateScreenerConfigKey(typeId, executiveAssistant, screener);
@@ -94,9 +95,16 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                         } else {
                             revert ScreenerAssistantExecutionFailed(executiveAssistant, screener, typeId);
                         }
-                    } else if (success && !abi.decode(ret, (bool))) {
-                        shouldExecute = false;
-                        break;
+                    } else if (success) {
+                        if (isAndChain && !abi.decode(ret, (bool))) {
+                            shouldExecute = false;
+                            break;
+                        } else if (!isAndChain && abi.decode(ret, (bool))) {
+                            shouldExecute = true;
+                            break;
+                        } else if (!isAndChain && !abi.decode(ret, (bool))) {
+                            shouldExecute = false;
+                        }
                     }
                 }
             }

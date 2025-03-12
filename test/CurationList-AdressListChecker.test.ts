@@ -84,10 +84,15 @@ describe("Screener Assistants Tests", function () {
     executive: string,
     screener: string,
     typeId: string,
-    config: string
+    config: string,
+    isAndCheck: boolean = true
   ) {
     const screenerKey = generateExecutiveScreenersKey(typeId, executive);
-    await up.setData(screenerKey, customEncodeAddresses([screener]));
+    const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(
+      ["bytes", "bool"],
+      [customEncodeAddresses([screener]), isAndCheck]
+    );
+    await up.setData(screenerKey, encodedConfig);
     if (config.length > 0) {
       await up.setData(generateScreenerConfigKey(typeId, executive, screener), config);
     }
@@ -272,7 +277,6 @@ describe("Screener Assistants Tests", function () {
       const upAddress = await universalProfile.getAddress();
       const lsp7Address = await mockLSP7A.getAddress();
       const curatedList = mockLSP8;
-      const curatedListAddress = mockLSP8Address;
       const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
       await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAssistantAddress]));
 
@@ -282,7 +286,11 @@ describe("Screener Assistants Tests", function () {
 
       // Configure CurationChecker with LSP8 address
       const screenerKey = generateExecutiveScreenersKey(LSP7_TYPEID, forwarderAssistantAddress);
-      await universalProfile.setData(screenerKey, customEncodeAddresses([curationCheckerAddress]));
+      const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(
+        ["bytes", "bool"],
+        [customEncodeAddresses([curationCheckerAddress]), true]
+      );
+      await universalProfile.setData(screenerKey, encodedConfig);
 
       // Set forwarder target
       await setExecutiveConfig(

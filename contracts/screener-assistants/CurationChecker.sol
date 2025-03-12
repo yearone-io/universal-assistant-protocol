@@ -5,7 +5,6 @@ pragma solidity ^0.8.24;
 import {IScreenerAssistant} from "../IScreenerAssistant.sol";
 import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
 import {ILSP8IdentifiableDigitalAsset} from "@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/ILSP8IdentifiableDigitalAsset.sol";
-import {LSP8Enumerable} from "@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/extensions/LSP8Enumerable.sol";
 
 // Utils
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";

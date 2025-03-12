@@ -269,7 +269,7 @@ describe("UniversalReceiverDelegateUAP", function () {
       const mockUPAddress = await universalProfile.getAddress();
       const typeKey = generateMappingKey("UAPTypeConfig", LSP0_TYPEID);
       await universalProfile.setData(typeKey, customEncodeAddresses([tipAssistantAddress]));
-      await setScreenerConfig(universalProfile, tipAssistantAddress, [falseScreenerAddress, trueScreenerAddress, falseScreenerAddress], LSP0_TYPEID, ["0x","0x","0x"], false);
+      await setScreenerConfig(universalProfile, tipAssistantAddress, [falseScreenerAddress, falseScreenerAddress, trueScreenerAddress, falseScreenerAddress], LSP0_TYPEID, ["0x","0x","0x", "0x"], false);
       await setExecutiveConfig(universalProfile, tipAssistantAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await nonOwner.getAddress(), 10]));
       const initialBalanceUP = await ethers.provider.getBalance(mockUPAddress);
       const initialBalanceNonOwner = await ethers.provider.getBalance(await nonOwner.getAddress());

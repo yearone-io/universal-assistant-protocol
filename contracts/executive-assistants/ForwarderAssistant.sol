@@ -15,6 +15,7 @@ import {_TYPEID_LSP8_TOKENSRECIPIENT} from "@lukso/lsp-smart-contracts/contracts
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
+    uint256 private constant NO_OP = type(uint256).max;
     event LSP7AssetForwarded(
         address asset,
         uint256 amount,
@@ -69,9 +70,9 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
             // lsp1Data when minting https://github.com/lukso-network/lsp-smart-contracts/blob/7ec72e7c549f1e071a440f343e5c8a7fef22cf55/packages/lsp7-contracts/contracts/LSP7DigitalAsset.sol#L609
             // lsp1Data when transferring https://github.com/lukso-network/lsp-smart-contracts/blob/7ec72e7c549f1e071a440f343e5c8a7fef22cf55/packages/lsp7-contracts/contracts/LSP7DigitalAsset.sol#L754
             (
-                , // address operator,
-                , // address sender,
-                , // address receiver,
+                address operator,
+                address sender,
+                address receiver,
                 uint256 amount,
                 bytes memory lsp7Data
             ) = abi.decode(lsp1Data, (address, address, address, uint256, bytes));
@@ -84,24 +85,51 @@ contract ForwarderAssistant is IExecutiveAssistant, ERC165 {
                 true,
                 lsp7Data
             );
-            emit LSP7AssetForwarded(notifier, amount, targetAddress);
-            return (0, notifier, value, encodedLSP7Tx, abi.encode(value, ""));
+            bytes memory resultingLSP1Data = abi.encode(
+                operator,
+                sender,
+                receiver,
+                0,
+                lsp7Data
+            );
+            // Check UP's balance before proceeding
+            uint256 upBalance = ILSP7DigitalAsset(notifier).balanceOf(upAddress);
+            if (amount <= upBalance) {
+                emit LSP7AssetForwarded(notifier, amount, targetAddress);
+                return (0, notifier, value, encodedLSP7Tx, abi.encode(value, resultingLSP1Data));
+            } else {
+                return (NO_OP, notifier, value, "", abi.encode(value, resultingLSP1Data));
+            }
         } else if (typeId == _TYPEID_LSP8_TOKENSRECIPIENT) {
             // lsp1Data when minting https://github.com/lukso-network/lsp-smart-contracts/blob/7ec72e7c549f1e071a440f343e5c8a7fef22cf55/packages/lsp8-contracts/contracts/LSP8IdentifiableDigitalAsset.sol#L731
             // lsp1Data when transferring https://github.com/lukso-network/lsp-smart-contracts/blob/7ec72e7c549f1e071a440f343e5c8a7fef22cf55/packages/lsp8-contracts/contracts/LSP8IdentifiableDigitalAsset.sol#L858
             (
-                , // address operator,
-                , // address sender,
-                , // address receiver,
+                address operator,
+                address sender,
+                address receiver,
                 bytes32 tokenId,
+                bytes memory lsp8Data
             ) = abi.decode(lsp1Data, (address, address, address, bytes32, bytes));
             // Prepare the transfer call
             bytes memory encodedLSP8Tx = abi.encodeCall(
                 ILSP8IdentifiableDigitalAsset.transfer,
                 (upAddress, targetAddress, tokenId, true, lsp1Data)
             );
-            emit LSP8AssetForwarded(notifier, tokenId, targetAddress);
-            return (0, notifier, value, encodedLSP8Tx, abi.encode(value, ""));
+            bytes memory resultingLSP1Data = abi.encode(
+                operator,
+                sender,
+                receiver,
+                "",
+                lsp8Data
+            );
+            // Check if UP owns the tokenId (LSP8-specific)
+            address tokenOwner = ILSP8IdentifiableDigitalAsset(notifier).tokenOwnerOf(tokenId);
+            if (tokenOwner != upAddress) {
+                emit LSP8AssetForwarded(notifier, tokenId, targetAddress);
+                return (0, notifier, value, encodedLSP8Tx, abi.encode(value, resultingLSP1Data));
+            } else {
+                return (NO_OP, notifier, value, "", abi.encode(value, resultingLSP1Data));
+            } 
         }
         revert InvalidTypeId();
     }

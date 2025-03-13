@@ -16,9 +16,11 @@ import {IExecutiveAssistant} from "./IExecutiveAssistant.sol";
  * @dev Universal Receiver Delegate for the Universal Assistant Protocol.
  */
 contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
+    uint256 private constant NO_OP = type(uint256).max;
     event TypeIdConfigFound(bytes32 typeId);
     event AssistantFound(address executiveAssistant);
     event AssistantInvoked(address indexed subscriber, address indexed executiveAssistant);
+    event AssistantNoOp(address indexed subscriber, address executiveAssistant);
     error ExecutiveAssistantExecutionFailed(address executiveAssistant, bytes32 typeId);
     error ScreenerAssistantExecutionFailed(address executiveAssistant, address screenerAssistant, bytes32 typeId);
     error InvalidEncodedData();
@@ -28,14 +30,14 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
      * @param notifier The address that triggered the URD on the Universal Profile.
      * @param value The amount of Ether sent with the transaction.
      * @param typeId The identifier representing the type of transaction or asset.
-     * @param data Additional data relevant to the transaction.
+     * @param lsp1Data Additional data relevant to the transaction.
      * @return A bytes array containing any returned data from the Assistant(s).
      */
     function universalReceiverDelegate(
         address notifier,
         uint256 value,
         bytes32 typeId,
-        bytes memory data
+        bytes memory lsp1Data
     )
         public
         virtual
@@ -49,17 +51,17 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         );
         bytes memory typeConfig = IERC725Y(msg.sender).getData(typeConfigKey);
         if (typeConfig.length == 0) {
-            return super.universalReceiverDelegate(notifier, value, typeId, data);
+            return super.universalReceiverDelegate(notifier, value, typeId, lsp1Data);
         }
         emit TypeIdConfigFound(typeId);
 
         // Decode executive assistants
         address[] memory executiveAssistants = customDecodeAddresses(typeConfig);
         if (executiveAssistants.length == 0) {
-            return super.universalReceiverDelegate(notifier, value, typeId, data);
+            return super.universalReceiverDelegate(notifier, value, typeId, lsp1Data);
         }
 
-        bytes memory currentData = data;
+        bytes memory currentLsp1Data = lsp1Data;
         uint256 currentValue = value;
         for (uint256 i = 0; i < executiveAssistants.length; i++) {
             address executiveAssistant = executiveAssistants[i];
@@ -83,7 +85,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                             notifier,
                             currentValue,
                             typeId,
-                            currentData
+                            currentLsp1Data
                         )
                     );
                     if (!success) {
@@ -120,7 +122,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                         notifier,
                         currentValue,
                         typeId,
-                        currentData
+                        currentLsp1Data
                     )
                 );
                 if (!success) {
@@ -143,16 +145,20 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                 ) = abi.decode(returnData, (uint256, address, uint256, bytes, bytes));
 
                 if (execResultData.length > 0) {
-                    (uint256 newValue, bytes memory newTxData) = abi.decode(execResultData, (uint256, bytes));
+                    (uint256 newValue, bytes memory newLsp1Data) = abi.decode(execResultData, (uint256, bytes));
                     currentValue = newValue;
-                    currentData = newTxData;
+                    currentLsp1Data = newLsp1Data;
                 }
 
-                IERC725X(msg.sender).execute(execOperationType, execTarget, execValue, execData);
-                emit AssistantInvoked(msg.sender, executiveAssistant);
+                if (execOperationType != NO_OP) {
+                    IERC725X(msg.sender).execute(execOperationType, execTarget, execValue, execData);
+                    emit AssistantInvoked(msg.sender, executiveAssistant);
+                } else {
+                    emit AssistantNoOp(msg.sender, executiveAssistant);
+                }
             }
         }
-        return super.universalReceiverDelegate(notifier, currentValue, typeId, currentData);
+        return super.universalReceiverDelegate(notifier, currentValue, typeId, currentLsp1Data);
     }
 
     /**

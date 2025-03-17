@@ -287,3 +287,24 @@ export function addressToBytes32(address: string): string {
   const paddedAddress = "0".repeat(64 - address.length) + address;
   return "0x" + paddedAddress.toLowerCase();
 }
+
+export function generateListMappingKey(executiveAddress: string, screenerAddress: string, itemAddress: string): string {
+  const hashedFirstWord = keccak256(toUtf8Bytes("UAPList"));
+  const first6Bytes = hashedFirstWord.slice(2, 14);
+  const executiveBytes10 = executiveAddress.slice(2, 22); // bytes10
+  const screenerBytes5 = screenerAddress.slice(2, 12);    // bytes5
+  const itemBytes5 = itemAddress.slice(2, 12);            // bytes5
+  return "0x" + first6Bytes + executiveBytes10 + screenerBytes5 + "00000" + itemBytes5;
+}
+
+export async function setListEntry(
+  up: any,
+  executiveAddress: string,
+  screenerAddress: string,
+  itemAddress: string,
+  isSet: boolean
+) {
+  const key = generateListMappingKey(executiveAddress, screenerAddress, itemAddress);
+  const value = isSet ? AbiCoder.defaultAbiCoder().encode(["bool"], [true]) : "0x";
+  await up.setData(key, value);
+}

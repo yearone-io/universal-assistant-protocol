@@ -1,14 +1,23 @@
 import { ethers } from "hardhat";
-import { Signer } from "ethers";
 import { expect } from "chai";
+import { Signer } from "ethers";
 import { LSP1_TYPE_IDS } from "@lukso/lsp-smart-contracts";
 import {
   UniversalReceiverDelegateUAP,
-  AddressListChecker,
-  CurationChecker,
+  SafeAssetAllowlistScreener,
+  SafeAssetCurationScreener,
   ForwarderAssistant,
 } from "../../typechain-types";
-import { customEncodeAddresses, deployUniversalProfile, deployMockAssets, setScreenerConfig, setExecutiveConfig, generateMappingKey, addressToBytes32 } from "../utils/TestUtils";
+import {
+  customEncodeAddresses,
+  deployUniversalProfile,
+  deployMockAssets,
+  setScreenerConfig,
+  setExecutiveConfig,
+  generateMappingKey,
+  addressToBytes32,
+  setListEntry,
+} from "../utils/TestUtils";
 
 describe("Screeners: Address and Curation Checkers", function () {
   let owner: Signer;
@@ -17,8 +26,8 @@ describe("Screeners: Address and Curation Checkers", function () {
   let nonOwner: Signer;
   let universalProfile: any;
   let universalReceiverDelegateUAP: UniversalReceiverDelegateUAP;
-  let addressListChecker: AddressListChecker;
-  let curationChecker: CurationChecker;
+  let addressListChecker: SafeAssetAllowlistScreener;
+  let curationChecker: SafeAssetCurationScreener;
   let forwarderAssistant: ForwarderAssistant;
   let mockLSP7A: any;
   let mockLSP7B: any;
@@ -32,107 +41,359 @@ describe("Screeners: Address and Curation Checkers", function () {
     ({ lsp7: mockLSP7A } = await deployMockAssets(lsp7Holder));
     ({ lsp7: mockLSP7B, lsp8: mockLSP8 } = await deployMockAssets(lsp7Holder));
 
-    const AddressListCheckerFactory = await ethers.getContractFactory("AddressListChecker");
-    addressListChecker = await AddressListCheckerFactory.deploy();
-    const CurationCheckerFactory = await ethers.getContractFactory("CurationChecker");
-    curationChecker = await CurationCheckerFactory.deploy();
+    const SafeAssetAllowlistScreenerFactory = await ethers.getContractFactory("SafeAssetAllowlistScreener");
+    addressListChecker = await SafeAssetAllowlistScreenerFactory.deploy();
+    const SafeAssetCurationScreenerFactory = await ethers.getContractFactory("SafeAssetCurationScreener");
+    curationChecker = await SafeAssetCurationScreenerFactory.deploy();
     const ForwarderFactory = await ethers.getContractFactory("ForwarderAssistant");
     forwarderAssistant = await ForwarderFactory.deploy();
   });
 
-  describe("AddressListChecker", function () {
-    it("should allow transaction when notifier is in address list", async function () {
+  describe("SafeAssetAllowlistScreener", function () {
+    it("should engage executive when notifier is in allowlist and returnValueWhenAllowed is true", async function () {
       const upAddress = await universalProfile.getAddress();
       const lsp7Address = await mockLSP7A.getAddress();
       const forwarderAddress = await forwarderAssistant.getAddress();
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([await forwarderAssistant.getAddress()]));
+      const screenerAddress = await addressListChecker.getAddress();
 
-      const allowedAddresses = [lsp7Address];
-      const encodedAddresses = customEncodeAddresses(allowedAddresses);
-      await setScreenerConfig(universalProfile, forwarderAddress, [await addressListChecker.getAddress()], LSP7_TYPEID, [encodedAddresses]);
+      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
+      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+
+      const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]);
+      await setScreenerConfig(universalProfile, forwarderAddress, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
+      await setListEntry(universalProfile, forwarderAddress, screenerAddress, lsp7Address, true);
       await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
 
       await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 69))
         .to.emit(universalReceiverDelegateUAP, "AssistantInvoked")
-        .withArgs(await universalProfile.getAddress(), await forwarderAssistant.getAddress());
+        .withArgs(upAddress, forwarderAddress);
       expect(await mockLSP7A.balanceOf(await nonOwner.getAddress())).to.equal(69);
     });
 
-    it("should not pass transactions to executive when notifier is not in address list", async function () {
+    it("should NOT engage executive when notifier is in allowlist and returnValueWhenAllowed is false", async function () {
       const upAddress = await universalProfile.getAddress();
+      const lsp7Address = await mockLSP7A.getAddress();
       const forwarderAddress = await forwarderAssistant.getAddress();
+      const screenerAddress = await addressListChecker.getAddress();
+
       const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
       await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
 
-      const allowedAddresses = [await nonOwner.getAddress()];
-      const encodedAddresses = customEncodeAddresses(allowedAddresses);
-      await setScreenerConfig(universalProfile, forwarderAddress, [await addressListChecker.getAddress()], LSP7_TYPEID, [encodedAddresses]);
+      const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [false]);
+      await setScreenerConfig(universalProfile, forwarderAddress, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
+      await setListEntry(universalProfile, forwarderAddress, screenerAddress, lsp7Address, true);
       await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
 
-      await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 69)).to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
+      const upBalanceBefore = await mockLSP7A.balanceOf(upAddress);
+      await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 69))
+        .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
+      expect(await mockLSP7A.balanceOf(upAddress)).to.equal(upBalanceBefore + BigInt(69));
+    });
+
+    it("should block transaction when notifier is not in allowlist", async function () {
+      const upAddress = await universalProfile.getAddress();
+      const forwarderAddress = await forwarderAssistant.getAddress();
+      const screenerAddress = await addressListChecker.getAddress();
+
+      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
+      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+
+      const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]);
+      await setScreenerConfig(universalProfile, forwarderAddress, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
+      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+
+      await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 69))
+        .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
       expect(await mockLSP7A.balanceOf(upAddress)).to.equal(69);
     });
 
-    it("should not pass transactions to executive when no addresses are configured", async function () {
+    it("should block transaction when no config is set", async function () {
       const upAddress = await universalProfile.getAddress();
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([await forwarderAssistant.getAddress()]));
-      await setScreenerConfig(universalProfile, await forwarderAssistant.getAddress(), [await addressListChecker.getAddress()], LSP7_TYPEID, ["0x"]);
-      await setExecutiveConfig(universalProfile, await forwarderAssistant.getAddress(), ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+      const forwarderAddress = await forwarderAssistant.getAddress();
+      const screenerAddress = await addressListChecker.getAddress();
 
-      await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 69)).to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
+      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
+      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+
+      await setScreenerConfig(universalProfile, forwarderAddress, [screenerAddress], LSP7_TYPEID, ["0x"]);
+      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+
+      await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 69))
+        .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
       expect(await mockLSP7A.balanceOf(upAddress)).to.equal(69);
     });
   });
 
-  describe("CurationChecker", function () {
-    it("should allow transaction when notifier is in the curated LSP8 list", async function () {
+  describe("SafeAssetCurationScreener", function () {
+    it("should allow transaction when notifier is in curated LSP8 list and not blocked", async function () {
       const upAddress = await universalProfile.getAddress();
       const lsp7Address = await mockLSP7A.getAddress();
       const curatedListAddress = await mockLSP8.getAddress();
+      const forwarderAddress = await forwarderAssistant.getAddress();
+      const screenerAddress = await curationChecker.getAddress();
+
       const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([await forwarderAssistant.getAddress()]));
+      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
 
       const curatedEntryId = addressToBytes32(lsp7Address);
       await mockLSP8.connect(lsp7Holder).mint(lsp7Address, curatedEntryId);
-      const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [curatedListAddress]);
-      await setScreenerConfig(universalProfile, await forwarderAssistant.getAddress(), [await curationChecker.getAddress()], LSP7_TYPEID, [encodedConfig]);
-      await setExecutiveConfig(universalProfile, await forwarderAssistant.getAddress(), ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+      const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address", "bool"], [curatedListAddress, true]);
+      await setScreenerConfig(universalProfile, forwarderAddress, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
+      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
 
-      await expect(mockLSP7A.connect(owner).mint(upAddress, 1))
+      await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 1))
         .to.emit(universalReceiverDelegateUAP, "AssistantInvoked")
-        .withArgs(await universalProfile.getAddress(), await forwarderAssistant.getAddress());
+        .withArgs(upAddress, forwarderAddress);
       expect(await mockLSP7A.balanceOf(await nonOwner.getAddress())).to.equal(1);
+    });
+
+    it("should block transaction when notifier is in blocklist despite being curated", async function () {
+      const upAddress = await universalProfile.getAddress();
+      const lsp7Address = await mockLSP7A.getAddress();
+      const curatedListAddress = await mockLSP8.getAddress();
+      const forwarderAddress = await forwarderAssistant.getAddress();
+      const screenerAddress = await curationChecker.getAddress();
+
+      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
+      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+
+      const curatedEntryId = addressToBytes32(lsp7Address);
+      await mockLSP8.connect(lsp7Holder).mint(lsp7Address, curatedEntryId);
+      const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address", "bool"], [curatedListAddress, true]);
+      await setScreenerConfig(universalProfile, forwarderAddress, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
+      await setListEntry(universalProfile, forwarderAddress, screenerAddress, lsp7Address, true); // Add to blocklist
+      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+
+      await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 1))
+        .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
+      expect(await mockLSP7A.balanceOf(upAddress)).to.equal(1);
     });
 
     it("should block transaction when notifier is not in curated LSP8 list", async function () {
       const upAddress = await universalProfile.getAddress();
       const curatedListAddress = await mockLSP8.getAddress();
+      const forwarderAddress = await forwarderAssistant.getAddress();
+      const screenerAddress = await curationChecker.getAddress();
+
       const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([await forwarderAssistant.getAddress()]));
+      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
 
-      const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [curatedListAddress]);
-      await setScreenerConfig(universalProfile, await forwarderAssistant.getAddress(), [await curationChecker.getAddress()], LSP7_TYPEID, [encodedConfig]);
-      await setExecutiveConfig(universalProfile, await forwarderAssistant.getAddress(), ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+      const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address", "bool"], [curatedListAddress, true]);
+      await setScreenerConfig(universalProfile, forwarderAddress, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
+      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
 
-      await expect(mockLSP7B.connect(owner).mint(upAddress, 1)).to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
+      await expect(mockLSP7B.connect(lsp7Holder).mint(upAddress, 1))
+        .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
       expect(await mockLSP7B.balanceOf(upAddress)).to.equal(1);
     });
 
     it("should block transaction when no curated list is configured", async function () {
       const upAddress = await universalProfile.getAddress();
-      const lsp7Address = await mockLSP7A.getAddress();
+      const forwarderAddress = await forwarderAssistant.getAddress();
+      const screenerAddress = await curationChecker.getAddress();
+
       const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([await forwarderAssistant.getAddress()]));
+      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+
+      await setScreenerConfig(universalProfile, forwarderAddress, [screenerAddress], LSP7_TYPEID, ["0x"]);
+      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+
+      await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 1))
+        .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
+      expect(await mockLSP7A.balanceOf(upAddress)).to.equal(1);
+    });
+
+    it("should block transaction when returnValueWhenCurated is false despite being curated", async function () {
+      const upAddress = await universalProfile.getAddress();
+      const lsp7Address = await mockLSP7A.getAddress();
+      const curatedListAddress = await mockLSP8.getAddress();
+      const forwarderAddress = await forwarderAssistant.getAddress();
+      const screenerAddress = await curationChecker.getAddress();
+
+      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
+      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
 
       const curatedEntryId = addressToBytes32(lsp7Address);
       await mockLSP8.connect(lsp7Holder).mint(lsp7Address, curatedEntryId);
-      await setScreenerConfig(universalProfile, await forwarderAssistant.getAddress(), [await curationChecker.getAddress()], LSP7_TYPEID, ["0x"]);
-      await setExecutiveConfig(universalProfile, await forwarderAssistant.getAddress(), ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+      const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address", "bool"], [curatedListAddress, false]);
+      await setScreenerConfig(universalProfile, forwarderAddress, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
+      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
 
-      await expect(mockLSP7A.connect(owner).mint(upAddress, 1)).to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
+      await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 1))
+        .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
       expect(await mockLSP7A.balanceOf(upAddress)).to.equal(1);
+    });
+  });
+
+  describe("Chained Screeners: SafeAssetAllowlistScreener and SafeAssetCurationScreener", function () {
+    it("should engage executive when notifier passes both screeners (AND chain)", async function () {
+      const upAddress = await universalProfile.getAddress();
+      const lsp7Address = await mockLSP7A.getAddress();
+      const curatedListAddress = await mockLSP8.getAddress();
+      const forwarderAddress = await forwarderAssistant.getAddress();
+      const allowlistScreenerAddress = await addressListChecker.getAddress();
+      const curationScreenerAddress = await curationChecker.getAddress();
+
+      // Set type config
+      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
+      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+
+      // Configure Allowlist Screener
+      const allowlistConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]);
+      // Configure Curation Screener
+      const curationConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address", "bool"], [curatedListAddress, true]);
+      await setScreenerConfig(
+        universalProfile,
+        forwarderAddress,
+        [allowlistScreenerAddress, curationScreenerAddress],
+        LSP7_TYPEID,
+        [allowlistConfig, curationConfig],
+        true // isAndChain = true
+      );
+
+      // Add to allowlist
+      await setListEntry(universalProfile, forwarderAddress, allowlistScreenerAddress, lsp7Address, true);
+      // Add to curated list
+      const curatedEntryId = addressToBytes32(lsp7Address);
+      await mockLSP8.connect(lsp7Holder).mint(lsp7Address, curatedEntryId);
+      // Set executive
+      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+
+      await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 1))
+        .to.emit(universalReceiverDelegateUAP, "AssistantInvoked")
+        .withArgs(upAddress, forwarderAddress);
+      expect(await mockLSP7A.balanceOf(await nonOwner.getAddress())).to.equal(1);
+    });
+
+    it("should block transaction when notifier passes allowlist but not curation (AND chain)", async function () {
+      const upAddress = await universalProfile.getAddress();
+      const lsp7Address = await mockLSP7A.getAddress();
+      const curatedListAddress = await mockLSP8.getAddress();
+      const forwarderAddress = await forwarderAssistant.getAddress();
+      const allowlistScreenerAddress = await addressListChecker.getAddress();
+      const curationScreenerAddress = await curationChecker.getAddress();
+
+      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
+      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+
+      const allowlistConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]);
+      const curationConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address", "bool"], [curatedListAddress, true]);
+      await setScreenerConfig(
+        universalProfile,
+        forwarderAddress,
+        [allowlistScreenerAddress, curationScreenerAddress],
+        LSP7_TYPEID,
+        [allowlistConfig, curationConfig],
+        true // isAndChain = true
+      );
+
+      // Add to allowlist but not curated list
+      await setListEntry(universalProfile, forwarderAddress, allowlistScreenerAddress, lsp7Address, true);
+      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+
+      await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 1))
+        .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
+      expect(await mockLSP7A.balanceOf(upAddress)).to.equal(1);
+    });
+
+    it("should block transaction when notifier passes curation but not allowlist (AND chain)", async function () {
+      const upAddress = await universalProfile.getAddress();
+      const lsp7Address = await mockLSP7A.getAddress();
+      const curatedListAddress = await mockLSP8.getAddress();
+      const forwarderAddress = await forwarderAssistant.getAddress();
+      const allowlistScreenerAddress = await addressListChecker.getAddress();
+      const curationScreenerAddress = await curationChecker.getAddress();
+
+      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
+      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+
+      const allowlistConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]);
+      const curationConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address", "bool"], [curatedListAddress, true]);
+      await setScreenerConfig(
+        universalProfile,
+        forwarderAddress,
+        [allowlistScreenerAddress, curationScreenerAddress],
+        LSP7_TYPEID,
+        [allowlistConfig, curationConfig],
+        true // isAndChain = true
+      );
+
+      // Add to curated list but not allowlist
+      const curatedEntryId = addressToBytes32(lsp7Address);
+      await mockLSP8.connect(lsp7Holder).mint(lsp7Address, curatedEntryId);
+      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+
+      await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 1))
+        .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
+      expect(await mockLSP7A.balanceOf(upAddress)).to.equal(1);
+    });
+
+    it("should block transaction when notifier is in blocklist despite passing both screeners (AND chain)", async function () {
+      const upAddress = await universalProfile.getAddress();
+      const lsp7Address = await mockLSP7A.getAddress();
+      const curatedListAddress = await mockLSP8.getAddress();
+      const forwarderAddress = await forwarderAssistant.getAddress();
+      const allowlistScreenerAddress = await addressListChecker.getAddress();
+      const curationScreenerAddress = await curationChecker.getAddress();
+
+      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
+      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+
+      const allowlistConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]);
+      const curationConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address", "bool"], [curatedListAddress, true]);
+      await setScreenerConfig(
+        universalProfile,
+        forwarderAddress,
+        [allowlistScreenerAddress, curationScreenerAddress],
+        LSP7_TYPEID,
+        [allowlistConfig, curationConfig],
+        true // isAndChain = true
+      );
+
+      // Add to allowlist and curated list
+      await setListEntry(universalProfile, forwarderAddress, allowlistScreenerAddress, lsp7Address, true);
+      const curatedEntryId = addressToBytes32(lsp7Address);
+      await mockLSP8.connect(lsp7Holder).mint(lsp7Address, curatedEntryId);
+      // Add to blocklist
+      await setListEntry(universalProfile, forwarderAddress, curationScreenerAddress, lsp7Address, true);
+      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+
+      await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 1))
+        .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
+      expect(await mockLSP7A.balanceOf(upAddress)).to.equal(1);
+    });
+
+    it("should engage executive when notifier passes curation but not allowlist (OR chain)", async function () {
+      const upAddress = await universalProfile.getAddress();
+      const lsp7Address = await mockLSP7A.getAddress();
+      const curatedListAddress = await mockLSP8.getAddress();
+      const forwarderAddress = await forwarderAssistant.getAddress();
+      const allowlistScreenerAddress = await addressListChecker.getAddress();
+      const curationScreenerAddress = await curationChecker.getAddress();
+
+      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
+      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+
+      const allowlistConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]);
+      const curationConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address", "bool"], [curatedListAddress, true]);
+      await setScreenerConfig(
+        universalProfile,
+        forwarderAddress,
+        [allowlistScreenerAddress, curationScreenerAddress],
+        LSP7_TYPEID,
+        [allowlistConfig, curationConfig],
+        false // isAndChain = false (OR)
+      );
+
+      // Add to curated list but not allowlist
+      const curatedEntryId = addressToBytes32(lsp7Address);
+      await mockLSP8.connect(lsp7Holder).mint(lsp7Address, curatedEntryId);
+      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+
+      await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 1))
+        .to.emit(universalReceiverDelegateUAP, "AssistantInvoked")
+        .withArgs(upAddress, forwarderAddress);
+      expect(await mockLSP7A.balanceOf(await nonOwner.getAddress())).to.equal(1);
     });
   });
 });

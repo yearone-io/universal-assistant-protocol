@@ -2,11 +2,10 @@
 pragma solidity ^0.8.24;
 
 // Interfaces
+import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {IScreenerAssistant} from "../IScreenerAssistant.sol";
 import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
 
-// Utils
-import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 /**
  * @title SafeAssetAllowlistScreener
@@ -14,8 +13,6 @@ import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
  *      with configurable return value.
  */
 contract SafeAssetAllowlistScreener is IScreenerAssistant, ERC165 {
-    event AllowlistEntryUpdated(address indexed executive, address indexed screener, address indexed item, bool isAllowed);
-
     /**
      * @dev Check which interfaces this contract supports.
      */
@@ -39,13 +36,9 @@ contract SafeAssetAllowlistScreener is IScreenerAssistant, ERC165 {
     }
 
     /**
-     * @dev Generates the allowlist mapping key for a specific address.
-     * @param executiveBytes The executive address as bytes10.
-     * @param screenerBytes The screener address as bytes10.
-     * @param itemAddress The address to check in the allowlist.
-     * @return The bytes32 key for the allowlist entry.
+     * @dev Generates the list mapping key for a specific address.
      */
-    function generateAllowlistMappingKey(
+    function generateListMappingKey(
         bytes10 executiveBytes,
         bytes10 screenerBytes,
         address itemAddress
@@ -59,21 +52,6 @@ contract SafeAssetAllowlistScreener is IScreenerAssistant, ERC165 {
             bytes10(bytes20(itemAddress))
         );
         return bytes32(temporaryBytes);
-    }
-
-    /**
-     * @dev Sets or removes an address in the allowlist.
-     * @param executiveAddress The executive address associated with this screener.
-     * @param itemAddress The address to add or remove from the allowlist.
-     * @param isAllowed True to add, false to remove.
-     */
-    function setAllowlistEntry(address executiveAddress, address itemAddress, bool isAllowed) public {
-        IERC725Y upERC725Y = IERC725Y(msg.sender);
-        bytes10 executiveBytes = bytes10(bytes20(executiveAddress));
-        bytes10 screenerBytes = bytes10(bytes20(address(this)));
-        bytes32 key = generateAllowlistMappingKey(executiveBytes, screenerBytes, itemAddress);
-        upERC725Y.setData(key, isAllowed ? abi.encode(true) : abi.encodePacked());
-        emit AllowlistEntryUpdated(executiveAddress, address(this), itemAddress, isAllowed);
     }
 
     /**
@@ -100,7 +78,7 @@ contract SafeAssetAllowlistScreener is IScreenerAssistant, ERC165 {
         (bytes10 executiveBytes, bytes10 screenerBytes) = parseScreenerConfigKey(screenerConfigKey);
 
         // Check allowlist
-        bytes32 allowlistKey = generateAllowlistMappingKey(executiveBytes, screenerBytes, notifier);
+        bytes32 allowlistKey = generateListMappingKey(executiveBytes, screenerBytes, notifier);
         bytes memory allowlistValue = upERC725Y.getData(allowlistKey);
         bool isAllowed = allowlistValue.length > 0 && abi.decode(allowlistValue, (bool));
 

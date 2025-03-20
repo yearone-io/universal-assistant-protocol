@@ -297,14 +297,53 @@ export function generateListMappingKey(executiveAddress: string, screenerAddress
   return "0x" + first6Bytes + executiveBytes4 + "0000" + screenerBytes10 + itemBytes10;
 }
 
-export async function setListEntry(
-  up: any,
-  executiveAddress: string,
-  screenerAddress: string,
-  itemAddress: string,
-  isSet: boolean
-) {
-  const key = generateListMappingKey(executiveAddress, screenerAddress, itemAddress);
-  const value = isSet ? AbiCoder.defaultAbiCoder().encode(["bool"], [true]) : "0x";
-  return await up.setData(key, value);
+// Generates the list set key (mirrors contract logic)
+export function generateListSetKey(executiveAddress: string, screenerAddress: string): string {
+  const hashedFirstWord = ethers.keccak256(ethers.toUtf8Bytes("UAPList"));
+  const first6Bytes = hashedFirstWord.slice(2, 14);
+  const executiveBytes4 = executiveAddress.slice(2, 10);
+  const screenerBytes10 = screenerAddress.slice(2, 22);
+  const endingBytes10 = "0".repeat(16) + "5b5d"
+  return "0x" + first6Bytes + executiveBytes4 + "0000" + screenerBytes10 + endingBytes10;
+}
+
+// Reads the current list set from the Universal Profile
+export async function getListSet(up: UniversalProfile, executiveAddress: string, screenerAddress: string): Promise<string[]> {
+  const setKey = generateListSetKey(executiveAddress, screenerAddress);
+  const value = await up.getData(setKey);
+  if (value === "0x" || value.length === 0) return [];
+  return ethers.AbiCoder.defaultAbiCoder().decode(["address[]"], value)[0];
+}
+
+// Adds an address to the list set if not already present
+export async function addToListSetPayload(up: UniversalProfile, executiveAddress: string, screenerAddress: string, itemAddress: string) {
+  const currentSet = await getListSet(up, executiveAddress, screenerAddress);
+  if (currentSet.includes(itemAddress)) return ethers.AbiCoder.defaultAbiCoder().encode(["address[]"], [currentSet]);
+  const newSet = [...currentSet, itemAddress];
+  const encodedValue = ethers.AbiCoder.defaultAbiCoder().encode(["address[]"], [newSet]);
+  return encodedValue;
+}
+
+// Removes an address from the list set if present
+export async function removeFromListSetPayload(up: UniversalProfile, executiveAddress: string, screenerAddress: string, itemAddress: string) {
+  const currentSet = await getListSet(up, executiveAddress, screenerAddress);
+  const index = currentSet.indexOf(itemAddress);
+  if (index === -1) return ethers.AbiCoder.defaultAbiCoder().encode(["address[]"], [currentSet]);
+  const newSet = currentSet.filter((_, i) => i !== index);
+  const encodedValue = newSet.length ? ethers.AbiCoder.defaultAbiCoder().encode(["address[]"], [newSet]) : "0x";
+  return encodedValue;
+}
+
+// Sets or removes an address in the list (combines mapping and set operations)
+export async function setListEntry(up: UniversalProfile, executiveAddress: string, screenerAddress: string, itemAddress: string, isInList: boolean) {
+  const mappingKey = generateListMappingKey(executiveAddress, screenerAddress, itemAddress);
+  const setKey = generateListSetKey(executiveAddress, screenerAddress);
+  const value = isInList ? ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]) : "0x";
+  let listPayload = "0x"
+  if (isInList) {
+    listPayload = await addToListSetPayload(up, executiveAddress, screenerAddress, itemAddress);
+  } else {
+    listPayload = await removeFromListSetPayload(up, executiveAddress, screenerAddress, itemAddress);
+  }
+  await up.setDataBatch([mappingKey, setKey], [value, listPayload]);
 }

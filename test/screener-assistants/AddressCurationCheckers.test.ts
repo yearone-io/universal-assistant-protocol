@@ -17,6 +17,7 @@ import {
   generateMappingKey,
   addressToBytes32,
   setListEntry,
+  getListSet,
 } from "../utils/TestUtils";
 
 describe("Screeners: Address and Curation Checkers", function () {
@@ -62,12 +63,20 @@ describe("Screeners: Address and Curation Checkers", function () {
       const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]);
       await setScreenerConfig(universalProfile, forwarderAddress, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
       await setListEntry(universalProfile, forwarderAddress, screenerAddress, lsp7Address, true);
+      const list = await getListSet(universalProfile, forwarderAddress, screenerAddress);
+      expect(list).to.include(lsp7Address);
+      expect(list).to.have.lengthOf(1);
       await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
 
       await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 69))
         .to.emit(universalReceiverDelegateUAP, "AssistantInvoked")
         .withArgs(upAddress, forwarderAddress);
       expect(await mockLSP7A.balanceOf(await nonOwner.getAddress())).to.equal(69);
+      await setListEntry(universalProfile, forwarderAddress, screenerAddress, lsp7Address, false);
+      const listAfter = await getListSet(universalProfile, forwarderAddress, screenerAddress);
+      expect(listAfter).to.have.length(0);
+      await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 69))
+        .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
     });
 
     it("should NOT engage executive when notifier is in allowlist and returnValueWhenAllowed is false", async function () {
@@ -150,6 +159,7 @@ describe("Screeners: Address and Curation Checkers", function () {
     it("should block transaction when notifier is in blocklist despite being curated", async function () {
       const upAddress = await universalProfile.getAddress();
       const lsp7Address = await mockLSP7A.getAddress();
+      const lsp7BAddress = await mockLSP7B.getAddress()
       const curatedListAddress = await mockLSP8.getAddress();
       const forwarderAddress = await forwarderAssistant.getAddress();
       const screenerAddress = await curationChecker.getAddress();
@@ -162,6 +172,11 @@ describe("Screeners: Address and Curation Checkers", function () {
       const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address", "bool"], [curatedListAddress, true]);
       await setScreenerConfig(universalProfile, forwarderAddress, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
       await setListEntry(universalProfile, forwarderAddress, screenerAddress, lsp7Address, true); // Add to blocklist
+      await setListEntry(universalProfile, forwarderAddress, screenerAddress, lsp7BAddress, true);
+      const list = await getListSet(universalProfile, forwarderAddress, screenerAddress);
+      expect(list).to.include(lsp7Address);
+      expect(list).to.include(lsp7BAddress);
+      expect(list).to.have.lengthOf(2);
       await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
 
       await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 1))

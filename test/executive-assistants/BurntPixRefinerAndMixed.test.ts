@@ -8,7 +8,9 @@ import {
   TipAssistant,
   MockBurntPixRegistry,
 } from "../../typechain-types";
-import { customEncodeAddresses, deployUniversalProfile, deployMockAssets, generateMappingKey } from "../utils/TestUtils";
+import { deployUniversalProfile, deployMockAssets, generateMappingKey } from "../utils/TestUtils";
+import ERC725, { ERC725JSONSchema } from "@erc725/erc725.js";
+import uap from '../../schemas/UAP.json';
 
 describe("Executives: BurntPixRefinerAssistant & Mixed Assistants", function () {
   let owner: Signer;
@@ -22,6 +24,7 @@ describe("Executives: BurntPixRefinerAssistant & Mixed Assistants", function () 
   let mockRegistry: MockBurntPixRegistry;
   let mockLSP7: any;
   let mockLSP8: any;
+  let erc725UAP: ERC725;
 
   const LSP0_VALUE_RECEIVED = LSP1_TYPE_IDS.LSP0ValueReceived;
   const LSP7_TYPEID = LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification;
@@ -33,6 +36,7 @@ describe("Executives: BurntPixRefinerAssistant & Mixed Assistants", function () 
       PERMISSIONS.SUPER_CALL, PERMISSIONS.SUPER_TRANSFERVALUE, PERMISSIONS.REENTRANCY
     ]));
     ({ lsp7: mockLSP7, lsp8: mockLSP8 } = await deployMockAssets(lsp7Holder));
+    erc725UAP = new ERC725(uap as ERC725JSONSchema[], universalProfile.target, ethers.provider);
 
     const BurntPixFactory = await ethers.getContractFactory("BurntPixRefinerAssistant");
     burntPixAssistant = await BurntPixFactory.deploy();
@@ -44,8 +48,9 @@ describe("Executives: BurntPixRefinerAssistant & Mixed Assistants", function () 
 
   async function subscribeBurntPixFor(typeIds: string[]) {
     for (const tId of typeIds) {
-      const key = generateMappingKey("UAPTypeConfig", tId);
-      await universalProfile.setData(key, customEncodeAddresses([burntPixAssistant.target]));
+      const key = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [tId]);
+      const value = erc725UAP.encodeValueType("address[]", [burntPixAssistant.target]);
+      await universalProfile.setData(key, value);
     }
   }
 
@@ -57,8 +62,8 @@ describe("Executives: BurntPixRefinerAssistant & Mixed Assistants", function () 
 
   async function subscribeTipForLYX(tipPerc: number, tipRecipient: string) {
     const tipAddr = tipAssistant.target;
-    const typeKey = generateMappingKey("UAPTypeConfig", LSP0_VALUE_RECEIVED);
-    await universalProfile.setData(typeKey, customEncodeAddresses([tipAddr]));
+    const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP0_VALUE_RECEIVED]);
+    await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [tipAddr]));
     const configKey = generateMappingKey("UAPExecutiveConfig", tipAddr);
     const instructions = ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [tipRecipient, tipPerc]);
     await universalProfile.setData(configKey, instructions);
@@ -110,8 +115,11 @@ describe("Executives: BurntPixRefinerAssistant & Mixed Assistants", function () 
     await setBurntPixConfig(mockRegistry.target, pixId, 1);
     await subscribeTipForLYX(10, await owner.getAddress());
 
-    const lsp0Key = generateMappingKey("UAPTypeConfig", LSP0_VALUE_RECEIVED);
-    await universalProfile.setData(lsp0Key, customEncodeAddresses([burntPixAssistant.target, tipAssistant.target]));
+    const lsp0Key = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP0_VALUE_RECEIVED]);
+    await universalProfile.setData(
+      lsp0Key,
+      erc725UAP.encodeValueType("address[]", [burntPixAssistant.target, tipAssistant.target])
+    );
 
     const tx = owner.sendTransaction({ to: universalProfile.target, value: ethers.parseEther("1") });
     await expect(tx).to.emit(mockRegistry, "Refined").withArgs(pixId, 1);
@@ -120,8 +128,11 @@ describe("Executives: BurntPixRefinerAssistant & Mixed Assistants", function () 
   });
 
   it("should mint LSP7 tokens via UP and trigger BurntPixRefinerAssistant for LSP7", async function () {
-    const typeMappingKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
-    await universalProfile.setData(typeMappingKey, customEncodeAddresses([burntPixAssistant.target]));
+    const typeMappingKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
+    await universalProfile.setData(
+      typeMappingKey,
+      erc725UAP.encodeValueType("address[]", [burntPixAssistant.target])
+    );
     const execKey = generateMappingKey("UAPExecutiveConfig", burntPixAssistant.target);
     const pixId = "0x1234000000000000000000000000000000000000000000000000000000000000";
     const iters = 2;

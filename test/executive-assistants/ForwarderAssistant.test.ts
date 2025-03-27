@@ -7,7 +7,9 @@ import {
   MockAssistant,
   MockBadAssistant,
 } from "../../typechain-types";
-import { customEncodeAddresses, deployUniversalProfile, deployMockAssets, generateMappingKey } from "../utils/TestUtils";
+import { deployUniversalProfile, deployMockAssets, generateMappingKey } from "../utils/TestUtils";
+import ERC725, { ERC725JSONSchema } from "@erc725/erc725.js";
+import uap from '../../schemas/UAP.json';
 
 describe("Executives: Forwarder", function () {
   let owner: Signer;
@@ -24,11 +26,13 @@ describe("Executives: Forwarder", function () {
   let secondForwarderAssistant: ForwarderAssistant;
   let mockLSP7: any;
   let mockLSP8: any;
+  let erc725UAP: ERC725;
 
   beforeEach(async function () {
     [owner, browserController, nonOwner, nonOwner2, lsp7Holder, lsp8Holder] = await ethers.getSigners();
     ({ universalProfile, universalReceiverDelegateUAP } = await deployUniversalProfile(owner, browserController));
     ({ lsp7: mockLSP7, lsp8: mockLSP8 } = await deployMockAssets(lsp7Holder));
+    erc725UAP = new ERC725(uap as ERC725JSONSchema[], universalProfile.target, ethers.provider);
 
     const MockAssistantFactory = await ethers.getContractFactory("MockAssistant");
     mockAssistant = await MockAssistantFactory.deploy();
@@ -41,9 +45,9 @@ describe("Executives: Forwarder", function () {
 
   describe("Edge Cases", function () {
     it("Two Forwarders configured with different destination addresses should only trigger first Forwarder", async function () {
-      const typeMappingKey = generateMappingKey("UAPTypeConfig", LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification);
+      const typeMappingKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification]);
       await universalProfile.setData(typeMappingKey,
-        customEncodeAddresses([
+        erc725UAP.encodeValueType("address[]", [
             firstForwarderAssistant.target,
             secondForwarderAssistant.target
         ])

@@ -56,7 +56,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         emit TypeIdConfigFound(typeId);
 
         // Decode executive assistants
-        address[] memory executiveAssistants = customDecodeAddresses(typeConfig);
+        address[] memory executiveAssistants = abi.decode(typeConfig, (address[]));
         if (executiveAssistants.length == 0) {
             return super.universalReceiverDelegate(notifier, value, typeId, lsp1Data);
         }

@@ -9,16 +9,16 @@ import {
   ForwarderAssistant,
 } from "../../typechain-types";
 import {
-  customEncodeAddresses,
   deployUniversalProfile,
   deployMockAssets,
   setScreenerConfig,
   setExecutiveConfig,
-  generateMappingKey,
   addressToBytes32,
   setListEntry,
   getListSet,
 } from "../utils/TestUtils";
+import ERC725, { ERC725JSONSchema } from "@erc725/erc725.js";
+import uap from '../../schemas/UAP.json';
 
 describe("Screeners: Address and Curation Checkers", function () {
   let owner: Signer;
@@ -33,6 +33,7 @@ describe("Screeners: Address and Curation Checkers", function () {
   let mockLSP7A: any;
   let mockLSP7B: any;
   let mockLSP8: any;
+  let erc725UAP: ERC725;
 
   const LSP7_TYPEID = LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification;
 
@@ -41,6 +42,7 @@ describe("Screeners: Address and Curation Checkers", function () {
     ({ universalProfile, universalReceiverDelegateUAP } = await deployUniversalProfile(owner, browserController));
     ({ lsp7: mockLSP7A } = await deployMockAssets(lsp7Holder));
     ({ lsp7: mockLSP7B, lsp8: mockLSP8 } = await deployMockAssets(lsp7Holder));
+    erc725UAP = new ERC725(uap as ERC725JSONSchema[], universalProfile.target, ethers.provider);
 
     const SafeAssetAllowlistScreenerFactory = await ethers.getContractFactory("SafeAssetAllowlistScreener");
     addressListChecker = await SafeAssetAllowlistScreenerFactory.deploy();
@@ -57,8 +59,8 @@ describe("Screeners: Address and Curation Checkers", function () {
       const forwarderAddress = await forwarderAssistant.getAddress();
       const screenerAddress = await addressListChecker.getAddress();
 
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
 
       const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]);
       await setScreenerConfig(universalProfile, forwarderAddress, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
@@ -85,8 +87,8 @@ describe("Screeners: Address and Curation Checkers", function () {
       const forwarderAddress = await forwarderAssistant.getAddress();
       const screenerAddress = await addressListChecker.getAddress();
 
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
 
       const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [false]);
       await setScreenerConfig(universalProfile, forwarderAddress, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
@@ -104,8 +106,8 @@ describe("Screeners: Address and Curation Checkers", function () {
       const forwarderAddress = await forwarderAssistant.getAddress();
       const screenerAddress = await addressListChecker.getAddress();
 
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
 
       const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]);
       await setScreenerConfig(universalProfile, forwarderAddress, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
@@ -121,8 +123,8 @@ describe("Screeners: Address and Curation Checkers", function () {
       const forwarderAddress = await forwarderAssistant.getAddress();
       const screenerAddress = await addressListChecker.getAddress();
 
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
 
       await setScreenerConfig(universalProfile, forwarderAddress, [screenerAddress], LSP7_TYPEID, ["0x"]);
       await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
@@ -141,8 +143,8 @@ describe("Screeners: Address and Curation Checkers", function () {
       const forwarderAddress = await forwarderAssistant.getAddress();
       const screenerAddress = await curationChecker.getAddress();
 
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
 
       const curatedEntryId = addressToBytes32(lsp7Address);
       await mockLSP8.connect(lsp7Holder).mint(lsp7Address, curatedEntryId);
@@ -164,8 +166,8 @@ describe("Screeners: Address and Curation Checkers", function () {
       const forwarderAddress = await forwarderAssistant.getAddress();
       const screenerAddress = await curationChecker.getAddress();
 
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
 
       const curatedEntryId = addressToBytes32(lsp7Address);
       await mockLSP8.connect(lsp7Holder).mint(lsp7Address, curatedEntryId);
@@ -190,8 +192,8 @@ describe("Screeners: Address and Curation Checkers", function () {
       const forwarderAddress = await forwarderAssistant.getAddress();
       const screenerAddress = await curationChecker.getAddress();
 
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
 
       const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address", "bool"], [curatedListAddress, true]);
       await setScreenerConfig(universalProfile, forwarderAddress, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
@@ -207,8 +209,8 @@ describe("Screeners: Address and Curation Checkers", function () {
       const forwarderAddress = await forwarderAssistant.getAddress();
       const screenerAddress = await curationChecker.getAddress();
 
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
 
       await setScreenerConfig(universalProfile, forwarderAddress, [screenerAddress], LSP7_TYPEID, ["0x"]);
       await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
@@ -225,8 +227,8 @@ describe("Screeners: Address and Curation Checkers", function () {
       const forwarderAddress = await forwarderAssistant.getAddress();
       const screenerAddress = await curationChecker.getAddress();
 
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
 
       const curatedEntryId = addressToBytes32(lsp7Address);
       await mockLSP8.connect(lsp7Holder).mint(lsp7Address, curatedEntryId);
@@ -250,8 +252,8 @@ describe("Screeners: Address and Curation Checkers", function () {
       const curationScreenerAddress = await curationChecker.getAddress();
 
       // Set type config
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
 
       // Configure Allowlist Screener
       const allowlistConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]);
@@ -288,8 +290,8 @@ describe("Screeners: Address and Curation Checkers", function () {
       const allowlistScreenerAddress = await addressListChecker.getAddress();
       const curationScreenerAddress = await curationChecker.getAddress();
 
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
 
       const allowlistConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]);
       const curationConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address", "bool"], [curatedListAddress, true]);
@@ -319,8 +321,8 @@ describe("Screeners: Address and Curation Checkers", function () {
       const allowlistScreenerAddress = await addressListChecker.getAddress();
       const curationScreenerAddress = await curationChecker.getAddress();
 
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
 
       const allowlistConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]);
       const curationConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address", "bool"], [curatedListAddress, true]);
@@ -351,8 +353,8 @@ describe("Screeners: Address and Curation Checkers", function () {
       const allowlistScreenerAddress = await addressListChecker.getAddress();
       const curationScreenerAddress = await curationChecker.getAddress();
 
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
 
       const allowlistConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]);
       const curationConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address", "bool"], [curatedListAddress, true]);
@@ -386,8 +388,8 @@ describe("Screeners: Address and Curation Checkers", function () {
       const allowlistScreenerAddress = await addressListChecker.getAddress();
       const curationScreenerAddress = await curationChecker.getAddress();
 
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAddress]));
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
 
       const allowlistConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]);
       const curationConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address", "bool"], [curatedListAddress, true]);

@@ -12,7 +12,9 @@ import {
   BurntPixRefinerAssistant,
   TipAssistant,
 } from "../../typechain-types";
-import { customEncodeAddresses, deployUniversalProfile, deployMockAssets, setScreenerConfig, setExecutiveConfig, generateMappingKey } from "../utils/TestUtils";
+import { deployUniversalProfile, deployMockAssets, setScreenerConfig, setExecutiveConfig, generateMappingKey } from "../utils/TestUtils";
+import ERC725, { ERC725JSONSchema } from "@erc725/erc725.js";
+import uap from '../../schemas/UAP.json';
 
 describe("Screeners: Combinations", function () {
   let owner: Signer;
@@ -31,6 +33,7 @@ describe("Screeners: Combinations", function () {
   let tipAssistant: TipAssistant;
   let mockLSP7: any;
   let mockLSP8: any;
+  let erc725UAP: ERC725;
 
   const LSP0_TYPEID = LSP1_TYPE_IDS.LSP0ValueReceived;
   const LSP7_TYPEID = LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification;
@@ -42,6 +45,7 @@ describe("Screeners: Combinations", function () {
       PERMISSIONS.SUPER_CALL, PERMISSIONS.SUPER_TRANSFERVALUE, PERMISSIONS.REENTRANCY
     ]));
     ({ lsp7: mockLSP7, lsp8: mockLSP8 } = await deployMockAssets(lsp7Holder));
+    erc725UAP = new ERC725(uap as ERC725JSONSchema[], universalProfile.target, ethers.provider);
 
     const TrueScreenerFactory = await ethers.getContractFactory("MockTrueScreenerAssistant");
     trueScreener = await TrueScreenerFactory.deploy();
@@ -61,8 +65,8 @@ describe("Screeners: Combinations", function () {
 
   describe("Executive and Screener Combinations", function () {
     it("should invoke ForwarderAssistant with TrueScreener for LSP7", async function () {
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAssistant.target]));
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAssistant.target]));
       await setScreenerConfig(universalProfile, forwarderAssistant.target, [trueScreener.target], LSP7_TYPEID, ["0x"]);
       await setExecutiveConfig(universalProfile, forwarderAssistant.target, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
 
@@ -74,8 +78,8 @@ describe("Screeners: Combinations", function () {
     });
 
     it("should skip ForwarderAssistant with FalseScreener for LSP7", async function () {
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP7_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([forwarderAssistant.target]));
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAssistant.target]));
       await setScreenerConfig(universalProfile, forwarderAssistant.target, [falseScreener.target], LSP7_TYPEID, ["0x"]);
 
       await mockLSP7.connect(lsp7Holder).mint(lsp7Holder, 1);
@@ -86,8 +90,8 @@ describe("Screeners: Combinations", function () {
     });
 
     it("should invoke TipAssistant with ConfigurableScreener (true) for LYX", async function () {
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP0_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([tipAssistant.target]));
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP0_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [tipAssistant.target]));
       await setScreenerConfig(universalProfile, tipAssistant.target, [configurableScreener.target], LSP0_TYPEID, [ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true])]);
       await setExecutiveConfig(universalProfile, tipAssistant.target, ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await nonOwner.getAddress(), 10]));
 
@@ -100,8 +104,8 @@ describe("Screeners: Combinations", function () {
     });
 
     it("should skip TipAssistant with ConfigurableScreener (false) for LYX", async function () {
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP0_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([tipAssistant.target]));
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP0_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [tipAssistant.target]));
       await setScreenerConfig(universalProfile, tipAssistant.target, [configurableScreener.target], LSP0_TYPEID, [ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [false])]);
       await setExecutiveConfig(universalProfile, tipAssistant.target, ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await nonOwner.getAddress(), 10]));
 
@@ -111,8 +115,8 @@ describe("Screeners: Combinations", function () {
 
     it("should handle multiple screeners with NO EXECUTION when ONE IS FALSE on AND CHAIN for TipAssistant", async function () {
       const mockUPAddress = universalProfile.target;
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP0_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([tipAssistant.target]));
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP0_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [tipAssistant.target]));
       await setScreenerConfig(universalProfile, tipAssistant.target, [trueScreener.target, falseScreener.target, trueScreener.target], LSP0_TYPEID, ["0x", "0x", "0x"], true);
       await setExecutiveConfig(universalProfile, tipAssistant.target, ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await nonOwner.getAddress(), 10]));
       const initialBalanceUP = await ethers.provider.getBalance(mockUPAddress);
@@ -124,8 +128,8 @@ describe("Screeners: Combinations", function () {
 
     it("should handle multiple screeners with EXECUTION when ALL TRUE on AND CHAIN for TipAssistant", async function () {
       const mockUPAddress = universalProfile.target;
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP0_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([tipAssistant.target]));
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP0_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [tipAssistant.target]));
       await setScreenerConfig(universalProfile, tipAssistant.target, [trueScreener.target, trueScreener.target, trueScreener.target], LSP0_TYPEID, ["0x", "0x", "0x"], true);
       await setExecutiveConfig(universalProfile, tipAssistant.target, ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await nonOwner.getAddress(), 10]));
       const initialBalanceUP = await ethers.provider.getBalance(mockUPAddress);
@@ -137,8 +141,8 @@ describe("Screeners: Combinations", function () {
 
     it("should handle multiple screeners with EXECUTION when ONE IS TRUE on OR CHAIN for TipAssistant", async function () {
       const mockUPAddress = universalProfile.target;
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP0_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([tipAssistant.target]));
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP0_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [tipAssistant.target]));
       await setScreenerConfig(universalProfile, tipAssistant.target, [falseScreener.target, falseScreener.target, trueScreener.target, falseScreener.target], LSP0_TYPEID, ["0x", "0x", "0x", "0x"], false);
       await setExecutiveConfig(universalProfile, tipAssistant.target, ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await nonOwner.getAddress(), 10]));
       const initialBalanceUP = await ethers.provider.getBalance(mockUPAddress);
@@ -150,8 +154,8 @@ describe("Screeners: Combinations", function () {
 
     it("should handle multiple screeners with NO EXECUTION when ALL ARE FALSE on OR CHAIN for TipAssistant", async function () {
       const mockUPAddress = universalProfile.target;
-      const typeKey = generateMappingKey("UAPTypeConfig", LSP0_TYPEID);
-      await universalProfile.setData(typeKey, customEncodeAddresses([tipAssistant.target]));
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP0_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [tipAssistant.target]));
       await setScreenerConfig(universalProfile, tipAssistant.target, [falseScreener.target, falseScreener.target, falseScreener.target], LSP0_TYPEID, ["0x", "0x", "0x"], false);
       await setExecutiveConfig(universalProfile, tipAssistant.target, ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await nonOwner.getAddress(), 10]));
       const initialBalanceUP = await ethers.provider.getBalance(mockUPAddress);

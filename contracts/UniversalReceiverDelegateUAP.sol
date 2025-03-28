@@ -10,6 +10,7 @@ import {IERC725X} from "@erc725/smart-contracts/contracts/interfaces/IERC725X.so
 import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
 import {IScreenerAssistant} from "./IScreenerAssistant.sol";
 import {IExecutiveAssistant} from "./IExecutiveAssistant.sol";
+//import "hardhat/console.sol";
 
 /**
  * @title UniversalReceiverDelegateUAP
@@ -64,18 +65,30 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         bytes memory currentLsp1Data = lsp1Data;
         uint256 currentValue = value;
         for (uint256 i = 0; i < executiveAssistants.length; i++) {
-            address executiveAssistant = executiveAssistants[i];
-
-            // Fetch and evaluate screener assistants
-            bytes32 screenerKey = generateExecutiveScreenersKey(typeId, executiveAssistant);
-            bytes memory screenerData = IERC725Y(msg.sender).getData(screenerKey);
             bool shouldExecute = true;
-
-            if (screenerData.length > 0) {
-                (bytes memory screenerAddresses, bool isAndChain) = abi.decode(screenerData, (bytes, bool));
-                address[] memory screeners = customDecodeAddresses(screenerAddresses);
-                for (uint256 j = 0; j < screeners.length; j++) {
-                    address screener = screeners[j];
+            address executiveAssistant = executiveAssistants[i];
+            // Fetch and evaluate screener assistants
+            bytes32 screenersChainKey = LSP2Utils.generateMappingWithGroupingKey(
+                bytes6(keccak256("UAPExecutiveScreeners")),
+                bytes4(typeId),
+                bytes20(bytes32(i))
+            );
+            // Get whether the chain is an AND or OR logic chain
+            bytes32 screenersChainLogicKey = LSP2Utils.generateMappingWithGroupingKey(
+                bytes6(keccak256("UAPExecutiveScreenersANDLogic")),
+                bytes4(typeId),
+                bytes20(bytes32(i))
+            );
+            bytes memory screenersChainRaw = IERC725Y(msg.sender).getData(screenersChainKey);
+            if (screenersChainRaw.length > 0) {
+                address[] memory screenerAssistants = abi.decode(screenersChainRaw, (address[]));
+                bytes memory screenersChainLogicRaw = IERC725Y(msg.sender).getData(screenersChainLogicKey);
+                bool isAndChain = true;
+                if (screenersChainLogicRaw.length > 0) {
+                    isAndChain = abi.decode(screenersChainLogicRaw, (bool));
+                }
+                for (uint256 j = 0; j < screenerAssistants.length; j++) {
+                    address screener = screenerAssistants[j];
                     bytes32 screenerConfigKey = generateScreenerConfigKey(typeId, executiveAssistant, screener);
                     // solhint-disable-next-line avoid-low-level-calls
                     (bool success, bytes memory ret) = screener.delegatecall(
@@ -159,30 +172,6 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
             }
         }
         return super.universalReceiverDelegate(notifier, currentValue, typeId, currentLsp1Data);
-    }
-
-    /**
-    * @dev Modeled after the LSP2Utils.generateMappingWithGroupingKey function. Generates a
-     * data key of key type MappingWithGrouping by using two strings "UAPExecutiveScreeners"
-     * mapped to a typeId mapped itself to a specific executive address `executiveAddress`. As:
-     *
-     * ```
-     * bytes6(keccak256("UAPExecutiveScreeners")):bytes4(<bytes32>):0000:<address>
-     * ```
-     */
-    function generateExecutiveScreenersKey(
-        bytes32 typeId,
-        address executiveAddress
-    ) internal pure returns (bytes32) {
-        bytes32 firstWordHash = keccak256(bytes("UAPExecutiveScreeners"));
-        bytes memory temporaryBytes = bytes.concat(
-            bytes6(firstWordHash),
-            bytes4(typeId),
-            bytes2(0),
-            bytes20(executiveAddress)
-        );
-
-        return bytes32(temporaryBytes);
     }
 
     /**

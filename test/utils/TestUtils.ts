@@ -20,6 +20,8 @@ import { LSP9DataKeys } from "@lukso/lsp9-contracts";
 import { LSP10DataKeys } from "@lukso/lsp10-contracts";
 import { LSP12DataKeys } from "@lukso/lsp12-contracts";
 import { LSP17DataKeys } from "@lukso/lsp17contractextension-contracts";
+import ERC725, { ERC725JSONSchema } from "@erc725/erc725.js";
+import uap from '../../schemas/UAP.json';
 
 export function customEncodeAddresses(addresses: string[]): string {
     if (addresses.length > 65535) {
@@ -238,12 +240,12 @@ export function generateMappingKey(keyName: string, typeId: string): string {
   return "0x" + first10Bytes + "0000" + last20Bytes;
 }
 
-export function generateExecutiveScreenersKey(typeId: string, executiveAddress: string): string {
-  const hashedFirstWord = keccak256(toUtf8Bytes("UAPExecutiveScreeners"));
-  const first6Bytes = hashedFirstWord.slice(2, 14);
-  const second4Bytes = typeId.slice(2, 10);
-  const last20Bytes = executiveAddress.slice(2, 42);
-  return "0x" + first6Bytes + second4Bytes + "0000" + last20Bytes;
+export function generateExecutiveScreenersKey(erc725UAP: ERC725, typeId: string, order: number): string {
+  return erc725UAP.encodeKeyName("UAPExecutiveScreeners:<bytes32>:<uint256>", [typeId, order.toString()]);
+}
+
+export function generateScreenersChainLogicKey(erc725UAP: ERC725, typeId: string, order: number): string {
+  return erc725UAP.encodeKeyName("UAPExecutiveScreenersANDLogic:<bytes32>:<uint256>", [typeId, order.toString()]);
 }
 
 export function generateScreenerConfigKey(typeId: string, executiveAddress: string, screenerAddress: string): string {
@@ -254,20 +256,25 @@ export function generateScreenerConfigKey(typeId: string, executiveAddress: stri
   return "0x" + first6Bytes + second4Bytes + "0000" + last20Bytes;
 }
 
+export function encodeBoolValue(value: boolean): string {
+  return value ? "0x0000000000000000000000000000000000000000000000000000000000000001" : "0x0000000000000000000000000000000000000000000000000000000000000000";
+}
+
 export async function setScreenerConfig(
+  erc725UAP: ERC725,
   up: any,
   executive: string,
+  order: number,
   screeners: string[],
   typeId: string,
   screenerConfigs: string[],
   isAndChain: boolean = true
 ) {
-  const screenerKey = generateExecutiveScreenersKey(typeId, executive);
-  const encodedConfig = AbiCoder.defaultAbiCoder().encode(
-    ["bytes", "bool"],
-    [customEncodeAddresses(screeners), isAndChain]
-  );
-  await up.setData(screenerKey, encodedConfig);
+  const screenersKey = generateExecutiveScreenersKey(erc725UAP, typeId, order);
+  const logicKey = generateScreenersChainLogicKey(erc725UAP, typeId, order);
+
+  await up.setData(screenersKey, erc725UAP.encodeValueType("address[]", screeners));
+  await up.setData(logicKey, encodeBoolValue(isAndChain));
   for (let i = 0; i < screeners.length; i++) {
     const screener = screeners[i];
     const config = screenerConfigs[i];

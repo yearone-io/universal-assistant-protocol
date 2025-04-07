@@ -12,7 +12,7 @@ import {
   BurntPixRefinerAssistant,
   TipAssistant,
 } from "../../typechain-types";
-import { deployUniversalProfile, deployMockAssets, setScreenerConfig, setExecutiveConfig, generateMappingKey } from "../utils/TestUtils";
+import { deployUniversalProfile, deployMockAssets, setScreenerConfig, setExecutiveConfig } from "../utils/TestUtils";
 import ERC725, { ERC725JSONSchema } from "@erc725/erc725.js";
 import uap from '../../schemas/UAP.json';
 
@@ -68,7 +68,14 @@ describe("Screeners: Combinations", function () {
       const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
       await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAssistant.target]));
       await setScreenerConfig(erc725UAP, universalProfile, forwarderAssistant.target, 0, [trueScreener.target], LSP7_TYPEID, ["0x"]);
-      await setExecutiveConfig(universalProfile, forwarderAssistant.target, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        forwarderAssistant.target,
+        LSP7_TYPEID,
+        0,
+        ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()])
+      );
       await expect(
         mockLSP7.connect(lsp7Holder).mint(universalProfile.target, 1)
       ).to.emit(universalReceiverDelegateUAP, "AssistantInvoked").withArgs(universalProfile.target, forwarderAssistant.target);
@@ -91,7 +98,14 @@ describe("Screeners: Combinations", function () {
       const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP0_TYPEID]);
       await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [tipAssistant.target]));
       await setScreenerConfig(erc725UAP, universalProfile, tipAssistant.target, 0, [configurableScreener.target], LSP0_TYPEID, [ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true])]);
-      await setExecutiveConfig(universalProfile, tipAssistant.target, ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await nonOwner.getAddress(), 10]));
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        tipAssistant.target,
+        LSP0_TYPEID,
+        0,
+        ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await nonOwner.getAddress(), 10])
+      );
 
       const upAddr = universalProfile.target;
       const initialBalance = await ethers.provider.getBalance(await nonOwner.getAddress());
@@ -105,7 +119,14 @@ describe("Screeners: Combinations", function () {
       const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP0_TYPEID]);
       await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [tipAssistant.target]));
       await setScreenerConfig(erc725UAP, universalProfile, tipAssistant.target, 0, [configurableScreener.target], LSP0_TYPEID, [ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [false])]);
-      await setExecutiveConfig(universalProfile, tipAssistant.target, ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await nonOwner.getAddress(), 10]));
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        tipAssistant.target,
+        LSP0_TYPEID,
+        0,
+        ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await nonOwner.getAddress(), 10])
+      );
 
       const upAddr = universalProfile.target;
       await expect(owner.sendTransaction({ to: upAddr, value: ethers.parseEther("1") })).to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
@@ -116,7 +137,14 @@ describe("Screeners: Combinations", function () {
       const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP0_TYPEID]);
       await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [tipAssistant.target]));
       await setScreenerConfig(erc725UAP, universalProfile, tipAssistant.target, 0, [trueScreener.target, falseScreener.target, trueScreener.target], LSP0_TYPEID, ["0x", "0x", "0x"], true);
-      await setExecutiveConfig(universalProfile, tipAssistant.target, ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await nonOwner.getAddress(), 10]));
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        tipAssistant.target,
+        LSP0_TYPEID,
+        0,
+        ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await nonOwner.getAddress(), 10])
+      );
       const initialBalanceUP = await ethers.provider.getBalance(mockUPAddress);
       const initialBalanceNonOwner = await ethers.provider.getBalance(await nonOwner.getAddress());
       await owner.sendTransaction({ to: mockUPAddress, value: ethers.parseEther("1") });
@@ -129,7 +157,14 @@ describe("Screeners: Combinations", function () {
       const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP0_TYPEID]);
       await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [tipAssistant.target]));
       await setScreenerConfig(erc725UAP, universalProfile, tipAssistant.target, 0, [trueScreener.target, trueScreener.target, trueScreener.target], LSP0_TYPEID, ["0x", "0x", "0x"], true);
-      await setExecutiveConfig(universalProfile, tipAssistant.target, ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await nonOwner.getAddress(), 10]));
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        tipAssistant.target,
+        LSP0_TYPEID,
+        0,
+        ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await nonOwner.getAddress(), 10])
+      );
       const initialBalanceUP = await ethers.provider.getBalance(mockUPAddress);
       const initialBalanceNonOwner = await ethers.provider.getBalance(await nonOwner.getAddress());
       await owner.sendTransaction({ to: mockUPAddress, value: ethers.parseEther("1") });
@@ -142,7 +177,14 @@ describe("Screeners: Combinations", function () {
       const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP0_TYPEID]);
       await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [tipAssistant.target]));
       await setScreenerConfig(erc725UAP, universalProfile, tipAssistant.target, 0, [falseScreener.target, falseScreener.target, trueScreener.target, falseScreener.target], LSP0_TYPEID, ["0x", "0x", "0x", "0x"], false);
-      await setExecutiveConfig(universalProfile, tipAssistant.target, ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await nonOwner.getAddress(), 10]));
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        tipAssistant.target,
+        LSP0_TYPEID,
+        0,
+        ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await nonOwner.getAddress(), 10])
+      );
       const initialBalanceUP = await ethers.provider.getBalance(mockUPAddress);
       const initialBalanceNonOwner = await ethers.provider.getBalance(await nonOwner.getAddress());
       await owner.sendTransaction({ to: mockUPAddress, value: ethers.parseEther("1") });
@@ -155,7 +197,14 @@ describe("Screeners: Combinations", function () {
       const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP0_TYPEID]);
       await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [tipAssistant.target]));
       await setScreenerConfig(erc725UAP, universalProfile, tipAssistant.target, 0, [falseScreener.target, falseScreener.target, falseScreener.target], LSP0_TYPEID, ["0x", "0x", "0x"], false);
-      await setExecutiveConfig(universalProfile, tipAssistant.target, ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await nonOwner.getAddress(), 10]));
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        tipAssistant.target,
+        LSP0_TYPEID,
+        0,
+        ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [await nonOwner.getAddress(), 10])
+      );
       const initialBalanceUP = await ethers.provider.getBalance(mockUPAddress);
       const initialBalanceNonOwner = await ethers.provider.getBalance(await nonOwner.getAddress());
       await owner.sendTransaction({ to: mockUPAddress, value: ethers.parseEther("1") });

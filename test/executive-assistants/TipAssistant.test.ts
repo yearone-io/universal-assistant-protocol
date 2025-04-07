@@ -2,10 +2,11 @@ import { ethers } from "hardhat";
 import { Signer } from "ethers";
 import { expect } from "chai";
 import { OPERATION_TYPES, LSP1_TYPE_IDS, PERMISSIONS } from "@lukso/lsp-smart-contracts";
-import { deployUniversalProfile, generateMappingKey } from "../utils/TestUtils";
+import { deployUniversalProfile } from "../utils/TestUtils";
 import { TipAssistant } from "../../typechain-types/contracts/executive-assistants/TipAssistant.sol";
 import ERC725, { ERC725JSONSchema } from "@erc725/erc725.js";
 import uap from '../../schemas/UAP.json';
+import { encodeTupleKeyValue } from "@erc725/erc725.js/build/main/src/lib/utils";
 
 describe("Executives: TipAssistant", function () {
   let owner: Signer;
@@ -34,15 +35,18 @@ describe("Executives: TipAssistant", function () {
   });
 
   async function subscribeTipAssistant(tipAssistantAddr: string, tipRecipient: string, tipPerc: number) {
+    // set type
     const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP1_TYPE_IDS.LSP0ValueReceived]);
     const existing = await universalProfile.getData(typeKey);
     let addresses: string[] = existing && existing !== "0x" ? [...(erc725UAP.decodeValueType("address[]", existing))] : [];
+    const order = addresses.length;
     addresses.push(tipAssistantAddr);
     await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [...addresses]));
-
-    const execKey = generateMappingKey("UAPExecutiveConfig", tipAssistantAddr);
-    const instructions = ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [tipRecipient, tipPerc]);
-    await universalProfile.setData(execKey, instructions);
+    // set config
+    const tipExecKey = erc725UAP.encodeKeyName("UAPExecutiveConfig:<bytes32>:<uint256>", [LSP1_TYPE_IDS.LSP0ValueReceived, order.toString()]);
+    const encodedTipConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [tipRecipient, tipPerc]);
+    const encodedTipExecData = encodeTupleKeyValue("(Address,Bytes)", "(address,bytes)", [tipAssistantAddr, encodedTipConfig]);
+    await universalProfile.setData(tipExecKey, encodedTipExecData);
   }
 
   async function unsubscribeURD() {

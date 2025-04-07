@@ -10,7 +10,6 @@ import {IERC725X} from "@erc725/smart-contracts/contracts/interfaces/IERC725X.so
 import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
 import {IScreenerAssistant} from "./IScreenerAssistant.sol";
 import {IExecutiveAssistant} from "./IExecutiveAssistant.sol";
-//import "hardhat/console.sol";
 
 /**
  * @title UniversalReceiverDelegateUAP
@@ -131,6 +130,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                 (bool success, bytes memory returnData) = executiveAssistant.call(
                     abi.encodeWithSelector(
                         IExecutiveAssistant.execute.selector,
+                        i,
                         msg.sender,
                         notifier,
                         currentValue,
@@ -197,27 +197,5 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
             bytes10(bytes20(screenerAssistant))
         );
         return bytes32(temporaryBytes);
-    }
-
-    /**
-     * @dev Decodes a bytes array into an array of addresses.
-     */
-    function customDecodeAddresses(bytes memory encoded) public pure returns (address[] memory) {
-        if (encoded.length < 2) revert InvalidEncodedData();
-        uint16 numAddresses;
-        // solhint-disable-next-line no-inline-assembly
-        assembly {
-            numAddresses := shr(240, mload(add(encoded, 32)))
-        }
-        address[] memory addresses = new address[](numAddresses);
-        for (uint256 i = 0; i < numAddresses; i++) {
-            address addr;
-            // solhint-disable-next-line no-inline-assembly
-            assembly {
-                addr := shr(96, mload(add(encoded, add(34, mul(i, 20)))))
-            }
-            addresses[i] = addr;
-        }
-        return addresses;
     }
 }

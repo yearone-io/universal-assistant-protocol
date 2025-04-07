@@ -22,6 +22,7 @@ import { LSP12DataKeys } from "@lukso/lsp12-contracts";
 import { LSP17DataKeys } from "@lukso/lsp17contractextension-contracts";
 import ERC725, { ERC725JSONSchema } from "@erc725/erc725.js";
 import uap from '../../schemas/UAP.json';
+import { encodeTupleKeyValue } from "@erc725/erc725.js/build/main/src/lib/utils";
 
 export function customEncodeAddresses(addresses: string[]): string {
     if (addresses.length > 65535) {
@@ -284,9 +285,17 @@ export async function setScreenerConfig(
   }
 }
 
-export async function setExecutiveConfig(up: any, executive: string, config: string) {
-  const configKey = generateMappingKey("UAPExecutiveConfig", executive);
-  await up.setData(configKey, config);
+export async function setExecutiveConfig(
+  erc725Instance: ERC725,
+  up: any,
+  executiveAddress: string,
+  type: string,
+  order: number,
+  execConfig: string
+) {
+  const executiveKey = erc725Instance.encodeKeyName("UAPExecutiveConfig:<bytes32>:<uint256>", [type, order.toString()]);
+  const execData = encodeTupleKeyValue("(Address,Bytes)", "(address,bytes)", [executiveAddress, execConfig]);
+  await up.setData(executiveKey, execData);
 }
 
 export function addressToBytes32(address: string): string {

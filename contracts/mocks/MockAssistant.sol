@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
-import { IExecutiveAssistant } from "../IExecutiveAssistant.sol";
+import { ExecutiveAssistantBase } from "../ExecutiveAssistantBase.sol";
 
-contract MockAssistant is IExecutiveAssistant {
+contract MockAssistant is ExecutiveAssistantBase {
     function execute(
+        uint256 /*executionOrder*/, 
         address upAddress/*up address*/,
         address /*notifier*/,
         uint256 value,

@@ -68,7 +68,15 @@ describe("Screeners: Address and Curation Checkers", function () {
       const list = await getListSet(universalProfile, forwarderAddress, screenerAddress);
       expect(list).to.include(lsp7Address);
       expect(list).to.have.lengthOf(1);
-      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+      const encodedExecConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]);
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        forwarderAddress,
+        LSP7_TYPEID,
+        0,
+        encodedExecConfig
+      );
 
       await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 69))
         .to.emit(universalReceiverDelegateUAP, "AssistantInvoked")
@@ -93,7 +101,15 @@ describe("Screeners: Address and Curation Checkers", function () {
       const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [false]);
       await setScreenerConfig(erc725UAP, universalProfile, forwarderAddress, 0, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
       await setListEntry(universalProfile, forwarderAddress, screenerAddress, lsp7Address, true);
-      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+      const encodedExecConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]);
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        forwarderAddress,
+        LSP7_TYPEID,
+        0,
+        encodedExecConfig
+      );
 
       const upBalanceBefore = await mockLSP7A.balanceOf(upAddress);
       await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 69))
@@ -111,7 +127,15 @@ describe("Screeners: Address and Curation Checkers", function () {
 
       const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]);
       await setScreenerConfig(erc725UAP, universalProfile, forwarderAddress, 0, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
-      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+      const encodedExecConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]);
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        forwarderAddress,
+        LSP7_TYPEID,
+        0,
+        encodedExecConfig
+      );
 
       await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 69))
         .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
@@ -127,7 +151,15 @@ describe("Screeners: Address and Curation Checkers", function () {
       await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
 
       await setScreenerConfig(erc725UAP, universalProfile, forwarderAddress, 0, [screenerAddress], LSP7_TYPEID, ["0x"]);
-      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+      const encodedExecConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]);
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        forwarderAddress,
+        LSP7_TYPEID,
+        0,
+        encodedExecConfig
+      );
 
       await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 69))
         .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
@@ -150,7 +182,15 @@ describe("Screeners: Address and Curation Checkers", function () {
       await mockLSP8.connect(lsp7Holder).mint(lsp7Address, curatedEntryId);
       const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address", "bool"], [curatedListAddress, true]);
       await setScreenerConfig(erc725UAP, universalProfile, forwarderAddress, 0, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
-      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+      const encodedExecConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]);
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        forwarderAddress,
+        LSP7_TYPEID,
+        0,
+        encodedExecConfig
+      );
 
       await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 1))
         .to.emit(universalReceiverDelegateUAP, "AssistantInvoked")
@@ -179,7 +219,15 @@ describe("Screeners: Address and Curation Checkers", function () {
       expect(list).to.include(lsp7Address);
       expect(list).to.include(lsp7BAddress);
       expect(list).to.have.lengthOf(2);
-      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+      const encodedExecConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]);
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        forwarderAddress,
+        LSP7_TYPEID,
+        0,
+        encodedExecConfig
+      );
 
       await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 1))
         .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
@@ -197,7 +245,15 @@ describe("Screeners: Address and Curation Checkers", function () {
 
       const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address", "bool"], [curatedListAddress, true]);
       await setScreenerConfig(erc725UAP, universalProfile, forwarderAddress, 0, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
-      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+      const encodedExecConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]);
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        forwarderAddress,
+        LSP7_TYPEID,
+        0,
+        encodedExecConfig
+      );
 
       await expect(mockLSP7B.connect(lsp7Holder).mint(upAddress, 1))
         .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
@@ -213,7 +269,15 @@ describe("Screeners: Address and Curation Checkers", function () {
       await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
 
       await setScreenerConfig(erc725UAP, universalProfile, forwarderAddress, 0, [screenerAddress], LSP7_TYPEID, ["0x"]);
-      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+      const encodedExecConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]);
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        forwarderAddress,
+        LSP7_TYPEID,
+        0,
+        encodedExecConfig
+      );
 
       await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 1))
         .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
@@ -234,7 +298,15 @@ describe("Screeners: Address and Curation Checkers", function () {
       await mockLSP8.connect(lsp7Holder).mint(lsp7Address, curatedEntryId);
       const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address", "bool"], [curatedListAddress, false]);
       await setScreenerConfig(erc725UAP, universalProfile, forwarderAddress, 0, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
-      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+      const encodedExecConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]);
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        forwarderAddress,
+        LSP7_TYPEID,
+        0,
+        encodedExecConfig
+      );
 
       await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 1))
         .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
@@ -275,7 +347,15 @@ describe("Screeners: Address and Curation Checkers", function () {
       const curatedEntryId = addressToBytes32(lsp7Address);
       await mockLSP8.connect(lsp7Holder).mint(lsp7Address, curatedEntryId);
       // Set executive
-      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+      const encodedExecConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]);
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        forwarderAddress,
+        LSP7_TYPEID,
+        0,
+        encodedExecConfig
+      );
 
       await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 1))
         .to.emit(universalReceiverDelegateUAP, "AssistantInvoked")
@@ -308,7 +388,15 @@ describe("Screeners: Address and Curation Checkers", function () {
 
       // Add to allowlist but not curated list
       await setListEntry(universalProfile, forwarderAddress, allowlistScreenerAddress, lsp7Address, true);
-      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+      const encodedExecConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]);
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        forwarderAddress,
+        LSP7_TYPEID,
+        0,
+        encodedExecConfig
+      );
 
       await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 1))
         .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
@@ -341,7 +429,15 @@ describe("Screeners: Address and Curation Checkers", function () {
       // Add to curated list but not allowlist
       const curatedEntryId = addressToBytes32(lsp7Address);
       await mockLSP8.connect(lsp7Holder).mint(lsp7Address, curatedEntryId);
-      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+      const encodedExecConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]);
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        forwarderAddress,
+        LSP7_TYPEID,
+        0,
+        encodedExecConfig
+      );
 
       await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 1))
         .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
@@ -377,7 +473,15 @@ describe("Screeners: Address and Curation Checkers", function () {
       await mockLSP8.connect(lsp7Holder).mint(lsp7Address, curatedEntryId);
       // Add to blocklist
       await setListEntry(universalProfile, forwarderAddress, curationScreenerAddress, lsp7Address, true);
-      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+      const encodedExecConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]);
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        forwarderAddress,
+        LSP7_TYPEID,
+        0,
+        encodedExecConfig
+      );
 
       await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 1))
         .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
@@ -410,7 +514,15 @@ describe("Screeners: Address and Curation Checkers", function () {
       // Add to curated list but not allowlist
       const curatedEntryId = addressToBytes32(lsp7Address);
       await mockLSP8.connect(lsp7Holder).mint(lsp7Address, curatedEntryId);
-      await setExecutiveConfig(universalProfile, forwarderAddress, ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]));
+      const encodedExecConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]);
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        forwarderAddress,
+        LSP7_TYPEID,
+        0,
+        encodedExecConfig
+      );
 
       await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 1))
         .to.emit(universalReceiverDelegateUAP, "AssistantInvoked")

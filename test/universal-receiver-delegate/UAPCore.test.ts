@@ -8,7 +8,7 @@ import {
   MockBadAssistant,
   UniversalReceiverDelegateUAP,
 } from "../../typechain-types";
-import { deployUniversalProfile, deployMockAssets, generateMappingKey, customEncodeAddresses } from "../utils/TestUtils";
+import { deployUniversalProfile, deployMockAssets, setExecutiveConfig } from "../utils/TestUtils";
 import ERC725, { ERC725JSONSchema } from "@erc725/erc725.js";
 import uap from '../../schemas/UAP.json';
 
@@ -78,21 +78,19 @@ describe("UniversalReceiverDelegateUAP Core", function () {
       ).to.be.revertedWithCustomError(mockBadAssistant, "AlwaysFalseError");
     });
 
-    it("should correctly decode addresses in customDecodeAddresses function", async function () {
-      const addresses = [await owner.getAddress(), await nonOwner.getAddress()];
-      const encodedData = customEncodeAddresses(addresses);
-      const decodedAddresses = await universalReceiverDelegateUAP.customDecodeAddresses(encodedData);
-      expect(decodedAddresses[0]).to.equal(addresses[0]);
-      expect(decodedAddresses[1]).to.equal(addresses[1]);
-    });
-
     it("should forward LSP7 tokens to the target address using the ForwarderAssistant", async function () {
       const typeMappingKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification]);
       await universalProfile.setData(typeMappingKey, erc725UAP.encodeValueType("address[]", [forwarderAssistant.target]));
-      const assistantInstructionsKey = generateMappingKey("UAPExecutiveConfig", forwarderAssistant.target);
       const targetAddress = await nonOwner.getAddress();
       const encodedInstructions = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [targetAddress]);
-      await universalProfile.setData(assistantInstructionsKey, encodedInstructions);
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        forwarderAssistant.target,
+        LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification,
+        0,
+        encodedInstructions
+      );
 
       await mockLSP7.connect(lsp7Holder).mint(lsp7Holder, 1);
       await mockLSP7.connect(lsp7Holder).transfer(await lsp7Holder.getAddress(), universalProfile.target, 1, true, "0x");

@@ -12,6 +12,7 @@ import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.so
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 abstract contract ExecutiveAssistantBase is IExecutiveAssistant, ERC165 {
+    // solhint-disable-next-line var-name-mixedcase
     uint256 public NO_OP = type(uint256).max;
     error ExecutiveConfigMismatch(
         address executiveAssistant,

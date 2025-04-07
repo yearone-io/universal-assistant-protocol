@@ -28,6 +28,7 @@ contract SafeAssetAllowlistScreener is IScreenerAssistant, ERC165 {
      */
     function parseScreenerConfigKey(bytes32 screenerConfigKey) internal pure returns (bytes10 executiveBytes, bytes10 screenerBytes) {
         bytes memory keyBytes = abi.encode(screenerConfigKey);
+        // solhint-disable-next-line no-inline-assembly
         assembly {
             executiveBytes := mload(add(keyBytes, 44)) // Bytes 12-22 (offset 32 + 12)
             screenerBytes := mload(add(keyBytes, 54))  // Bytes 22-32 (offset 32 + 22)

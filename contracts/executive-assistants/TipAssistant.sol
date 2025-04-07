@@ -4,8 +4,6 @@ pragma solidity ^0.8.24;
 import {ExecutiveAssistantBase} from "../ExecutiveAssistantBase.sol";
 import {_TYPEID_LSP0_VALUE_RECEIVED} from "@lukso/lsp0-contracts/contracts/LSP0Constants.sol";
 
-import "hardhat/console.sol";
-
 contract TipAssistant is ExecutiveAssistantBase {
     error TipConfigNotSet();
     error InvalidTipRecipient();

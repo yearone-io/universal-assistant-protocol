@@ -1,15 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.24;
 
-// Libraries
-import {LSP2Utils} from "@lukso/lsp-smart-contracts/contracts/LSP2ERC725YJSONSchema/LSP2Utils.sol";
-
-// Import interfaces and contracts
-import {IExecutiveAssistant} from "./IExecutiveAssistant.sol";
-import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
-
-// Utils
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import {LSP2Utils} from "@lukso/lsp-smart-contracts/contracts/LSP2ERC725YJSONSchema/LSP2Utils.sol";
+import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
+import {IExecutiveAssistant} from "./IExecutiveAssistant.sol";
 
 abstract contract ExecutiveAssistantBase is IExecutiveAssistant, ERC165 {
     // solhint-disable-next-line var-name-mixedcase

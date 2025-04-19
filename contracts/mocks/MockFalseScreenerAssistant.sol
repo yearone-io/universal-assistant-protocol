@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import { IScreenerAssistant } from  "../IScreenerAssistant.sol";
+import { ScreenerAssistantBase } from "../screener-assistants/ScreenerAssistantBase.sol";
 
-contract MockFalseScreenerAssistant is IScreenerAssistant {
+contract MockFalseScreenerAssistant is ScreenerAssistantBase {
     function evaluate(
-        bytes32 /*screener config key */,
+        address /*screenerAddress*/,
+        uint256 /*screenerOrder*/,
         address /*notifier */,
         uint256 /*value */,
         bytes32 /*typeId */,
         bytes memory /*data */
-    ) external view override(IScreenerAssistant) returns (bool) {
+    ) external view returns (bool) {
         return false;
     }
 }

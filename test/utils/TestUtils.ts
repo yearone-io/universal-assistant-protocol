@@ -20,8 +20,7 @@ import { LSP9DataKeys } from "@lukso/lsp9-contracts";
 import { LSP10DataKeys } from "@lukso/lsp10-contracts";
 import { LSP12DataKeys } from "@lukso/lsp12-contracts";
 import { LSP17DataKeys } from "@lukso/lsp17contractextension-contracts";
-import ERC725, { ERC725JSONSchema } from "@erc725/erc725.js";
-import uap from '../../schemas/UAP.json';
+import ERC725 from "@erc725/erc725.js";
 import { encodeTupleKeyValue } from "@erc725/erc725.js/build/main/src/lib/utils";
 
 export function customEncodeAddresses(addresses: string[]): string {
@@ -249,38 +248,33 @@ export function generateScreenersChainLogicKey(erc725UAP: ERC725, typeId: string
   return erc725UAP.encodeKeyName("UAPExecutiveScreenersANDLogic:<bytes32>:<uint256>", [typeId, order.toString()]);
 }
 
-export function generateScreenerConfigKey(typeId: string, executiveAddress: string, screenerAddress: string): string {
-  const hashedFirstWord = keccak256(toUtf8Bytes("UAPScreenerConfig"));
-  const first6Bytes = hashedFirstWord.slice(2, 14);
-  const second4Bytes = typeId.slice(2, 10);
-  const last20Bytes = executiveAddress.slice(2, 22) + screenerAddress.slice(2, 22);
-  return "0x" + first6Bytes + second4Bytes + "0000" + last20Bytes;
-}
-
 export function encodeBoolValue(value: boolean): string {
-  return value ? "0x0000000000000000000000000000000000000000000000000000000000000001" : "0x0000000000000000000000000000000000000000000000000000000000000000";
+  return value ? "0x01" : "0x00";
 }
 
 export async function setScreenerConfig(
   erc725UAP: ERC725,
   up: any,
   executive: string,
-  order: number,
+  executiveOrder: number,
   screeners: string[],
   typeId: string,
   screenerConfigs: string[],
   isAndChain: boolean = true
 ) {
-  const screenersKey = generateExecutiveScreenersKey(erc725UAP, typeId, order);
-  const logicKey = generateScreenersChainLogicKey(erc725UAP, typeId, order);
+  const screenersKey = generateExecutiveScreenersKey(erc725UAP, typeId, executiveOrder);
+  const logicKey = generateScreenersChainLogicKey(erc725UAP, typeId, executiveOrder);
 
   await up.setData(screenersKey, erc725UAP.encodeValueType("address[]", screeners));
   await up.setData(logicKey, encodeBoolValue(isAndChain));
   for (let i = 0; i < screeners.length; i++) {
     const screener = screeners[i];
-    const config = screenerConfigs[i];
-    if (config.length > 0) {
-      await up.setData(generateScreenerConfigKey(typeId, executive, screener), config);
+    const screenerConfig = screenerConfigs[i];
+    if (screenerConfig.length > 0) {
+      const screenerOrder = 1000 * executiveOrder + i;
+      const screenerKey = erc725UAP.encodeKeyName("UAPScreenerConfig:<bytes32>:<uint256>", [typeId, screenerOrder.toString()]);
+      const screenerData = encodeTupleKeyValue("(Address,Address,Bytes)", "(address,address,bytes)", [executive, screener, screenerConfig]);
+      await up.setData(screenerKey, screenerData);
     }
   }
 }
@@ -304,62 +298,143 @@ export function addressToBytes32(address: string): string {
   return "0x" + paddedAddress.toLowerCase();
 }
 
-export function generateListMappingKey(executiveAddress: string, screenerAddress: string, itemAddress: string): string {
-  const hashedFirstWord = keccak256(toUtf8Bytes("UAPList"));
-  const first6Bytes = hashedFirstWord.slice(2, 14);
-  const executiveBytes4 = executiveAddress.slice(2, 10);
-  const screenerBytes10 = screenerAddress.slice(2, 22);
-  const itemBytes10 = itemAddress.slice(2, 22);
-  return "0x" + first6Bytes + executiveBytes4 + "0000" + screenerBytes10 + itemBytes10;
-}
-
-// Generates the list set key (mirrors contract logic)
-export function generateListSetKey(executiveAddress: string, screenerAddress: string): string {
-  const hashedFirstWord = ethers.keccak256(ethers.toUtf8Bytes("UAPList"));
-  const first6Bytes = hashedFirstWord.slice(2, 14);
-  const executiveBytes4 = executiveAddress.slice(2, 10);
-  const screenerBytes10 = screenerAddress.slice(2, 22);
-  const endingBytes10 = "0".repeat(16) + "5b5d"
-  return "0x" + first6Bytes + executiveBytes4 + "0000" + screenerBytes10 + endingBytes10;
-}
-
-// Reads the current list set from the Universal Profile
-export async function getListSet(up: UniversalProfile, executiveAddress: string, screenerAddress: string): Promise<string[]> {
-  const setKey = generateListSetKey(executiveAddress, screenerAddress);
-  const value = await up.getData(setKey);
-  if (value === "0x" || value.length === 0) return [];
-  return ethers.AbiCoder.defaultAbiCoder().decode(["address[]"], value)[0];
-}
-
-// Adds an address to the list set if not already present
-export async function addToListSetPayload(up: UniversalProfile, executiveAddress: string, screenerAddress: string, itemAddress: string) {
-  const currentSet = await getListSet(up, executiveAddress, screenerAddress);
-  if (currentSet.includes(itemAddress)) return ethers.AbiCoder.defaultAbiCoder().encode(["address[]"], [currentSet]);
-  const newSet = [...currentSet, itemAddress];
-  const encodedValue = ethers.AbiCoder.defaultAbiCoder().encode(["address[]"], [newSet]);
-  return encodedValue;
-}
-
-// Removes an address from the list set if present
-export async function removeFromListSetPayload(up: UniversalProfile, executiveAddress: string, screenerAddress: string, itemAddress: string) {
-  const currentSet = await getListSet(up, executiveAddress, screenerAddress);
-  const index = currentSet.indexOf(itemAddress);
-  if (index === -1) return ethers.AbiCoder.defaultAbiCoder().encode(["address[]"], [currentSet]);
-  const newSet = currentSet.filter((_, i) => i !== index);
-  const encodedValue = newSet.length ? ethers.AbiCoder.defaultAbiCoder().encode(["address[]"], [newSet]) : "0x";
-  return encodedValue;
-}
-
-// Sets or removes an address in the list (combines mapping and set operations)
-export async function setListEntry(up: UniversalProfile, executiveAddress: string, screenerAddress: string, itemAddress: string, isInList: boolean) {
-  const mappingKey = generateListMappingKey(executiveAddress, screenerAddress, itemAddress);
-  const setKey = generateListSetKey(executiveAddress, screenerAddress);
-  const value = isInList ? ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]) : "0x";
-  let listPayload = "0x"
-  if (isInList) {
-    listPayload = await addToListSetPayload(up, executiveAddress, screenerAddress, itemAddress);
-  } else {
-    listPayload = await removeFromListSetPayload(up, executiveAddress, screenerAddress, itemAddress);
+export function toSolidityBytes16(index: number) {
+  const maxUint128 = BigInt("340282366920938463463374607431768211455");
+  const num = BigInt(index);
+  if (num < 0 || num > maxUint128) {
+    throw new Error("Number out of uint128 range");
   }
-  await up.setDataBatch([mappingKey, setKey], [value, listPayload]);
+  return num.toString(16).padStart(32, "0");
+}
+
+export function toSolidityBytes32Prefixed(index: number) {
+  const maxUint128 = BigInt("340282366920938463463374607431768211455");
+  const num = BigInt(index);
+  if (num < 0 || num > maxUint128) {
+    throw new Error("Number out of uint128 range");
+  }
+  return "0x" + num.toString(16).padStart(64, "0");
+}
+
+export function generateListItemIndexKey(erc725Instance: ERC725, listName: string, index: number) {
+  return erc725Instance.encodeKeyName(`${listName}[]`).slice(0, 34) + toSolidityBytes16(index);
+}
+
+export function encodeListMapValue(erc725Instance: ERC725, bytes4Value: string, uint256Value: number) {
+  return bytes4Value + erc725Instance.encodeValueType("uint256", uint256Value).slice(2, 66);
+}
+
+export async function setListNameOnScreener(
+  erc725Instance: ERC725,
+  up: UniversalProfile,
+  typeId: string,
+  executionOrder: number,
+  listName: string
+) {
+  const listNameKey = erc725Instance.encodeKeyName("UAPAddressList:<bytes32>:<uint256>", [typeId, executionOrder.toString()]);
+  return await up.setData(listNameKey, erc725Instance.encodeValueType("string", listName));
+}
+
+export async function mergeListEntry(
+  erc725Instance: ERC725,
+  up: UniversalProfile,
+  listName: string,
+  itemAddress: string,
+  itemType: string, // bytes4
+) {
+  // get current list length
+  const listLengthKey = erc725Instance.encodeKeyName(`${listName}[]`);
+  const listLengthRaw = await up.getData(listLengthKey);
+  let listLength = 0;
+  if (listLengthRaw && listLengthRaw !== "0x") {
+    listLength = erc725Instance.decodeValueType("uint256", listLengthRaw);
+  }
+  // check if mapping is present
+  const entryMapKey = erc725Instance.encodeKeyName(`${listName}Map:<address>`, [itemAddress]);
+  const entryRaw = await up.getData(entryMapKey);
+  if (!entryRaw || entryRaw === "0x") {
+    // if mapping not present: add address to end of list and create mapping
+    await up.setDataBatch(
+      [
+        entryMapKey,
+        generateListItemIndexKey(erc725Instance, listName, listLength),
+        listLengthKey
+      ],
+      [
+        encodeListMapValue(erc725Instance, itemType, listLength),
+        itemAddress,
+        toSolidityBytes32Prefixed(listLength + 1),
+      ]
+    );
+  } else {
+    // if yes get index and confirm index < listLength and address is present at index spot
+    let entryIndex = erc725Instance.decodeValueType("uint256", entryRaw.slice(11, entryRaw.length - 1));
+    if (entryIndex >= listLength - 1) {
+      throw Error("index mismatch");
+    }
+    return;
+  }
+}
+
+export async function removeListEntry(
+  erc725Instance: ERC725,
+  up: UniversalProfile,
+  listName: string,
+  itemAddress: string,
+) {
+  const entryMapKey = erc725Instance.encodeKeyName(`${listName}Map:<address>`, [itemAddress]);
+  const entryRaw = await up.getData(entryMapKey);
+  if (!entryRaw || entryRaw === "0x") {
+    return;
+  }
+  let entryIndex = erc725Instance.decodeValueType("uint256", entryRaw.slice(11, entryRaw.length - 1));
+  const entryIndexKey = generateListItemIndexKey(erc725Instance, listName, entryIndex);
+  const listLengthKey = erc725Instance.encodeKeyName(`${listName}[]`);
+  const listLengthRaw = await up.getData(listLengthKey);
+  let listLength = 0;
+  if (listLengthRaw && listLengthRaw !== "0x") {
+    listLength = erc725Instance.decodeValueType("uint256", listLengthRaw);
+  }
+  if (listLength === 0) {
+    await up.setData(entryMapKey, "0x");
+    return;
+  }
+  const lastItemIndexKey = generateListItemIndexKey(erc725Instance, listName, listLength - 1);
+  if (entryIndex === listLength - 1) {
+    await up.setDataBatch(
+      [
+        entryMapKey,
+        lastItemIndexKey,
+        listLengthKey
+      ],
+      [
+        "0x",
+        "0x",
+        toSolidityBytes32Prefixed(listLength - 1)
+      ]
+    )
+  } else {
+    const lastItemValueRaw = await up.getData(lastItemIndexKey);
+    const lastItemAddress = erc725Instance.decodeValueType("address", lastItemValueRaw);
+    const lastItemMappingKey = erc725Instance.encodeKeyName(`${listName}Map:<address>`, [lastItemAddress]);
+    const lastItemMappingRaw = await up.getData(lastItemMappingKey);
+    const lastItemEntryType = erc725Instance.decodeValueType("bytes4", lastItemMappingRaw.slice(0,10));
+    const newMappingValue = encodeListMapValue(erc725Instance, lastItemEntryType, entryIndex);
+    await up.setDataBatch(
+      [
+        entryIndexKey,
+        lastItemIndexKey,
+        entryMapKey,
+        lastItemMappingKey,
+        listLengthKey
+      ],
+      [
+        lastItemAddress,
+        "0x",
+        "0x",
+        newMappingValue,
+        toSolidityBytes32Prefixed(listLength - 1)
+      ]
+    )
+  }
 }

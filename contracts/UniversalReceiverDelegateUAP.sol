@@ -8,8 +8,8 @@ import {LSP2Utils} from "@lukso/lsp-smart-contracts/contracts/LSP2ERC725YJSONSch
 import {LSP1UniversalReceiverDelegateUP} from "@lukso/lsp-smart-contracts/contracts/LSP1UniversalReceiver/LSP1UniversalReceiverDelegateUP/LSP1UniversalReceiverDelegateUP.sol";
 import {IERC725X} from "@erc725/smart-contracts/contracts/interfaces/IERC725X.sol";
 import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
-import {IScreenerAssistant} from "./IScreenerAssistant.sol";
-import {IExecutiveAssistant} from "./IExecutiveAssistant.sol";
+import {IScreenerAssistant} from "./screener-assistants/IScreenerAssistant.sol";
+import {IExecutiveAssistant} from "./executive-assistants/IExecutiveAssistant.sol";
 
 /**
  * @title UniversalReceiverDelegateUAP
@@ -17,6 +17,7 @@ import {IExecutiveAssistant} from "./IExecutiveAssistant.sol";
  */
 contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
     uint256 private constant NO_OP = type(uint256).max;
+    bytes4 public constant _INTERFACEID_UAP = 0x03309e5f;
     event TypeIdConfigFound(bytes32 typeId);
     event AssistantFound(address executiveAssistant);
     event AssistantInvoked(address indexed subscriber, address indexed executiveAssistant);
@@ -70,13 +71,13 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
             bytes32 screenersChainKey = LSP2Utils.generateMappingWithGroupingKey(
                 bytes6(keccak256("UAPExecutiveScreeners")),
                 bytes4(typeId),
-                bytes20(bytes32(i))
+                uint256ToBytes20(i)
             );
             // Get whether the chain is an AND or OR logic chain
             bytes32 screenersChainLogicKey = LSP2Utils.generateMappingWithGroupingKey(
                 bytes6(keccak256("UAPExecutiveScreenersANDLogic")),
                 bytes4(typeId),
-                bytes20(bytes32(i))
+                uint256ToBytes20(i)
             );
             bytes memory screenersChainRaw = IERC725Y(msg.sender).getData(screenersChainKey);
             if (screenersChainRaw.length > 0) {
@@ -84,16 +85,17 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                 bytes memory screenersChainLogicRaw = IERC725Y(msg.sender).getData(screenersChainLogicKey);
                 bool isAndChain = true;
                 if (screenersChainLogicRaw.length > 0) {
-                    isAndChain = abi.decode(screenersChainLogicRaw, (bool));
+                    isAndChain = (screenersChainLogicRaw[0] != 0x00);
                 }
                 for (uint256 j = 0; j < screenerAssistants.length; j++) {
                     address screener = screenerAssistants[j];
-                    bytes32 screenerConfigKey = generateScreenerConfigKey(typeId, executiveAssistant, screener);
+                    uint256 screenerOrder = (i * 1000) + j;
                     // solhint-disable-next-line avoid-low-level-calls
                     (bool success, bytes memory ret) = screener.delegatecall(
                         abi.encodeWithSelector(
                             IScreenerAssistant.evaluate.selector,
-                            screenerConfigKey,
+                            screener,
+                            screenerOrder,
                             notifier,
                             currentValue,
                             typeId,
@@ -174,28 +176,18 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         return super.universalReceiverDelegate(notifier, currentValue, typeId, currentLsp1Data);
     }
 
-    /**
-    * @dev Modeled after the LSP2Utils.generateMappingWithGroupingKey function.  "UAPScreenerConfig"
-     * mapped to a typeId mapped itself to a specific executive address `executiveAddress` and a specific
-     * screener address `screenerAddress`. As:
-     *
-     * ```
-     * bytes6(keccak256("UAPExecutiveScreeners")):bytes4(<bytes32>):bytes10(<executiveAddress>):bytes10(<screenerAddress>)
-     * ```
-     */
-    function generateScreenerConfigKey(
-        bytes32 typeId,
-        address executiveAssistant,
-        address screenerAssistant
-    ) internal pure returns (bytes32) {
-        bytes32 firstWordHash = keccak256(bytes("UAPScreenerConfig"));
-        bytes memory temporaryBytes = bytes.concat(
-            bytes6(firstWordHash),
-            bytes4(typeId),
-            bytes2(0),
-            bytes10(bytes20(executiveAssistant)),
-            bytes10(bytes20(screenerAssistant))
-        );
-        return bytes32(temporaryBytes);
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view virtual override returns (bool) {
+        return
+            interfaceId == _INTERFACEID_UAP ||
+            super.supportsInterface(interfaceId);
+    }
+
+    function uint256ToBytes20(uint256 value) internal pure returns (bytes20) {
+        // Mask the uint256 to keep only the least significant 20 bytes (160 bits)
+        uint256 maskedValue = value & (2**160 - 1);
+        // Cast the masked value to bytes20
+        return bytes20(uint160(maskedValue));
     }
 }

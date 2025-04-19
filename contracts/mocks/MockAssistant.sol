@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
-import { ExecutiveAssistantBase } from "../ExecutiveAssistantBase.sol";
+import { ExecutiveAssistantBase } from "../executive-assistants/ExecutiveAssistantBase.sol";
 
 contract MockAssistant is ExecutiveAssistantBase {
     function execute(

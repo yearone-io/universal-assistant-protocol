@@ -42,7 +42,7 @@
       "valueContent": "(Address,Address,Bytes)"
     },
     {
-      "name": "UAPScreenerList:<bytes32>:<uint256>",
+      "name": "UAPAddressList:<bytes32>:<uint256>",
       "key": "0xbba64f30d800<bytes32>0000<uint256>",
       "keyType": "MappingWithGrouping",
       "valueType": "string",

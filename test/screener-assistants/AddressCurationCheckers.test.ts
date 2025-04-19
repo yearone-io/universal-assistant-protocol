@@ -1,11 +1,11 @@
 import { ethers } from "hardhat";
 import { expect } from "chai";
 import { Signer } from "ethers";
-import { LSP1_TYPE_IDS } from "@lukso/lsp-smart-contracts";
+import { LSP1_TYPE_IDS, INTERFACE_IDS } from "@lukso/lsp-smart-contracts";
 import {
   UniversalReceiverDelegateUAP,
-  SafeAssetAllowlistScreener,
-  SafeAssetCurationScreener,
+  NotifierListScreener,
+  NotifierCurationScreener,
   ForwarderAssistant,
 } from "../../typechain-types";
 import {
@@ -14,21 +14,26 @@ import {
   setScreenerConfig,
   setExecutiveConfig,
   addressToBytes32,
-  setListEntry,
-  getListSet,
+  mergeListEntry,
+  generateListItemIndexKey,
+  setListNameOnScreener,
+  removeListEntry,
 } from "../utils/TestUtils";
 import ERC725, { ERC725JSONSchema } from "@erc725/erc725.js";
-import uap from '../../schemas/UAP.json';
+import UAPSchema from '../../schemas/UAP.json';
+import GRAVEAllowlistSchema from '../../schemas/GRAVEAllowlist.json';
 
 describe("Screeners: Address and Curation Checkers", function () {
+  const allowlistName = "GRAVEAllowlist";
+  const blocklistName = "GRAVEBlocklist";
   let owner: Signer;
   let browserController: Signer;
   let lsp7Holder: Signer;
   let nonOwner: Signer;
   let universalProfile: any;
   let universalReceiverDelegateUAP: UniversalReceiverDelegateUAP;
-  let addressListChecker: SafeAssetAllowlistScreener;
-  let curationChecker: SafeAssetCurationScreener;
+  let addressListChecker: NotifierListScreener;
+  let curationChecker: NotifierCurationScreener;
   let forwarderAssistant: ForwarderAssistant;
   let mockLSP7A: any;
   let mockLSP7B: any;
@@ -42,17 +47,20 @@ describe("Screeners: Address and Curation Checkers", function () {
     ({ universalProfile, universalReceiverDelegateUAP } = await deployUniversalProfile(owner, browserController));
     ({ lsp7: mockLSP7A } = await deployMockAssets(lsp7Holder));
     ({ lsp7: mockLSP7B, lsp8: mockLSP8 } = await deployMockAssets(lsp7Holder));
-    erc725UAP = new ERC725(uap as ERC725JSONSchema[], universalProfile.target, ethers.provider);
+    erc725UAP = new ERC725([
+      ...UAPSchema,
+      ...GRAVEAllowlistSchema
+    ] as ERC725JSONSchema[], universalProfile.target, ethers.provider);
 
-    const SafeAssetAllowlistScreenerFactory = await ethers.getContractFactory("SafeAssetAllowlistScreener");
-    addressListChecker = await SafeAssetAllowlistScreenerFactory.deploy();
-    const SafeAssetCurationScreenerFactory = await ethers.getContractFactory("SafeAssetCurationScreener");
-    curationChecker = await SafeAssetCurationScreenerFactory.deploy();
+    const NotifierListScreenerFactory = await ethers.getContractFactory("NotifierListScreener");
+    addressListChecker = await NotifierListScreenerFactory.deploy();
+    const NotifierCurationScreenerFactory = await ethers.getContractFactory("NotifierCurationScreener");
+    curationChecker = await NotifierCurationScreenerFactory.deploy();
     const ForwarderFactory = await ethers.getContractFactory("ForwarderAssistant");
     forwarderAssistant = await ForwarderFactory.deploy();
   });
 
-  describe("SafeAssetAllowlistScreener", function () {
+  describe("NotifierListScreener", function () {
     it("should engage executive when notifier is in allowlist and returnValueWhenAllowed is true", async function () {
       const upAddress = await universalProfile.getAddress();
       const lsp7Address = await mockLSP7A.getAddress();
@@ -61,13 +69,36 @@ describe("Screeners: Address and Curation Checkers", function () {
 
       const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
       await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
-
+      // set list name associated with screener
+      await setListNameOnScreener(erc725UAP, universalProfile, LSP7_TYPEID, 0, allowlistName);
+      // set whether screener returns true or false when value is in list associated with it
       const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]);
       await setScreenerConfig(erc725UAP, universalProfile, forwarderAddress, 0, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
-      await setListEntry(universalProfile, forwarderAddress, screenerAddress, lsp7Address, true);
-      const list = await getListSet(universalProfile, forwarderAddress, screenerAddress);
-      expect(list).to.include(lsp7Address);
-      expect(list).to.have.lengthOf(1);
+      // add entry to allow list
+      await mergeListEntry(
+        erc725UAP,
+        universalProfile,
+        allowlistName,
+        lsp7Address,
+        INTERFACE_IDS.LSP7DigitalAsset
+      )
+      // sanity check that list values are being set correctly
+      const entryMapKey = erc725UAP.encodeKeyName(`${allowlistName}Map:<address>`, [lsp7Address]);
+      const itemIndexKey = generateListItemIndexKey(erc725UAP, allowlistName, 0);
+      const listLengthKey = erc725UAP.encodeKeyName(`${allowlistName}[]`);
+      let [entryRaw, listLengthRaw, itemAddressRaw] = await universalProfile.getDataBatch([
+        entryMapKey,
+        listLengthKey,
+        itemIndexKey
+      ]);
+      let itemType = erc725UAP.decodeValueType("bytes4", entryRaw.slice(0,10));
+      let itemPosition = erc725UAP.decodeValueType("uint256", entryRaw.slice(11, entryRaw.length));
+      let listLength = erc725UAP.decodeValueType("uint256", listLengthRaw);
+      let itemAddress = erc725UAP.decodeValueType("address", itemAddressRaw);
+      expect(listLength).to.equal(1);
+      expect(itemAddress).to.equal(lsp7Address);
+      expect(itemType).to.equal(INTERFACE_IDS.LSP7DigitalAsset);
+      expect(itemPosition).to.equal(0);
       const encodedExecConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]);
       await setExecutiveConfig(
         erc725UAP,
@@ -77,14 +108,29 @@ describe("Screeners: Address and Curation Checkers", function () {
         0,
         encodedExecConfig
       );
-
       await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 69))
         .to.emit(universalReceiverDelegateUAP, "AssistantInvoked")
         .withArgs(upAddress, forwarderAddress);
       expect(await mockLSP7A.balanceOf(await nonOwner.getAddress())).to.equal(69);
-      await setListEntry(universalProfile, forwarderAddress, screenerAddress, lsp7Address, false);
-      const listAfter = await getListSet(universalProfile, forwarderAddress, screenerAddress);
-      expect(listAfter).to.have.length(0);
+      // sanity check removal of item from allow list
+      await removeListEntry(
+        erc725UAP,
+        universalProfile,
+        allowlistName,
+        lsp7Address
+      );
+      [entryRaw, listLengthRaw, itemAddressRaw] = await universalProfile.getDataBatch([
+        entryMapKey,
+        listLengthKey,
+        itemIndexKey
+      ]);
+      itemType = erc725UAP.decodeValueType("bytes4", entryRaw.slice(0,10));
+      itemPosition = erc725UAP.decodeValueType("uint256", entryRaw.slice(11, entryRaw.length));
+      listLength = erc725UAP.decodeValueType("uint256", listLengthRaw);
+      itemAddress = erc725UAP.decodeValueType("address", itemAddressRaw);
+      expect(listLength).to.equal(0);
+      expect(itemAddress).to.equal(null);
+      expect(entryRaw).to.equal("0x");
       await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 69))
         .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
     });
@@ -97,10 +143,36 @@ describe("Screeners: Address and Curation Checkers", function () {
 
       const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
       await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
-
+      // set list name associated with screener
+      await setListNameOnScreener(erc725UAP, universalProfile, LSP7_TYPEID, 0, allowlistName);
+      // set whether screener returns true or false when value is in list associated with it
       const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [false]);
       await setScreenerConfig(erc725UAP, universalProfile, forwarderAddress, 0, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
-      await setListEntry(universalProfile, forwarderAddress, screenerAddress, lsp7Address, true);
+      // add entry to allow list
+      await mergeListEntry(
+        erc725UAP,
+        universalProfile,
+        allowlistName,
+        lsp7Address,
+        INTERFACE_IDS.LSP7DigitalAsset
+      )
+      // sanity check that list values are being set correctly
+      const entryMapKey = erc725UAP.encodeKeyName(`${allowlistName}Map:<address>`, [lsp7Address]);
+      const itemIndexKey = generateListItemIndexKey(erc725UAP, allowlistName, 0);
+      const listLengthKey = erc725UAP.encodeKeyName(`${allowlistName}[]`);
+      let [entryRaw, listLengthRaw, itemAddressRaw] = await universalProfile.getDataBatch([
+        entryMapKey,
+        listLengthKey,
+        itemIndexKey
+      ]);
+      let itemType = erc725UAP.decodeValueType("bytes4", entryRaw.slice(0,10));
+      let itemPosition = erc725UAP.decodeValueType("uint256", entryRaw.slice(11, entryRaw.length));
+      let listLength = erc725UAP.decodeValueType("uint256", listLengthRaw);
+      let itemAddress = erc725UAP.decodeValueType("address", itemAddressRaw);
+      expect(listLength).to.equal(1);
+      expect(itemAddress).to.equal(lsp7Address);
+      expect(itemType).to.equal(INTERFACE_IDS.LSP7DigitalAsset);
+      expect(itemPosition).to.equal(0);
       const encodedExecConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]);
       await setExecutiveConfig(
         erc725UAP,
@@ -119,14 +191,42 @@ describe("Screeners: Address and Curation Checkers", function () {
 
     it("should block transaction when notifier is not in allowlist", async function () {
       const upAddress = await universalProfile.getAddress();
+      const lsp7Address = await mockLSP7B.getAddress();
       const forwarderAddress = await forwarderAssistant.getAddress();
       const screenerAddress = await addressListChecker.getAddress();
 
       const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
       await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
-
+      // set list name associated with screener
+      await setListNameOnScreener(erc725UAP, universalProfile, LSP7_TYPEID, 0, allowlistName);
+      // set whether screener returns true or false when value is in list associated with it
       const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]);
       await setScreenerConfig(erc725UAP, universalProfile, forwarderAddress, 0, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
+      // add entry to allow list
+      await mergeListEntry(
+        erc725UAP,
+        universalProfile,
+        allowlistName,
+        lsp7Address,
+        INTERFACE_IDS.LSP7DigitalAsset
+      )
+      // sanity check that list values are being set correctly
+      const entryMapKey = erc725UAP.encodeKeyName(`${allowlistName}Map:<address>`, [lsp7Address]);
+      const itemIndexKey = generateListItemIndexKey(erc725UAP, allowlistName, 0);
+      const listLengthKey = erc725UAP.encodeKeyName(`${allowlistName}[]`);
+      let [entryRaw, listLengthRaw, itemAddressRaw] = await universalProfile.getDataBatch([
+        entryMapKey,
+        listLengthKey,
+        itemIndexKey
+      ]);
+      let itemType = erc725UAP.decodeValueType("bytes4", entryRaw.slice(0,10));
+      let itemPosition = erc725UAP.decodeValueType("uint256", entryRaw.slice(11, entryRaw.length));
+      let listLength = erc725UAP.decodeValueType("uint256", listLengthRaw);
+      let itemAddress = erc725UAP.decodeValueType("address", itemAddressRaw);
+      expect(listLength).to.equal(1);
+      expect(itemAddress).to.equal(lsp7Address);
+      expect(itemType).to.equal(INTERFACE_IDS.LSP7DigitalAsset);
+      expect(itemPosition).to.equal(0);
       const encodedExecConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]);
       await setExecutiveConfig(
         erc725UAP,
@@ -167,7 +267,7 @@ describe("Screeners: Address and Curation Checkers", function () {
     });
   });
 
-  describe("SafeAssetCurationScreener", function () {
+  describe("NotifierCurationScreener", function () {
     it("should allow transaction when notifier is in curated LSP8 list and not blocked", async function () {
       const upAddress = await universalProfile.getAddress();
       const lsp7Address = await mockLSP7A.getAddress();
@@ -209,16 +309,45 @@ describe("Screeners: Address and Curation Checkers", function () {
       const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
       await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
 
+      // set screener config
       const curatedEntryId = addressToBytes32(lsp7Address);
       await mockLSP8.connect(lsp7Holder).mint(lsp7Address, curatedEntryId);
       const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address", "bool"], [curatedListAddress, true]);
       await setScreenerConfig(erc725UAP, universalProfile, forwarderAddress, 0, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
-      await setListEntry(universalProfile, forwarderAddress, screenerAddress, lsp7Address, true); // Add to blocklist
-      await setListEntry(universalProfile, forwarderAddress, screenerAddress, lsp7BAddress, true);
-      const list = await getListSet(universalProfile, forwarderAddress, screenerAddress);
-      expect(list).to.include(lsp7Address);
-      expect(list).to.include(lsp7BAddress);
-      expect(list).to.have.lengthOf(2);
+      // set screener blocklist
+      await setListNameOnScreener(erc725UAP, universalProfile, LSP7_TYPEID, 0, blocklistName);
+      await mergeListEntry(
+        erc725UAP,
+        universalProfile,
+        blocklistName,
+        lsp7Address,
+        INTERFACE_IDS.LSP7DigitalAsset
+      );
+      await mergeListEntry(
+        erc725UAP,
+        universalProfile,
+        blocklistName,
+        lsp7BAddress,
+        INTERFACE_IDS.LSP7DigitalAsset
+      );
+      // sanity check that list values are being set correctly
+      const entryMapKey = erc725UAP.encodeKeyName(`${blocklistName}Map:<address>`, [lsp7BAddress]);
+      const itemIndexKey = generateListItemIndexKey(erc725UAP, blocklistName, 1);
+      const listLengthKey = erc725UAP.encodeKeyName(`${blocklistName}[]`);
+      let [entryRaw, listLengthRaw, itemAddressRaw] = await universalProfile.getDataBatch([
+        entryMapKey,
+        listLengthKey,
+        itemIndexKey
+      ]);
+      let itemType = erc725UAP.decodeValueType("bytes4", entryRaw.slice(0,10));
+      let itemPosition = erc725UAP.decodeValueType("uint256", entryRaw.slice(11, entryRaw.length));
+      let listLength = erc725UAP.decodeValueType("uint256", listLengthRaw);
+      let itemAddress = erc725UAP.decodeValueType("address", itemAddressRaw);
+      expect(listLength).to.equal(2);
+      expect(itemAddress).to.equal(lsp7BAddress);
+      expect(itemType).to.equal(INTERFACE_IDS.LSP7DigitalAsset);
+      expect(itemPosition).to.equal(1);
+
       const encodedExecConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]);
       await setExecutiveConfig(
         erc725UAP,
@@ -314,7 +443,7 @@ describe("Screeners: Address and Curation Checkers", function () {
     });
   });
 
-  describe("Chained Screeners: SafeAssetAllowlistScreener and SafeAssetCurationScreener", function () {
+  describe("Chained Screeners: NotifierListScreener and NotifierCurationScreener", function () {
     it("should engage executive when notifier passes both screeners (AND chain)", async function () {
       const upAddress = await universalProfile.getAddress();
       const lsp7Address = await mockLSP7A.getAddress();
@@ -327,9 +456,8 @@ describe("Screeners: Address and Curation Checkers", function () {
       const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
       await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
 
-      // Configure Allowlist Screener
+      // Configure Allowlist And Curation Screeners
       const allowlistConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]);
-      // Configure Curation Screener
       const curationConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address", "bool"], [curatedListAddress, true]);
       await setScreenerConfig(erc725UAP, 
         universalProfile,
@@ -341,8 +469,16 @@ describe("Screeners: Address and Curation Checkers", function () {
         true // isAndChain = true
       );
 
-      // Add to allowlist
-      await setListEntry(universalProfile, forwarderAddress, allowlistScreenerAddress, lsp7Address, true);
+      // set allow list name and add entry
+      await setListNameOnScreener(erc725UAP, universalProfile, LSP7_TYPEID, 0, allowlistName);
+      await mergeListEntry(
+        erc725UAP,
+        universalProfile,
+        allowlistName,
+        lsp7Address,
+        INTERFACE_IDS.LSP7DigitalAsset
+      );
+
       // Add to curated list
       const curatedEntryId = addressToBytes32(lsp7Address);
       await mockLSP8.connect(lsp7Holder).mint(lsp7Address, curatedEntryId);
@@ -387,7 +523,14 @@ describe("Screeners: Address and Curation Checkers", function () {
       );
 
       // Add to allowlist but not curated list
-      await setListEntry(universalProfile, forwarderAddress, allowlistScreenerAddress, lsp7Address, true);
+      await setListNameOnScreener(erc725UAP, universalProfile, LSP7_TYPEID, 0, allowlistName);
+      await mergeListEntry(
+        erc725UAP,
+        universalProfile,
+        allowlistName,
+        lsp7Address,
+        INTERFACE_IDS.LSP7DigitalAsset
+      );
       const encodedExecConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]);
       await setExecutiveConfig(
         erc725UAP,
@@ -468,11 +611,25 @@ describe("Screeners: Address and Curation Checkers", function () {
       );
 
       // Add to allowlist and curated list
-      await setListEntry(universalProfile, forwarderAddress, allowlistScreenerAddress, lsp7Address, true);
+      await setListNameOnScreener(erc725UAP, universalProfile, LSP7_TYPEID, 0, allowlistName);
+      await mergeListEntry(
+        erc725UAP,
+        universalProfile,
+        allowlistName,
+        lsp7Address,
+        INTERFACE_IDS.LSP7DigitalAsset
+      );
       const curatedEntryId = addressToBytes32(lsp7Address);
       await mockLSP8.connect(lsp7Holder).mint(lsp7Address, curatedEntryId);
       // Add to blocklist
-      await setListEntry(universalProfile, forwarderAddress, curationScreenerAddress, lsp7Address, true);
+      await setListNameOnScreener(erc725UAP, universalProfile, LSP7_TYPEID, 1, blocklistName);
+      await mergeListEntry(
+        erc725UAP,
+        universalProfile,
+        blocklistName,
+        lsp7Address,
+        INTERFACE_IDS.LSP7DigitalAsset
+      );
       const encodedExecConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]);
       await setExecutiveConfig(
         erc725UAP,

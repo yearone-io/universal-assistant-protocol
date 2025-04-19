@@ -13,18 +13,26 @@ interface IScreenerAssistant {
      *      "UAPScreenerConfig:<executiveAddress>:<screenerAddress>:<TypeId>".
      *      Since this function is called via delegatecall, the Screener's code runs in the context of URDuap,
      *      and `msg.sender` will be the UP's address.
-     * @param screenerConfigKey The key of the screener config.
+     * @param screenerOrder The order of the screener in the list.
      * @param notifier The address that triggered the Universal Receiver Delegate on the UP.
      * @param value The amount of Ether sent with the transaction.
      * @param typeId The identifier representing the type of transaction or asset.
-     * @param data Additional data relevant to the transaction.
+     * @param lsp1Data Additional data relevant to the transaction.
      * @return result A boolean indicating whether the condition evaluated to true or false.
      */
     function evaluate(
-        bytes32 screenerConfigKey,
+        address screenerAddress,
+        uint256 screenerOrder,
         address notifier,
         uint256 value,
         bytes32 typeId,
-        bytes memory data
+        bytes memory lsp1Data
     ) external view returns (bool result);
+
+    function fetchConfiguration(
+        address upAddress,
+        address screenerAddress,
+        bytes32 typeId,
+        uint256 executionOrder
+    ) external view returns (address executiveAddress, address configScreenerAddress, bytes memory encodedConfig);
 }

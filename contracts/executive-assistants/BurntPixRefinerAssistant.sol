@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.24;
-import {ExecutiveAssistantBase} from "../ExecutiveAssistantBase.sol";
+
+import {ExecutiveAssistantBase} from "./ExecutiveAssistantBase.sol";
 
 interface IRegistry {
     function refine(bytes32 burntPixId, uint256 iters) external;

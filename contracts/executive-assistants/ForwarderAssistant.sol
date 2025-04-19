@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 // Import interfaces and contracts
-import {ExecutiveAssistantBase} from "../ExecutiveAssistantBase.sol";
+import {ExecutiveAssistantBase} from "./ExecutiveAssistantBase.sol";
 import {ILSP7DigitalAsset} from "@lukso/lsp-smart-contracts/contracts/LSP7DigitalAsset/ILSP7DigitalAsset.sol";
 import {ILSP8IdentifiableDigitalAsset} from "@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/ILSP8IdentifiableDigitalAsset.sol";
 

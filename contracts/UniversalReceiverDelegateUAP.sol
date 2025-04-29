@@ -8,8 +8,8 @@ import {LSP2Utils} from "@lukso/lsp-smart-contracts/contracts/LSP2ERC725YJSONSch
 import {LSP1UniversalReceiverDelegateUP} from "@lukso/lsp-smart-contracts/contracts/LSP1UniversalReceiver/LSP1UniversalReceiverDelegateUP/LSP1UniversalReceiverDelegateUP.sol";
 import {IERC725X} from "@erc725/smart-contracts/contracts/interfaces/IERC725X.sol";
 import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
-import {IScreenerAssistant} from "./IScreenerAssistant.sol";
-import {IExecutiveAssistant} from "./IExecutiveAssistant.sol";
+import {IScreenerAssistant} from "./screener-assistants/IScreenerAssistant.sol";
+import {IExecutiveAssistant} from "./executive-assistants/IExecutiveAssistant.sol";
 
 /**
  * @title UniversalReceiverDelegateUAP
@@ -17,6 +17,7 @@ import {IExecutiveAssistant} from "./IExecutiveAssistant.sol";
  */
 contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
     uint256 private constant NO_OP = type(uint256).max;
+    bytes4 public constant _INTERFACEID_UAP = 0x03309e5f;
     event TypeIdConfigFound(bytes32 typeId);
     event AssistantFound(address executiveAssistant);
     event AssistantInvoked(address indexed subscriber, address indexed executiveAssistant);
@@ -56,7 +57,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         emit TypeIdConfigFound(typeId);
 
         // Decode executive assistants
-        address[] memory executiveAssistants = customDecodeAddresses(typeConfig);
+        address[] memory executiveAssistants = abi.decode(typeConfig, (address[]));
         if (executiveAssistants.length == 0) {
             return super.universalReceiverDelegate(notifier, value, typeId, lsp1Data);
         }
@@ -64,24 +65,37 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         bytes memory currentLsp1Data = lsp1Data;
         uint256 currentValue = value;
         for (uint256 i = 0; i < executiveAssistants.length; i++) {
-            address executiveAssistant = executiveAssistants[i];
-
-            // Fetch and evaluate screener assistants
-            bytes32 screenerKey = generateExecutiveScreenersKey(typeId, executiveAssistant);
-            bytes memory screenerData = IERC725Y(msg.sender).getData(screenerKey);
             bool shouldExecute = true;
-
-            if (screenerData.length > 0) {
-                (bytes memory screenerAddresses, bool isAndChain) = abi.decode(screenerData, (bytes, bool));
-                address[] memory screeners = customDecodeAddresses(screenerAddresses);
-                for (uint256 j = 0; j < screeners.length; j++) {
-                    address screener = screeners[j];
-                    bytes32 screenerConfigKey = generateScreenerConfigKey(typeId, executiveAssistant, screener);
+            address executiveAssistant = executiveAssistants[i];
+            // Fetch and evaluate screener assistants
+            bytes32 screenersChainKey = LSP2Utils.generateMappingWithGroupingKey(
+                bytes6(keccak256("UAPExecutiveScreeners")),
+                bytes4(typeId),
+                uint256ToBytes20(i)
+            );
+            // Get whether the chain is an AND or OR logic chain
+            bytes32 screenersChainLogicKey = LSP2Utils.generateMappingWithGroupingKey(
+                bytes6(keccak256("UAPExecutiveScreenersANDLogic")),
+                bytes4(typeId),
+                uint256ToBytes20(i)
+            );
+            bytes memory screenersChainRaw = IERC725Y(msg.sender).getData(screenersChainKey);
+            if (screenersChainRaw.length > 0) {
+                address[] memory screenerAssistants = abi.decode(screenersChainRaw, (address[]));
+                bytes memory screenersChainLogicRaw = IERC725Y(msg.sender).getData(screenersChainLogicKey);
+                bool isAndChain = true;
+                if (screenersChainLogicRaw.length > 0) {
+                    isAndChain = (screenersChainLogicRaw[0] != 0x00);
+                }
+                for (uint256 j = 0; j < screenerAssistants.length; j++) {
+                    address screener = screenerAssistants[j];
+                    uint256 screenerOrder = (i * 1000) + j;
                     // solhint-disable-next-line avoid-low-level-calls
                     (bool success, bytes memory ret) = screener.delegatecall(
                         abi.encodeWithSelector(
                             IScreenerAssistant.evaluate.selector,
-                            screenerConfigKey,
+                            screener,
+                            screenerOrder,
                             notifier,
                             currentValue,
                             typeId,
@@ -118,6 +132,7 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                 (bool success, bytes memory returnData) = executiveAssistant.call(
                     abi.encodeWithSelector(
                         IExecutiveAssistant.execute.selector,
+                        i,
                         msg.sender,
                         notifier,
                         currentValue,
@@ -161,74 +176,18 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         return super.universalReceiverDelegate(notifier, currentValue, typeId, currentLsp1Data);
     }
 
-    /**
-    * @dev Modeled after the LSP2Utils.generateMappingWithGroupingKey function. Generates a
-     * data key of key type MappingWithGrouping by using two strings "UAPExecutiveScreeners"
-     * mapped to a typeId mapped itself to a specific executive address `executiveAddress`. As:
-     *
-     * ```
-     * bytes6(keccak256("UAPExecutiveScreeners")):bytes4(<bytes32>):0000:<address>
-     * ```
-     */
-    function generateExecutiveScreenersKey(
-        bytes32 typeId,
-        address executiveAddress
-    ) internal pure returns (bytes32) {
-        bytes32 firstWordHash = keccak256(bytes("UAPExecutiveScreeners"));
-        bytes memory temporaryBytes = bytes.concat(
-            bytes6(firstWordHash),
-            bytes4(typeId),
-            bytes2(0),
-            bytes20(executiveAddress)
-        );
-
-        return bytes32(temporaryBytes);
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view virtual override returns (bool) {
+        return
+            interfaceId == _INTERFACEID_UAP ||
+            super.supportsInterface(interfaceId);
     }
 
-    /**
-    * @dev Modeled after the LSP2Utils.generateMappingWithGroupingKey function.  "UAPScreenerConfig"
-     * mapped to a typeId mapped itself to a specific executive address `executiveAddress` and a specific
-     * screener address `screenerAddress`. As:
-     *
-     * ```
-     * bytes6(keccak256("UAPExecutiveScreeners")):bytes4(<bytes32>):bytes10(<executiveAddress>):bytes10(<screenerAddress>)
-     * ```
-     */
-    function generateScreenerConfigKey(
-        bytes32 typeId,
-        address executiveAssistant,
-        address screenerAssistant
-    ) internal pure returns (bytes32) {
-        bytes32 firstWordHash = keccak256(bytes("UAPScreenerConfig"));
-        bytes memory temporaryBytes = bytes.concat(
-            bytes6(firstWordHash),
-            bytes4(typeId),
-            bytes2(0),
-            bytes10(bytes20(executiveAssistant)),
-            bytes10(bytes20(screenerAssistant))
-        );
-        return bytes32(temporaryBytes);
-    }
-
-    /**
-     * @dev Decodes a bytes array into an array of addresses.
-     */
-    function customDecodeAddresses(bytes memory encoded) public pure returns (address[] memory) {
-        if (encoded.length < 2) revert InvalidEncodedData();
-        uint16 numAddresses;
-        // solhint-disable-next-line no-inline-assembly
-        assembly {
-            numAddresses := shr(240, mload(add(encoded, 32)))
-        }
-        address[] memory addresses = new address[](numAddresses);
-        for (uint256 i = 0; i < numAddresses; i++) {
-            address addr;
-            // solhint-disable-next-line no-inline-assembly
-            assembly {
-                addr := shr(96, mload(add(encoded, add(34, mul(i, 20)))))
-            }
-            addresses[i] = addr;
-        }
-        return addresses;
+    function uint256ToBytes20(uint256 value) internal pure returns (bytes20) {
+        // Mask the uint256 to keep only the least significant 20 bytes (160 bits)
+        uint256 maskedValue = value & (2**160 - 1);
+        // Cast the masked value to bytes20
+        return bytes20(uint160(maskedValue));
     }
 }

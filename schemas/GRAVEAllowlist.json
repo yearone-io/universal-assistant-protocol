@@ -1,0 +1,16 @@
+[
+    {
+      "name": "GRAVEAllowlistMap:<address>",
+      "key": "0x538db0639104fb35016d0000<address>",
+      "keyType": "Mapping",
+      "valueType": "(bytes4,uint128)",
+      "valueContent": "(Bytes4,Number)"
+    },
+    {
+      "name": "GRAVEAllowlist[]",
+      "key": "0x6395719ed241bd1fd292a270f8cff2fd1791609fdb8ff7f4f333465b86e1e220",
+      "keyType": "Array",
+      "valueType": "address",
+      "valueContent": "Address"
+    }
+  ]

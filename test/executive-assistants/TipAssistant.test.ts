@@ -2,8 +2,11 @@ import { ethers } from "hardhat";
 import { Signer } from "ethers";
 import { expect } from "chai";
 import { OPERATION_TYPES, LSP1_TYPE_IDS, PERMISSIONS } from "@lukso/lsp-smart-contracts";
-import { customEncodeAddresses, deployUniversalProfile, generateMappingKey } from "../utils/TestUtils";
+import { deployUniversalProfile } from "../utils/TestUtils";
 import { TipAssistant } from "../../typechain-types/contracts/executive-assistants/TipAssistant.sol";
+import ERC725, { ERC725JSONSchema } from "@erc725/erc725.js";
+import uap from '../../schemas/UAP.json';
+import { encodeTupleKeyValue } from "@erc725/erc725.js/build/main/src/lib/utils";
 
 describe("Executives: TipAssistant", function () {
   let owner: Signer;
@@ -16,6 +19,7 @@ describe("Executives: TipAssistant", function () {
   let universalReceiverDelegateUAP: any;
   let tipAssistant1: TipAssistant;
   let tipAssistant2: TipAssistant;
+  let erc725UAP: ERC725;
 
   beforeEach(async function () {
     [owner, browserController, lyxSender, lyxSenderController, lyxTipReceiver] = await ethers.getSigners();
@@ -23,6 +27,7 @@ describe("Executives: TipAssistant", function () {
       PERMISSIONS.SUPER_TRANSFERVALUE
     ]));
     ({ universalProfile: senderUniversalProfile } = await deployUniversalProfile(lyxSender, lyxSenderController));
+    erc725UAP = new ERC725(uap as ERC725JSONSchema[], universalProfile.target, ethers.provider);
 
     const TipAssistantFactory = await ethers.getContractFactory("TipAssistant");
     tipAssistant1 = await TipAssistantFactory.deploy();
@@ -30,15 +35,18 @@ describe("Executives: TipAssistant", function () {
   });
 
   async function subscribeTipAssistant(tipAssistantAddr: string, tipRecipient: string, tipPerc: number) {
-    const typeKey = generateMappingKey("UAPTypeConfig", LSP1_TYPE_IDS.LSP0ValueReceived);
+    // set type
+    const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP1_TYPE_IDS.LSP0ValueReceived]);
     const existing = await universalProfile.getData(typeKey);
-    let addresses: string[] = existing && existing !== "0x" ? [...(await universalReceiverDelegateUAP.customDecodeAddresses(existing))] : [];
+    let addresses: string[] = existing && existing !== "0x" ? [...(erc725UAP.decodeValueType("address[]", existing))] : [];
+    const order = addresses.length;
     addresses.push(tipAssistantAddr);
-    await universalProfile.setData(typeKey, customEncodeAddresses(addresses));
-
-    const execKey = generateMappingKey("UAPExecutiveConfig", tipAssistantAddr);
-    const instructions = ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [tipRecipient, tipPerc]);
-    await universalProfile.setData(execKey, instructions);
+    await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [...addresses]));
+    // set config
+    const tipExecKey = erc725UAP.encodeKeyName("UAPExecutiveConfig:<bytes32>:<uint256>", [LSP1_TYPE_IDS.LSP0ValueReceived, order.toString()]);
+    const encodedTipConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], [tipRecipient, tipPerc]);
+    const encodedTipExecData = encodeTupleKeyValue("(Address,Bytes)", "(address,bytes)", [tipAssistantAddr, encodedTipConfig]);
+    await universalProfile.setData(tipExecKey, encodedTipExecData);
   }
 
   async function unsubscribeURD() {
@@ -56,8 +64,8 @@ describe("Executives: TipAssistant", function () {
   }
 
   it("No config => revert with TipConfigNotSet", async function () {
-    const typeKey = generateMappingKey("UAPTypeConfig", LSP1_TYPE_IDS.LSP0ValueReceived);
-    await universalProfile.setData(typeKey, customEncodeAddresses([tipAssistant1.target]));
+    const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP1_TYPE_IDS.LSP0ValueReceived]);
+    await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [tipAssistant1.target]));
     await expect(sendLYX("1")).to.be.revertedWithCustomError(tipAssistant1, "TipConfigNotSet");
   });
 

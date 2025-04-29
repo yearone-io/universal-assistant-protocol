@@ -8,7 +8,9 @@ import {
   MockBadAssistant,
   UniversalReceiverDelegateUAP,
 } from "../../typechain-types";
-import { customEncodeAddresses, deployUniversalProfile, deployMockAssets, generateMappingKey } from "../utils/TestUtils";
+import { deployUniversalProfile, deployMockAssets, setExecutiveConfig } from "../utils/TestUtils";
+import ERC725, { ERC725JSONSchema } from "@erc725/erc725.js";
+import uap from '../../schemas/UAP.json';
 
 describe("UniversalReceiverDelegateUAP Core", function () {
   let owner: Signer;
@@ -23,11 +25,13 @@ describe("UniversalReceiverDelegateUAP Core", function () {
   let forwarderAssistant: ForwarderAssistant;
   let mockLSP7: any;
   let mockLSP8: any;
+  let erc725UAP: ERC725;
 
   beforeEach(async function () {
     [owner, browserController, nonOwner, lsp7Holder, lsp8Holder] = await ethers.getSigners();
     ({ universalProfile, universalReceiverDelegateUAP } = await deployUniversalProfile(owner, browserController));
     ({ lsp7: mockLSP7, lsp8: mockLSP8 } = await deployMockAssets(lsp7Holder));
+    erc725UAP = new ERC725(uap as ERC725JSONSchema[], universalProfile.target, ethers.provider);
 
     const MockAssistantFactory = await ethers.getContractFactory("MockAssistant");
     mockAssistant = await MockAssistantFactory.deploy();
@@ -46,8 +50,8 @@ describe("UniversalReceiverDelegateUAP Core", function () {
     });
 
     it("should proceed with super function if type configuration is found but no assistants are found", async function () {
-      const typeMappingKey = generateMappingKey("UAPTypeConfig", LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification);
-      await universalProfile.setData(typeMappingKey, customEncodeAddresses([]));
+      const typeMappingKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification]);
+      await universalProfile.setData(typeMappingKey, erc725UAP.encodeValueType("address[]", []));
       const amount = 1;
       await mockLSP7.connect(lsp7Holder).mint(lsp7Holder, amount);
       await mockLSP7.connect(lsp7Holder).transfer(await lsp7Holder.getAddress(), universalProfile.target, amount, true, "0x");
@@ -55,8 +59,8 @@ describe("UniversalReceiverDelegateUAP Core", function () {
     });
 
     it("should invoke executive assistants when they are found", async function () {
-      const typeMappingKey = generateMappingKey("UAPTypeConfig", LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification);
-      await universalProfile.setData(typeMappingKey, customEncodeAddresses([mockAssistant.target]));
+      const typeMappingKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification]);
+      await universalProfile.setData(typeMappingKey, erc725UAP.encodeValueType("address[]", [mockAssistant.target]));
       const amount = 1;
       await mockLSP7.connect(lsp7Holder).mint(lsp7Holder, amount);
       await expect(
@@ -65,8 +69,8 @@ describe("UniversalReceiverDelegateUAP Core", function () {
     });
 
     it("should handle executive call failures through revert", async function () {
-      const typeMappingKey = generateMappingKey("UAPTypeConfig", LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification);
-      await universalProfile.setData(typeMappingKey, customEncodeAddresses([mockBadAssistant.target]));
+      const typeMappingKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification]);
+      await universalProfile.setData(typeMappingKey, erc725UAP.encodeValueType("address[]", [mockBadAssistant.target]));
       const amount = 1;
       await mockLSP7.connect(lsp7Holder).mint(lsp7Holder, amount);
       await expect(
@@ -74,21 +78,19 @@ describe("UniversalReceiverDelegateUAP Core", function () {
       ).to.be.revertedWithCustomError(mockBadAssistant, "AlwaysFalseError");
     });
 
-    it("should correctly decode addresses in customDecodeAddresses function", async function () {
-      const addresses = [await owner.getAddress(), await nonOwner.getAddress()];
-      const encodedData = customEncodeAddresses(addresses);
-      const decodedAddresses = await universalReceiverDelegateUAP.customDecodeAddresses(encodedData);
-      expect(decodedAddresses[0]).to.equal(addresses[0]);
-      expect(decodedAddresses[1]).to.equal(addresses[1]);
-    });
-
     it("should forward LSP7 tokens to the target address using the ForwarderAssistant", async function () {
-      const typeMappingKey = generateMappingKey("UAPTypeConfig", LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification);
-      await universalProfile.setData(typeMappingKey, customEncodeAddresses([forwarderAssistant.target]));
-      const assistantInstructionsKey = generateMappingKey("UAPExecutiveConfig", forwarderAssistant.target);
+      const typeMappingKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification]);
+      await universalProfile.setData(typeMappingKey, erc725UAP.encodeValueType("address[]", [forwarderAssistant.target]));
       const targetAddress = await nonOwner.getAddress();
       const encodedInstructions = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [targetAddress]);
-      await universalProfile.setData(assistantInstructionsKey, encodedInstructions);
+      await setExecutiveConfig(
+        erc725UAP,
+        universalProfile,
+        forwarderAssistant.target,
+        LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification,
+        0,
+        encodedInstructions
+      );
 
       await mockLSP7.connect(lsp7Holder).mint(lsp7Holder, 1);
       await mockLSP7.connect(lsp7Holder).transfer(await lsp7Holder.getAddress(), universalProfile.target, 1, true, "0x");

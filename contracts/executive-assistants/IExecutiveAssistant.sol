@@ -13,6 +13,7 @@ interface IExecutiveAssistant {
      *      "UAPAssistantInstructions:<assistantAddress>".
      *      Since this function is called via delegatecall, the Assistant's code runs in the context of URDuap,
      *      and `msg.sender` will be the UP's address.
+     * @param executionOrder The order of the exeutive in the execution sequence
      * @param upAddress The address of the Universal Profile.
      * @param notifier The address that triggered the Universal Receiver Delegate on the UP (e.g., token contract).
      * @param value The amount of Ether sent with the transaction.
@@ -21,10 +22,17 @@ interface IExecutiveAssistant {
      * @return A bytes array containing the updated value and call data: (operationType, notifier, value, execData, newDataAfterExec).
      */
     function execute(
+        uint256 executionOrder,
         address upAddress,
         address notifier,
         uint256 value,
         bytes32 typeId,
         bytes memory lsp1Data
     ) external returns (uint256, address, uint256, bytes memory, bytes memory);
+
+    function fetchConfiguration(
+        address upAddress,
+        bytes32 typeId,
+        uint256 executionOrder
+    ) external view returns (address executiveAddress, bytes memory encodedConfig);
 }

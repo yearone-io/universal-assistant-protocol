@@ -331,7 +331,7 @@ export async function setListNameOnScreener(
   executionOrder: number,
   listName: string
 ) {
-  const listNameKey = erc725Instance.encodeKeyName("UAPAddressList:<bytes32>:<uint256>", [typeId, executionOrder.toString()]);
+  const listNameKey = erc725Instance.encodeKeyName("UAPAddressListName:<bytes32>:<uint256>", [typeId, executionOrder.toString()]);
   return await up.setData(listNameKey, erc725Instance.encodeValueType("string", listName));
 }
 

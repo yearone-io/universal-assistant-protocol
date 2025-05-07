@@ -13,7 +13,7 @@ abstract contract ScreenerAssistantWithList is ScreenerAssistantBase {
         uint256 executionOrder
     ) public view returns (string memory) {
         bytes32 screenerListNameKey = LSP2Utils.generateMappingWithGroupingKey(
-            bytes6(keccak256("UAPAddressList")),
+            bytes6(keccak256("UAPAddressListName")),
             bytes4(typeId),
             super.uint256ToBytes20(executionOrder)
         );

@@ -97,4 +97,64 @@ describe("UniversalReceiverDelegateUAP Core", function () {
       expect(await mockLSP7.balanceOf(targetAddress)).to.equal(1);
     });
   });
+
+  describe("Security Features", function () {
+    let mockTrueScreenerAssistant: any;
+    let mockFalseScreenerAssistant: any;
+    
+    beforeEach(async function () {
+      const MockTrueScreenerAssistantFactory = await ethers.getContractFactory("MockTrueScreenerAssistant");
+      mockTrueScreenerAssistant = await MockTrueScreenerAssistantFactory.deploy();
+      
+      const MockFalseScreenerAssistantFactory = await ethers.getContractFactory("MockFalseScreenerAssistant");
+      mockFalseScreenerAssistant = await MockFalseScreenerAssistantFactory.deploy();
+    });
+
+    it("should reject unverified screener assistants", async function () {
+      const typeMappingKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification]);
+      await universalProfile.setData(typeMappingKey, erc725UAP.encodeValueType("address[]", [mockAssistant.target]));
+      
+      // Set up a screener but don't add it to verified list
+      const screenersKey = erc725UAP.encodeKeyName("UAPExecutiveScreeners:<bytes32>:<address>", 
+        [LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification, mockAssistant.target]);
+      await universalProfile.setData(screenersKey, erc725UAP.encodeValueType("address[]", [mockTrueScreenerAssistant.target]));
+      
+      // Transfer should still work, but screener is skipped since it's not verified
+      const amount = 1;
+      await mockLSP7.connect(lsp7Holder).mint(lsp7Holder, amount);
+      await expect(
+        mockLSP7.connect(lsp7Holder).transfer(await lsp7Holder.getAddress(), universalProfile.target, amount, true, "0x")
+      ).to.emit(universalReceiverDelegateUAP, "ScreenerVerificationFailed").withArgs(mockTrueScreenerAssistant.target);
+    });
+    
+    it("should validate operation types for exec operations", async function () {
+      // This is tested by mocking an assistant that tries to return an invalid operation type
+      const MockBadOperationTypeAssistantFactory = await ethers.getContractFactory("MockBadAssistant");
+      const mockBadOperationTypeAssistant = await MockBadOperationTypeAssistantFactory.deploy();
+      await mockBadOperationTypeAssistant.setBadOperationType(9999); // Invalid operation type
+      
+      const typeMappingKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification]);
+      await universalProfile.setData(typeMappingKey, erc725UAP.encodeValueType("address[]", [mockBadOperationTypeAssistant.target]));
+      
+      const amount = 1;
+      await mockLSP7.connect(lsp7Holder).mint(lsp7Holder, amount);
+      await expect(
+        mockLSP7.connect(lsp7Holder).transfer(await lsp7Holder.getAddress(), universalProfile.target, amount, true, "0x")
+      ).to.be.revertedWithCustomError(universalReceiverDelegateUAP, "InvalidOperationType");
+    });
+    
+    it("should handle invalid encoded data safely", async function () {
+      // Set up invalid encoded data
+      const typeMappingKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification]);
+      await universalProfile.setData(typeMappingKey, "0x1234"); // Invalid encoding
+      
+      const amount = 1;
+      await mockLSP7.connect(lsp7Holder).mint(lsp7Holder, amount);
+      
+      // Should revert with InvalidEncodedData
+      await expect(
+        mockLSP7.connect(lsp7Holder).transfer(await lsp7Holder.getAddress(), universalProfile.target, amount, true, "0x")
+      ).to.be.revertedWithCustomError(universalReceiverDelegateUAP, "InvalidEncodedData");
+    });
+  });
 });

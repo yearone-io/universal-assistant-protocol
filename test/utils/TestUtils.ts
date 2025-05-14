@@ -240,12 +240,16 @@ export function generateMappingKey(keyName: string, typeId: string): string {
   return "0x" + first10Bytes + "0000" + last20Bytes;
 }
 
-export function generateExecutiveScreenersKey(erc725UAP: ERC725, typeId: string, order: number): string {
-  return erc725UAP.encodeKeyName("UAPExecutiveScreeners:<bytes32>:<uint256>", [typeId, order.toString()]);
+export function generateExecutiveScreenersKey(erc725UAP: ERC725, typeId: string, executiveAddress: string | number): string {
+  return erc725UAP.encodeKeyName("UAPExecutiveScreeners:<bytes32>:<uint256>", [typeId, typeof executiveAddress === 'string' ? '0' : executiveAddress.toString()]);
 }
 
-export function generateScreenersChainLogicKey(erc725UAP: ERC725, typeId: string, order: number): string {
-  return erc725UAP.encodeKeyName("UAPExecutiveScreenersANDLogic:<bytes32>:<uint256>", [typeId, order.toString()]);
+export function generateScreenersChainLogicKey(erc725UAP: ERC725, typeId: string, executiveAddress: string | number): string {
+  return erc725UAP.encodeKeyName("UAPExecutiveScreenersANDLogic:<bytes32>:<uint256>", [typeId, typeof executiveAddress === 'string' ? '0' : executiveAddress.toString()]);
+}
+
+export function generateVerifiedScreenersKey(erc725UAP: ERC725): string {
+  return "0x57e1c9aeeb8d707aa6d484032ae2eebb4ee09b6786488dafe2d927a8f6446417";
 }
 
 export function encodeBoolValue(value: boolean): string {
@@ -267,6 +271,11 @@ export async function setScreenerConfig(
 
   await up.setData(screenersKey, erc725UAP.encodeValueType("address[]", screeners));
   await up.setData(logicKey, encodeBoolValue(isAndChain));
+  
+  // Add screeners to the verified screeners list for security
+  const verifiedScreenersKey = "0x57e1c9aeeb8d707aa6d484032ae2eebb4ee09b6786488dafe2d927a8f6446417";
+  await up.setData(verifiedScreenersKey, erc725UAP.encodeValueType("address[]", screeners));
+  
   for (let i = 0; i < screeners.length; i++) {
     const screener = screeners[i];
     const screenerConfig = screenerConfigs[i];
@@ -284,7 +293,7 @@ export async function setExecutiveConfig(
   up: any,
   executiveAddress: string,
   type: string,
-  order: number,
+  order: number = 0,
   execConfig: string
 ) {
   const executiveKey = erc725Instance.encodeKeyName("UAPExecutiveConfig:<bytes32>:<uint256>", [type, order.toString()]);

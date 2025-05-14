@@ -14,29 +14,36 @@
       "valueContent": "Address"
     },
     {
-      "name": "UAPExecutiveScreeners:<bytes32>:<uint256>",
-      "key": "0xf71242d9035c<bytes32>0000<uint256>",
+      "name": "UAPExecutiveScreeners:<bytes32>:<address>",
+      "key": "0xf71242d9035c<bytes32>0000<address>",
       "keyType": "MappingWithGrouping",
       "valueType": "address[]",
       "valueContent": "Address"
     },
     {
-      "name": "UAPExecutiveScreenersANDLogic:<bytes32>:<uint256>",
-      "key": "0x5c353a1de5ca<bytes32>0000<uint256>",
+      "name": "UAPExecutiveScreenersANDLogic:<bytes32>:<address>",
+      "key": "0x5c353a1de5ca<bytes32>0000<address>",
       "keyType": "MappingWithGrouping",
       "valueType": "bool",
       "valueContent": "Boolean"
     },
     {
-      "name": "UAPExecutiveConfig:<bytes32>:<uint256>",
-      "key": "0xa2fcaddaa89b<bytes32>0000<uint256>",
+      "name": "UAPVerifiedScreeners",
+      "key": "0x57e1c9aeeb8d707aa6d484032ae2eebb4ee09b6786488dafe2d927a8f6446417",
+      "keyType": "Singleton",
+      "valueType": "address[]",
+      "valueContent": "Address"
+    },
+    {
+      "name": "UAPExecutiveConfig:<bytes32>:<address>",
+      "key": "0xa2fcaddaa89b<bytes32>0000<address>",
       "keyType": "MappingWithGrouping",
       "valueType": "(address,bytes)",
       "valueContent": "(Address,Bytes)"
     },
     {
-      "name": "UAPScreenerConfig:<bytes32>:<uint256>",
-      "key": "0xbad89b6f38d1<bytes32>0000<uint256>",
+      "name": "UAPScreenerConfig:<bytes32>:<address>",
+      "key": "0xbad89b6f38d1<bytes32>0000<address>",
       "keyType": "MappingWithGrouping",
       "valueType": "(address,address,bytes)",
       "valueContent": "(Address,Address,Bytes)"

@@ -15,8 +15,7 @@
     "lint:fix": "solhint --fix 'contracts/**/*.sol'"
   },
   "dependencies": {
-    "@erc725/erc725.js": "^0.22.0",
-    "@lukso/lsp-factory.js": "^3.2.1",
+    "@erc725/erc725.js": "^0.28.1",
     "@lukso/lsp-smart-contracts": "^0.16.2",
     "@lukso/universalprofile-contracts": "^0.15.0",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",

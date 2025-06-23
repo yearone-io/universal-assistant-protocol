@@ -92,8 +92,8 @@ describe("Screeners: Address and Curation Checkers", function () {
         itemIndexKey
       ]);
       let itemType = erc725UAP.decodeValueType("bytes4", entryRaw.slice(0,10));
-      let itemPosition = erc725UAP.decodeValueType("uint256", entryRaw.slice(11, entryRaw.length));
-      let listLength = erc725UAP.decodeValueType("uint256", listLengthRaw);
+      let itemPosition = Number(erc725UAP.decodeValueType("uint256", "0x" + entryRaw.slice(10)));
+      let listLength = Number(erc725UAP.decodeValueType("uint256", listLengthRaw));
       let itemAddress = erc725UAP.decodeValueType("address", itemAddressRaw);
       expect(listLength).to.equal(1);
       expect(itemAddress).to.equal(lsp7Address);
@@ -113,6 +113,7 @@ describe("Screeners: Address and Curation Checkers", function () {
         .withArgs(upAddress, forwarderAddress);
       expect(await mockLSP7A.balanceOf(await nonOwner.getAddress())).to.equal(69);
       // sanity check removal of item from allow list
+      
       await removeListEntry(
         erc725UAP,
         universalProfile,
@@ -124,10 +125,10 @@ describe("Screeners: Address and Curation Checkers", function () {
         listLengthKey,
         itemIndexKey
       ]);
-      itemType = erc725UAP.decodeValueType("bytes4", entryRaw.slice(0,10));
-      itemPosition = erc725UAP.decodeValueType("uint256", entryRaw.slice(11, entryRaw.length));
-      listLength = erc725UAP.decodeValueType("uint256", listLengthRaw);
-      itemAddress = erc725UAP.decodeValueType("address", itemAddressRaw);
+      itemType = entryRaw && entryRaw !== "0x" ? erc725UAP.decodeValueType("bytes4", entryRaw.slice(0,10)) : null;
+      itemPosition = entryRaw && entryRaw !== "0x" ? Number(erc725UAP.decodeValueType("uint256", "0x" + entryRaw.slice(10))) : null;
+      listLength = listLengthRaw && listLengthRaw !== "0x" ? Number(erc725UAP.decodeValueType("uint256", listLengthRaw)) : 0;
+      itemAddress = itemAddressRaw && itemAddressRaw !== "0x" ? erc725UAP.decodeValueType("address", itemAddressRaw) : null;
       expect(listLength).to.equal(0);
       expect(itemAddress).to.equal(null);
       expect(entryRaw).to.equal("0x");
@@ -166,8 +167,8 @@ describe("Screeners: Address and Curation Checkers", function () {
         itemIndexKey
       ]);
       let itemType = erc725UAP.decodeValueType("bytes4", entryRaw.slice(0,10));
-      let itemPosition = erc725UAP.decodeValueType("uint256", entryRaw.slice(11, entryRaw.length));
-      let listLength = erc725UAP.decodeValueType("uint256", listLengthRaw);
+      let itemPosition = Number(erc725UAP.decodeValueType("uint256", "0x" + entryRaw.slice(10)));
+      let listLength = Number(erc725UAP.decodeValueType("uint256", listLengthRaw));
       let itemAddress = erc725UAP.decodeValueType("address", itemAddressRaw);
       expect(listLength).to.equal(1);
       expect(itemAddress).to.equal(lsp7Address);
@@ -220,8 +221,8 @@ describe("Screeners: Address and Curation Checkers", function () {
         itemIndexKey
       ]);
       let itemType = erc725UAP.decodeValueType("bytes4", entryRaw.slice(0,10));
-      let itemPosition = erc725UAP.decodeValueType("uint256", entryRaw.slice(11, entryRaw.length));
-      let listLength = erc725UAP.decodeValueType("uint256", listLengthRaw);
+      let itemPosition = Number(erc725UAP.decodeValueType("uint256", "0x" + entryRaw.slice(10)));
+      let listLength = Number(erc725UAP.decodeValueType("uint256", listLengthRaw));
       let itemAddress = erc725UAP.decodeValueType("address", itemAddressRaw);
       expect(listLength).to.equal(1);
       expect(itemAddress).to.equal(lsp7Address);
@@ -340,8 +341,8 @@ describe("Screeners: Address and Curation Checkers", function () {
         itemIndexKey
       ]);
       let itemType = erc725UAP.decodeValueType("bytes4", entryRaw.slice(0,10));
-      let itemPosition = erc725UAP.decodeValueType("uint256", entryRaw.slice(11, entryRaw.length));
-      let listLength = erc725UAP.decodeValueType("uint256", listLengthRaw);
+      let itemPosition = Number(erc725UAP.decodeValueType("uint256", "0x" + entryRaw.slice(10)));
+      let listLength = Number(erc725UAP.decodeValueType("uint256", listLengthRaw));
       let itemAddress = erc725UAP.decodeValueType("address", itemAddressRaw);
       expect(listLength).to.equal(2);
       expect(itemAddress).to.equal(lsp7BAddress);

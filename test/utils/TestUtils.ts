@@ -317,7 +317,8 @@ export function toSolidityBytes32Prefixed(index: number) {
 }
 
 export function generateListItemIndexKey(erc725Instance: ERC725, listName: string, index: number) {
-  return erc725Instance.encodeKeyName(`${listName}[]`).slice(0, 34) + toSolidityBytes16(index);
+  const encodedKeyName: string = erc725Instance.encodeKeyName(`${listName}[]`);
+  return encodedKeyName.slice(0, 34) + toSolidityBytes16(index);
 }
 
 export function encodeListMapValue(erc725Instance: ERC725, bytes4Value: string, uint256Value: number) {
@@ -347,7 +348,7 @@ export async function mergeListEntry(
   const listLengthRaw = await up.getData(listLengthKey);
   let listLength = 0;
   if (listLengthRaw && listLengthRaw !== "0x") {
-    listLength = erc725Instance.decodeValueType("uint256", listLengthRaw);
+    listLength = Number(erc725Instance.decodeValueType("uint256", listLengthRaw));
   }
   // check if mapping is present
   const entryMapKey = erc725Instance.encodeKeyName(`${listName}Map:<address>`, [itemAddress]);
@@ -368,7 +369,7 @@ export async function mergeListEntry(
     );
   } else {
     // if yes get index and confirm index < listLength and address is present at index spot
-    let entryIndex = erc725Instance.decodeValueType("uint256", entryRaw.slice(11, entryRaw.length - 1));
+    let entryIndex = Number(erc725Instance.decodeValueType("uint256", "0x" + entryRaw.slice(10)));
     if (entryIndex >= listLength - 1) {
       throw Error("index mismatch");
     }
@@ -387,13 +388,13 @@ export async function removeListEntry(
   if (!entryRaw || entryRaw === "0x") {
     return;
   }
-  let entryIndex = erc725Instance.decodeValueType("uint256", entryRaw.slice(11, entryRaw.length - 1));
+  let entryIndex = Number(erc725Instance.decodeValueType("uint256", "0x" + entryRaw.slice(10)));
   const entryIndexKey = generateListItemIndexKey(erc725Instance, listName, entryIndex);
   const listLengthKey = erc725Instance.encodeKeyName(`${listName}[]`);
   const listLengthRaw = await up.getData(listLengthKey);
   let listLength = 0;
   if (listLengthRaw && listLengthRaw !== "0x") {
-    listLength = erc725Instance.decodeValueType("uint256", listLengthRaw);
+    listLength = Number(erc725Instance.decodeValueType("uint256", listLengthRaw));
   }
   if (listLength === 0) {
     await up.setData(entryMapKey, "0x");

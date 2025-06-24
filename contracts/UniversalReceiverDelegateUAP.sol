@@ -32,6 +32,21 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
     event AssistantInvoked(address indexed subscriber, address indexed executiveAssistant);
     event AssistantNoOp(address indexed subscriber, address executiveAssistant);
     
+    // Standardized events for monitoring and debugging
+    event ScreenResult(
+        bytes32 indexed typeId,
+        address indexed profile,
+        address indexed module,
+        bool outcome
+    );
+    
+    event ExecutionResult(
+        bytes32 indexed typeId,
+        address indexed profile,
+        address indexed module,
+        bool outcome
+    );
+    
     error ExecutiveAssistantExecutionFailed(address executiveAssistant, bytes32 typeId);
     error ScreenerAssistantExecutionFailed(address executiveAssistant, address screenerAssistant, bytes32 typeId);
     error InvalidEncodedData();
@@ -132,6 +147,8 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                         }
                     } else if (success) {
                         bool screenerResult = _safeDecodeBoolean(ret);
+                        emit ScreenResult(typeId, msg.sender, screener, screenerResult);
+                        
                         if (isAndChain && !screenerResult) {
                             shouldExecute = false;
                             break;
@@ -189,8 +206,10 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                 if (execOperationType != NO_OP) {
                     IERC725X(msg.sender).execute(execOperationType, execTarget, execValue, execData);
                     emit AssistantInvoked(msg.sender, executiveAssistant);
+                    emit ExecutionResult(typeId, msg.sender, executiveAssistant, true);
                 } else {
                     emit AssistantNoOp(msg.sender, executiveAssistant);
+                    emit ExecutionResult(typeId, msg.sender, executiveAssistant, false);
                 }
             }
         }

@@ -20,7 +20,7 @@ contract NotifierCurationScreener is ScreenerAssistantWithList {
         uint256 /* value */,
         bytes32 typeId,
         bytes memory /* lsp1Data */
-    ) external view override returns (bool result) {
+    ) external view override returns (bool) {
         // Fetch config
         address upAddress = profile;
         IERC725Y upERC725Y = IERC725Y(upAddress);

@@ -112,5 +112,24 @@ describe("Executives: Forwarder", function () {
       // Verify the token was forwarded to target
       expect(await mockLSP8.tokenOwnerOf(tokenId2)).to.equal(targetAddress);
     });
+
+    it("ForwarderAssistant should emit standardized ExecutionResult events", async function () {
+      // Setup ForwarderAssistant for LSP7 tokens
+      const typeMappingKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification]);
+      await universalProfile.setData(typeMappingKey,
+        erc725UAP.encodeValueType("address[]", [await firstForwarderAssistant.getAddress()])
+      );
+      
+      const forwarderInstructionsKey = erc725UAP.encodeKeyName("UAPExecutiveConfig:<bytes32>:<uint256>", [LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification, "0"]);
+      const targetAddress = await nonOwner.getAddress();
+      const encodedInstructions = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [targetAddress]);
+      await universalProfile.setData(forwarderInstructionsKey,
+        encodeTupleKeyValue("(Address,Bytes)", "(address,bytes)", [await firstForwarderAssistant.getAddress(), encodedInstructions]));
+
+      // Mint LSP7 token and verify standardized events are emitted
+      await expect(mockLSP7.connect(lsp7Holder).mint(await universalProfile.getAddress(), 100))
+        .to.emit(universalReceiverDelegateUAP, "ExecutionResult")
+        .withArgs(LSP1_TYPE_IDS.LSP7Tokens_RecipientNotification, await universalProfile.getAddress(), await firstForwarderAssistant.getAddress(), true);
+    });
   });
 });

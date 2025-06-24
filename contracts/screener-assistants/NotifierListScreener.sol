@@ -24,7 +24,7 @@ contract NotifierListScreener is ScreenerAssistantWithList {
         IERC725Y upERC725Y = IERC725Y(upAddress);
         (,,bytes memory configData) = fetchConfiguration(upAddress, screenerAddress, typeId, screenerOrder);
         if (configData.length == 0) return false;
-        bool returnValueWhenInList = abi.decode(configData, (bool));
+        bool returnValueWhenInList = _safeDecodeBoolean(configData);
 
         // Check list
         string memory listName = fetchListName(upAddress, typeId, screenerOrder);

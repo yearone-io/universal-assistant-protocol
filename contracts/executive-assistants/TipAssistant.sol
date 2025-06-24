@@ -9,6 +9,7 @@ contract TipAssistant is ExecutiveAssistantBase {
     error InvalidTipRecipient();
     error InvalidTipPercentage();
     error InvalidTipType();
+    error InvalidEncodedTipConfigData(bytes data);
     event TipSent(
         address indexed upAddress,
         address indexed tipAddress,
@@ -37,10 +38,7 @@ contract TipAssistant is ExecutiveAssistantBase {
         if (encodedConfig.length == 0) {
             revert TipConfigNotSet();
         }
-        (address tipAddress, uint256 tipPercentage) = abi.decode(
-            encodedConfig,
-            (address, uint256)
-        );
+        (address tipAddress, uint256 tipPercentage) = _safeDecodeTipConfig(encodedConfig);
         // Basic sanity checks
         if (tipAddress == address(0)) revert InvalidTipRecipient();
         if (typeId != _TYPEID_LSP0_VALUE_RECEIVED) revert InvalidTipType();
@@ -48,5 +46,23 @@ contract TipAssistant is ExecutiveAssistantBase {
         uint256 tipAmount = value > 0 ? (value * tipPercentage) / 100 : 0;
         emit TipSent(upAddress, tipAddress, tipAmount);
         return (0, tipAddress, tipAmount, "", abi.encode(value - tipAmount, lsp1Data));
+    }
+
+    /**
+     * @dev Safely decodes tip configuration (address, uint256) tuple
+     * @param data The encoded data to decode
+     * @return tipAddress The tip recipient address
+     * @return tipPercentage The tip percentage
+     */
+    function _safeDecodeTipConfig(bytes memory data) internal pure returns (
+        address tipAddress,
+        uint256 tipPercentage
+    ) {
+        if (data.length == 0) {
+            revert InvalidEncodedTipConfigData(data);
+        }
+        
+        // Decode the tuple - abi.decode will revert if data is malformed
+        (tipAddress, tipPercentage) = abi.decode(data, (address, uint256));
     }
 }

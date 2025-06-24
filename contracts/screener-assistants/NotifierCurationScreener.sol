@@ -28,7 +28,7 @@ contract NotifierCurationScreener is ScreenerAssistantWithList {
         if (configData.length == 0) return false;
 
         // Decode core settings: curated list address and return value configuration
-        (address curatedListAddress, bool returnValueWhenCurated) = abi.decode(configData, (address, bool));
+        (address curatedListAddress, bool returnValueWhenCurated) = _safeDecodeCurationConfig(configData);
 
         // Check list
         string memory blocklistName = fetchListName(upAddress, typeId, screenerOrder);

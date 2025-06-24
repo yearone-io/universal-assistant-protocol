@@ -26,9 +26,6 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
     uint256 private constant OPERATION_3_STATICCALL = 3;
     uint256 private constant OPERATION_4_DELEGATECALL = 4;
     
-    // Maximum allowed array sizes for security
-    uint256 private constant MAX_ASSISTANTS_PER_TYPE = 100;
-    uint256 private constant MAX_SCREENERS_PER_ASSISTANT = 50;
     
     event TypeIdConfigFound(bytes32 typeId);
     event AssistantFound(address executiveAssistant);
@@ -38,10 +35,12 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
     error ExecutiveAssistantExecutionFailed(address executiveAssistant, bytes32 typeId);
     error ScreenerAssistantExecutionFailed(address executiveAssistant, address screenerAssistant, bytes32 typeId);
     error InvalidEncodedData();
-    error InvalidArrayLength(uint256 length, uint256 maxLength);
     error InvalidExecutionOperationType(uint256 operationType);
-    error InvalidAssistantAddress(address assistant);
     error ScreenerChainMismatch(uint256 executiveIndex, uint256 expectedLength, uint256 actualLength);
+    error InvalidEncodedArrayData(bytes data);
+    error InvalidEncodedBooleanData(bytes data);
+    error InvalidEncodedExecutiveResultData(bytes data);
+    error InvalidEncodedExecutionResultData(bytes data);
 
     /**
      * @dev Handles incoming transactions by evaluating Filters and invoking Assistants.
@@ -73,8 +72,8 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         }
         emit TypeIdConfigFound(typeId);
 
-        // Safely decode executive assistants with validation
-        address[] memory executiveAssistants = _safeDecodeAddressArray(typeConfig, MAX_ASSISTANTS_PER_TYPE);
+        // Safely decode executive assistants
+        address[] memory executiveAssistants = _safeDecodeAddressArray(typeConfig);
         if (executiveAssistants.length == 0) {
             return super.universalReceiverDelegate(notifier, value, typeId, lsp1Data);
         }
@@ -103,8 +102,8 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
             );
             bytes memory screenersChainRaw = IERC725Y(msg.sender).getData(screenersChainKey);
             if (screenersChainRaw.length > 0) {
-                // Safely decode screener assistants with validation
-                address[] memory screenerAssistants = _safeDecodeAddressArray(screenersChainRaw, MAX_SCREENERS_PER_ASSISTANT);
+                // Safely decode screener assistants
+                address[] memory screenerAssistants = _safeDecodeAddressArray(screenersChainRaw);
                 bytes memory screenersChainLogicRaw = IERC725Y(msg.sender).getData(screenersChainLogicKey);
                 bool isAndChain = true;
                 if (screenersChainLogicRaw.length > 0) {
@@ -137,13 +136,14 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                             revert ScreenerAssistantExecutionFailed(executiveAssistant, screener, typeId);
                         }
                     } else if (success) {
-                        if (isAndChain && !abi.decode(ret, (bool))) {
+                        bool screenerResult = _safeDecodeBoolean(ret);
+                        if (isAndChain && !screenerResult) {
                             shouldExecute = false;
                             break;
-                        } else if (!isAndChain && abi.decode(ret, (bool))) {
+                        } else if (!isAndChain && screenerResult) {
                             shouldExecute = true;
                             break;
-                        } else if (!isAndChain && !abi.decode(ret, (bool))) {
+                        } else if (!isAndChain && !screenerResult) {
                             shouldExecute = false;
                         }
                     }
@@ -182,13 +182,13 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                     uint256 execValue,
                     bytes memory execData,
                     bytes memory execResultData
-                ) = abi.decode(returnData, (uint256, address, uint256, bytes, bytes));
+                ) = _safeDecodeExecutiveResult(returnData);
 
                 // Validate the operation type before executing
                 _validateOperationType(execOperationType);
 
                 if (execResultData.length > 0) {
-                    (uint256 newValue, bytes memory newLsp1Data) = abi.decode(execResultData, (uint256, bytes));
+                    (uint256 newValue, bytes memory newLsp1Data) = _safeDecodeExecutionResult(execResultData);
                     currentValue = newValue;
                     currentLsp1Data = newLsp1Data;
                 }
@@ -235,32 +235,75 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
     }
 
     /**
-     * @dev Safely decodes an address array with validation
+     * @dev Safely decodes an address array with comprehensive validation
      * @param data The encoded data to decode
-     * @param maxLength Maximum allowed array length
      * @return The decoded address array
      */
-    function _safeDecodeAddressArray(bytes memory data, uint256 maxLength) internal pure returns (address[] memory) {
+    function _safeDecodeAddressArray(bytes memory data) internal pure returns (address[] memory) {
         if (data.length == 0) {
             return new address[](0);
         }
         
+        // Decode the array - abi.decode will revert if data is malformed
         address[] memory decodedArray = abi.decode(data, (address[]));
-        
-        if (decodedArray.length > maxLength) {
-            revert InvalidArrayLength(decodedArray.length, maxLength);
-        }
-        
-        // Validate that no address is zero (optional security measure)
-        for (uint256 i = 0; i < decodedArray.length; i++) {
-            if (decodedArray[i] == address(0)) {
-                revert InvalidAssistantAddress(decodedArray[i]);
-            }
-        }
-        
         return decodedArray;
     }
 
+    /**
+     * @dev Safely decodes a boolean value with validation
+     * @param data The encoded data to decode
+     * @return The decoded boolean value
+     */
+    function _safeDecodeBoolean(bytes memory data) internal pure returns (bool) {
+        if (data.length == 0) {
+            return false;
+        }
+        
+        // Decode the boolean - abi.decode will revert if data is malformed
+        bool decodedBool = abi.decode(data, (bool));
+        return decodedBool;
+    }
+
+    /**
+     * @dev Safely decodes executive assistant execution result data
+     * @param data The encoded execution result data
+     * @return execOperationType The operation type
+     * @return execTarget The target address
+     * @return execValue The value
+     * @return execData The execution data
+     * @return execResultData The result data
+     */
+    function _safeDecodeExecutiveResult(bytes memory data) internal pure returns (
+        uint256 execOperationType,
+        address execTarget,
+        uint256 execValue,
+        bytes memory execData,
+        bytes memory execResultData
+    ) {
+        if (data.length == 0) {
+            revert InvalidEncodedExecutiveResultData(data);
+        }
+        
+        (execOperationType, execTarget, execValue, execData, execResultData) = 
+            abi.decode(data, (uint256, address, uint256, bytes, bytes));
+    }
+
+    /**
+     * @dev Safely decodes execution result data (value and lsp1Data)
+     * @param data The encoded result data
+     * @return newValue The new value
+     * @return newLsp1Data The new LSP1 data
+     */
+    function _safeDecodeExecutionResult(bytes memory data) internal pure returns (
+        uint256 newValue,
+        bytes memory newLsp1Data
+    ) {
+        if (data.length == 0) {
+            revert InvalidEncodedExecutionResultData(data);
+        }
+        
+        (newValue, newLsp1Data) = abi.decode(data, (uint256, bytes));
+    }
 
     /**
      * @dev Validates that screener chain configuration is consistent with executive assistants

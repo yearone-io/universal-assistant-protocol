@@ -6,6 +6,7 @@ import { ScreenerAssistantBase } from "../screener-assistants/ScreenerAssistantB
 
 contract MockTrueScreenerAssistant is ScreenerAssistantBase {
     function evaluate(
+        address /*profile */,
         address /*screener address */,
         uint256 /*screener order */,
         address /*notifier */,

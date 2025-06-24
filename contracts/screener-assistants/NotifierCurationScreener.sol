@@ -13,6 +13,7 @@ import {ScreenerAssistantWithList} from "../screener-assistants/ScreenerAssistan
  */
 contract NotifierCurationScreener is ScreenerAssistantWithList {
     function evaluate(
+        address profile,
         address screenerAddress,
         uint256 screenerOrder,
         address notifier,
@@ -21,7 +22,7 @@ contract NotifierCurationScreener is ScreenerAssistantWithList {
         bytes memory /* lsp1Data */
     ) external view override returns (bool result) {
         // Fetch config
-        address upAddress = msg.sender;
+        address upAddress = profile;
         IERC725Y upERC725Y = IERC725Y(upAddress);
         (,,bytes memory configData) = fetchConfiguration(upAddress, screenerAddress, typeId, screenerOrder);
         if (configData.length == 0) return false;

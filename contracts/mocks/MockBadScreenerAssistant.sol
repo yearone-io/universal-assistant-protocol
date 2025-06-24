@@ -7,6 +7,7 @@ contract MockBadScreenerAssistant is ScreenerAssistantBase {
     error AlwaysFalseError();
 
     function evaluate(
+        address /*profile */,
         address /*screener address */,
         uint256 /*screener order */,
         address /*notifier */,

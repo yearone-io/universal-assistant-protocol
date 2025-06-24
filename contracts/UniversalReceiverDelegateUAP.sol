@@ -115,10 +115,11 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                     address screener = screenerAssistants[j];
                     uint256 screenerOrder = (i * 1000) + j;
                     // solhint-disable-next-line avoid-low-level-calls
-                    (bool success, bytes memory ret) = screener.delegatecall(
+                    (bool success, bytes memory ret) = screener.staticcall(
                         abi.encodeWithSelector(
                             IScreenerAssistant.evaluate.selector,
-                            screener,
+                            msg.sender,        // profile (UP address)
+                            screener,          // screenerAddress
                             screenerOrder,
                             notifier,
                             currentValue,

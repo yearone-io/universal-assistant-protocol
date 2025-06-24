@@ -35,8 +35,6 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
     error ExecutiveAssistantExecutionFailed(address executiveAssistant, bytes32 typeId);
     error ScreenerAssistantExecutionFailed(address executiveAssistant, address screenerAssistant, bytes32 typeId);
     error InvalidEncodedData();
-    error InvalidExecutionOperationType(uint256 operationType);
-    error ScreenerChainMismatch(uint256 executiveIndex, uint256 expectedLength, uint256 actualLength);
     error InvalidEncodedArrayData(bytes data);
     error InvalidEncodedBooleanData(bytes data);
     error InvalidEncodedExecutiveResultData(bytes data);
@@ -80,9 +78,6 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
 
         bytes memory currentLsp1Data = lsp1Data;
         uint256 currentValue = value;
-        
-        // Validate screener chain configuration consistency
-        _validateScreenerChainConsistency(typeId, executiveAssistants.length);
         
         for (uint256 i = 0; i < executiveAssistants.length; i++) {
             bool shouldExecute = true;
@@ -184,8 +179,6 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                     bytes memory execResultData
                 ) = _safeDecodeExecutiveResult(returnData);
 
-                // Validate the operation type before executing
-                _validateOperationType(execOperationType);
 
                 if (execResultData.length > 0) {
                     (uint256 newValue, bytes memory newLsp1Data) = _safeDecodeExecutionResult(execResultData);
@@ -219,20 +212,6 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         return bytes20(uint160(maskedValue));
     }
 
-    /**
-     * @dev Validates that an operation type is a valid ERC725X operation
-     * @param operationType The operation type to validate
-     */
-    function _validateOperationType(uint256 operationType) internal pure {
-        if (operationType != NO_OP && 
-            operationType != OPERATION_0_CALL &&
-            operationType != OPERATION_1_CREATE &&
-            operationType != OPERATION_2_CREATE2 &&
-            operationType != OPERATION_3_STATICCALL &&
-            operationType != OPERATION_4_DELEGATECALL) {
-            revert InvalidExecutionOperationType(operationType);
-        }
-    }
 
     /**
      * @dev Safely decodes an address array with comprehensive validation
@@ -305,26 +284,4 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         (newValue, newLsp1Data) = abi.decode(data, (uint256, bytes));
     }
 
-    /**
-     * @dev Validates that screener chain configuration is consistent with executive assistants
-     * @param typeId The type identifier
-     * @param executiveAssistantsLength The number of executive assistants
-     */
-    function _validateScreenerChainConsistency(bytes32 typeId, uint256 executiveAssistantsLength) internal view {
-        // Check that screener chains don't exist beyond the number of executive assistants
-        for (uint256 i = executiveAssistantsLength; i < executiveAssistantsLength + 10; i++) {
-            bytes32 screenersChainKey = LSP2Utils.generateMappingWithGroupingKey(
-                bytes6(keccak256("UAPExecutiveScreeners")),
-                bytes4(typeId),
-                uint256ToBytes20(i)
-            );
-            bytes memory screenersChainRaw = IERC725Y(msg.sender).getData(screenersChainKey);
-            if (screenersChainRaw.length > 0) {
-                revert ScreenerChainMismatch(i, executiveAssistantsLength, i + 1);
-            }
-        }
-        
-        // Optional: Add additional validation to ensure screener chains match expected configuration
-        // This could include checking a separate mapping that stores the expected configuration hash
-    }
 }

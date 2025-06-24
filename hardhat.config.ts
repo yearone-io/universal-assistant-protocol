@@ -20,7 +20,8 @@ const config: HardhatUserConfig = {
       },
       viaIR: true,
     },
-  },  contractSizer: {
+  },
+  contractSizer: {
       alphaSort: true,
       runOnCompile: true,
       disambiguatePaths: false,

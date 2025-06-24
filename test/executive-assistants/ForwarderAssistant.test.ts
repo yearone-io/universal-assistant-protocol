@@ -37,11 +37,15 @@ describe("Executives: Forwarder", function () {
 
     const MockAssistantFactory = await ethers.getContractFactory("MockAssistant");
     mockAssistant = await MockAssistantFactory.deploy();
+    await mockAssistant.waitForDeployment();
     const MockBadAssistantFactory = await ethers.getContractFactory("MockBadAssistant");
     mockBadAssistant = await MockBadAssistantFactory.deploy();
+    await mockBadAssistant.waitForDeployment();
     const ForwarderAssistantFactory = await ethers.getContractFactory("ForwarderAssistant");
     firstForwarderAssistant = await ForwarderAssistantFactory.deploy();
+    await firstForwarderAssistant.waitForDeployment();
     secondForwarderAssistant = await ForwarderAssistantFactory.deploy();
+    await secondForwarderAssistant.waitForDeployment();
   });
 
   describe("Edge Cases", function () {
@@ -69,6 +73,44 @@ describe("Executives: Forwarder", function () {
       expect(await mockLSP7.balanceOf(firstTargetAddress)).to.equal(1);
       expect(await mockLSP7.balanceOf(secondTargetAddress)).to.equal(0);
       
+    });
+
+    it("LSP8 ForwarderAssistant should only forward tokens when UP owns them", async function () {
+      // Setup ForwarderAssistant for LSP8 tokens
+      const typeMappingKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP1_TYPE_IDS.LSP8Tokens_RecipientNotification]);
+      await universalProfile.setData(typeMappingKey,
+        erc725UAP.encodeValueType("address[]", [await firstForwarderAssistant.getAddress()])
+      );
+      
+      const forwarderInstructionsKey = erc725UAP.encodeKeyName("UAPExecutiveConfig:<bytes32>:<uint256>", [LSP1_TYPE_IDS.LSP8Tokens_RecipientNotification, "0"]);
+      const targetAddress = await nonOwner.getAddress();
+      const encodedInstructions = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [targetAddress]);
+      await universalProfile.setData(forwarderInstructionsKey,
+        encodeTupleKeyValue("(Address,Bytes)", "(address,bytes)", [await firstForwarderAssistant.getAddress(), encodedInstructions]));
+
+      // Case 1: Mint token to UP (UP owns it) - should forward
+      const tokenId1 = ethers.solidityPackedKeccak256(["string"], ["token1"]);
+      await expect(mockLSP8.connect(lsp8Holder).mint(await universalProfile.getAddress(), tokenId1))
+        .to.emit(firstForwarderAssistant, "LSP8AssetForwarded")
+        .withArgs(await mockLSP8.getAddress(), tokenId1, targetAddress);
+      
+      // Verify token was forwarded
+      expect(await mockLSP8.tokenOwnerOf(tokenId1)).to.equal(targetAddress);
+
+      // Case 2: Transfer a token to UP that UP already owns - should forward again
+      const tokenId2 = ethers.solidityPackedKeccak256(["string"], ["token2"]);
+      await mockLSP8.connect(lsp8Holder).mint(await lsp8Holder.getAddress(), tokenId2);
+      
+      // Verify token is owned by lsp8Holder, not UP
+      expect(await mockLSP8.tokenOwnerOf(tokenId2)).to.equal(await lsp8Holder.getAddress());
+      
+      // Transfer to UP - this should forward since UP will own it during execution
+      await expect(mockLSP8.connect(lsp8Holder).transfer(await lsp8Holder.getAddress(), await universalProfile.getAddress(), tokenId2, false, "0x"))
+        .to.emit(firstForwarderAssistant, "LSP8AssetForwarded")
+        .withArgs(await mockLSP8.getAddress(), tokenId2, targetAddress);
+      
+      // Verify the token was forwarded to target
+      expect(await mockLSP8.tokenOwnerOf(tokenId2)).to.equal(targetAddress);
     });
   });
 });

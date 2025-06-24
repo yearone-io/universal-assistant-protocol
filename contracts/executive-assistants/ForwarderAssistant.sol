@@ -110,7 +110,7 @@ contract ForwarderAssistant is ExecutiveAssistantBase {
             );
             // Check if UP owns the tokenId (LSP8-specific)
             address tokenOwner = ILSP8IdentifiableDigitalAsset(notifier).tokenOwnerOf(tokenId);
-            if (tokenOwner != upAddress) {
+            if (tokenOwner == upAddress) {
                 emit LSP8AssetForwarded(notifier, tokenId, targetAddress);
                 return (0, notifier, value, encodedLSP8Tx, abi.encode(value, resultingLsp1Data));
             } else {

@@ -15,7 +15,6 @@ abstract contract ScreenerAssistantBase is IScreenerAssistant, ERC165 {
         uint256 executionOrder
     );
     error InvalidEncodedData();
-    error InvalidEncodedBooleanData(bytes data);
     error InvalidEncodedCurationConfigData(bytes data);
 
     function supportsInterface(

@@ -12,7 +12,6 @@ import {_TYPEID_LSP8_TOKENSRECIPIENT} from "@lukso/lsp-smart-contracts/contracts
 
 
 contract ForwarderAssistant is ExecutiveAssistantBase {
-    // uint256 public NO_OP = type(uint256).max;
     event LSP7AssetForwarded(
         address asset,
         uint256 amount,

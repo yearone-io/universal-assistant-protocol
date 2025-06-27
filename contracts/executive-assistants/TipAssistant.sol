@@ -5,6 +5,8 @@ import {ExecutiveAssistantBase} from "./ExecutiveAssistantBase.sol";
 import {_TYPEID_LSP0_VALUE_RECEIVED} from "@lukso/lsp0-contracts/contracts/LSP0Constants.sol";
 
 contract TipAssistant is ExecutiveAssistantBase {
+    uint256 private constant PERCENTAGE_BASE = 100;
+    
     error TipConfigNotSet();
     error InvalidTipRecipient();
     error InvalidTipPercentage();
@@ -42,8 +44,8 @@ contract TipAssistant is ExecutiveAssistantBase {
         // Basic sanity checks
         if (tipAddress == address(0)) revert InvalidTipRecipient();
         if (typeId != _TYPEID_LSP0_VALUE_RECEIVED) revert InvalidTipType();
-        if (tipPercentage == 0 || tipPercentage > 100) revert InvalidTipPercentage();
-        uint256 tipAmount = value > 0 ? (value * tipPercentage) / 100 : 0;
+        if (tipPercentage == 0 || tipPercentage > PERCENTAGE_BASE) revert InvalidTipPercentage();
+        uint256 tipAmount = value > 0 ? (value * tipPercentage) / PERCENTAGE_BASE : 0;
         emit TipSent(upAddress, tipAddress, tipAmount);
         return (0, tipAddress, tipAmount, "", abi.encode(value - tipAmount, lsp1Data));
     }

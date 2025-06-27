@@ -54,6 +54,9 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
     error InvalidEncodedBooleanData(bytes data);
     error InvalidEncodedExecutiveResultData(bytes data);
     error InvalidEncodedExecutionResultData(bytes data);
+    
+    // Key for UAPRevertOnFailure setting
+    bytes32 private constant REVERT_ON_FAILURE_KEY = 0x8631ee7d1d9475e6b2c38694122192970d91cafd1c64176ecc23849e17441672;
 
     /**
      * @dev Handles incoming transactions by evaluating Filters and invoking Assistants.
@@ -93,6 +96,13 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
 
         bytes memory currentLsp1Data = lsp1Data;
         uint256 currentValue = value;
+        
+        // Check user's failure handling preference ONCE before all assistant calls
+        bytes memory revertOnFailureData = IERC725Y(msg.sender).getData(REVERT_ON_FAILURE_KEY);
+        bool revertOnFailure = false;
+        if (revertOnFailureData.length > 0) {
+            revertOnFailure = (revertOnFailureData[0] != 0x00);
+        }
         
         for (uint256 i = 0; i < executiveAssistants.length; i++) {
             bool shouldExecute = true;
@@ -178,13 +188,20 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                     )
                 );
                 if (!success) {
-                    if (returnData.length > 0) {
-                        // solhint-disable-next-line no-inline-assembly
-                        assembly {
-                            revert(add(returnData, 32), mload(returnData))
+                    if (revertOnFailure) {
+                        // User wants to revert on failure - use EXACT original error propagation
+                        if (returnData.length > 0) {
+                            // solhint-disable-next-line no-inline-assembly
+                            assembly {
+                                revert(add(returnData, 32), mload(returnData))
+                            }
+                        } else {
+                            revert ExecutiveAssistantExecutionFailed(executiveAssistant, typeId);
                         }
                     } else {
-                        revert ExecutiveAssistantExecutionFailed(executiveAssistant, typeId);
+                        // User wants to continue on failure (default behavior)
+                        emit ExecutionResult(typeId, msg.sender, executiveAssistant, false);
+                        continue; // Skip to next assistant with unmodified payload
                     }
                 }
 

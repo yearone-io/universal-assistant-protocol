@@ -13,21 +13,22 @@ import {ScreenerAssistantWithList} from "../screener-assistants/ScreenerAssistan
  */
 contract NotifierCurationScreener is ScreenerAssistantWithList {
     function evaluate(
+        address profile,
         address screenerAddress,
         uint256 screenerOrder,
         address notifier,
         uint256 /* value */,
         bytes32 typeId,
         bytes memory /* lsp1Data */
-    ) external view override returns (bool result) {
+    ) external view override returns (bool) {
         // Fetch config
-        address upAddress = msg.sender;
+        address upAddress = profile;
         IERC725Y upERC725Y = IERC725Y(upAddress);
         (,,bytes memory configData) = fetchConfiguration(upAddress, screenerAddress, typeId, screenerOrder);
         if (configData.length == 0) return false;
 
         // Decode core settings: curated list address and return value configuration
-        (address curatedListAddress, bool returnValueWhenCurated) = abi.decode(configData, (address, bool));
+        (address curatedListAddress, bool returnValueWhenCurated) = _safeDecodeCurationConfig(configData);
 
         // Check list
         string memory blocklistName = fetchListName(upAddress, typeId, screenerOrder);

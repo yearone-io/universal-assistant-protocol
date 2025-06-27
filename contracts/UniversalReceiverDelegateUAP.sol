@@ -18,13 +18,45 @@ import {IExecutiveAssistant} from "./executive-assistants/IExecutiveAssistant.so
 contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
     uint256 private constant NO_OP = type(uint256).max;
     bytes4 public constant _INTERFACEID_UAP = 0x03309e5f;
+    
+    // ERC725X operation types
+    uint256 private constant OPERATION_0_CALL = 0;
+    uint256 private constant OPERATION_1_CREATE = 1;
+    uint256 private constant OPERATION_2_CREATE2 = 2;
+    uint256 private constant OPERATION_3_STATICCALL = 3;
+    uint256 private constant OPERATION_4_DELEGATECALL = 4;
+    
+    
     event TypeIdConfigFound(bytes32 typeId);
     event AssistantFound(address executiveAssistant);
     event AssistantInvoked(address indexed subscriber, address indexed executiveAssistant);
     event AssistantNoOp(address indexed subscriber, address executiveAssistant);
+    
+    // Standardized events for monitoring and debugging
+    event ScreenResult(
+        bytes32 indexed typeId,
+        address indexed profile,
+        address indexed module,
+        bool outcome
+    );
+    
+    event ExecutionResult(
+        bytes32 indexed typeId,
+        address indexed profile,
+        address indexed module,
+        bool outcome
+    );
+    
     error ExecutiveAssistantExecutionFailed(address executiveAssistant, bytes32 typeId);
     error ScreenerAssistantExecutionFailed(address executiveAssistant, address screenerAssistant, bytes32 typeId);
     error InvalidEncodedData();
+    error InvalidEncodedArrayData(bytes data);
+    error InvalidEncodedBooleanData(bytes data);
+    error InvalidEncodedExecutiveResultData(bytes data);
+    error InvalidEncodedExecutionResultData(bytes data);
+    
+    // Key for UAPRevertOnFailure setting
+    bytes32 private constant REVERT_ON_FAILURE_KEY = 0x8631ee7d1d9475e6b2c38694122192970d91cafd1c64176ecc23849e17441672;
 
     /**
      * @dev Handles incoming transactions by evaluating Filters and invoking Assistants.
@@ -56,17 +88,26 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         }
         emit TypeIdConfigFound(typeId);
 
-        // Decode executive assistants
-        address[] memory executiveAssistants = abi.decode(typeConfig, (address[]));
+        // Safely decode executive assistants
+        address[] memory executiveAssistants = _safeDecodeAddressArray(typeConfig);
         if (executiveAssistants.length == 0) {
             return super.universalReceiverDelegate(notifier, value, typeId, lsp1Data);
         }
 
         bytes memory currentLsp1Data = lsp1Data;
         uint256 currentValue = value;
+        
+        // Check user's failure handling preference ONCE before all assistant calls
+        bytes memory revertOnFailureData = IERC725Y(msg.sender).getData(REVERT_ON_FAILURE_KEY);
+        bool revertOnFailure = false;
+        if (revertOnFailureData.length > 0) {
+            revertOnFailure = (revertOnFailureData[0] != 0x00);
+        }
+        
         for (uint256 i = 0; i < executiveAssistants.length; i++) {
             bool shouldExecute = true;
             address executiveAssistant = executiveAssistants[i];
+            
             // Fetch and evaluate screener assistants
             bytes32 screenersChainKey = LSP2Utils.generateMappingWithGroupingKey(
                 bytes6(keccak256("UAPExecutiveScreeners")),
@@ -81,20 +122,23 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
             );
             bytes memory screenersChainRaw = IERC725Y(msg.sender).getData(screenersChainKey);
             if (screenersChainRaw.length > 0) {
-                address[] memory screenerAssistants = abi.decode(screenersChainRaw, (address[]));
+                // Safely decode screener assistants
+                address[] memory screenerAssistants = _safeDecodeAddressArray(screenersChainRaw);
                 bytes memory screenersChainLogicRaw = IERC725Y(msg.sender).getData(screenersChainLogicKey);
                 bool isAndChain = true;
                 if (screenersChainLogicRaw.length > 0) {
                     isAndChain = (screenersChainLogicRaw[0] != 0x00);
                 }
+                
                 for (uint256 j = 0; j < screenerAssistants.length; j++) {
                     address screener = screenerAssistants[j];
                     uint256 screenerOrder = (i * 1000) + j;
                     // solhint-disable-next-line avoid-low-level-calls
-                    (bool success, bytes memory ret) = screener.delegatecall(
+                    (bool success, bytes memory ret) = screener.staticcall(
                         abi.encodeWithSelector(
                             IScreenerAssistant.evaluate.selector,
-                            screener,
+                            msg.sender,        // profile (UP address)
+                            screener,          // screenerAddress
                             screenerOrder,
                             notifier,
                             currentValue,
@@ -112,13 +156,16 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                             revert ScreenerAssistantExecutionFailed(executiveAssistant, screener, typeId);
                         }
                     } else if (success) {
-                        if (isAndChain && !abi.decode(ret, (bool))) {
+                        bool screenerResult = _safeDecodeBoolean(ret);
+                        emit ScreenResult(typeId, msg.sender, screener, screenerResult);
+                        
+                        if (isAndChain && !screenerResult) {
                             shouldExecute = false;
                             break;
-                        } else if (!isAndChain && abi.decode(ret, (bool))) {
+                        } else if (!isAndChain && screenerResult) {
                             shouldExecute = true;
                             break;
-                        } else if (!isAndChain && !abi.decode(ret, (bool))) {
+                        } else if (!isAndChain && !screenerResult) {
                             shouldExecute = false;
                         }
                     }
@@ -141,13 +188,20 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                     )
                 );
                 if (!success) {
-                    if (returnData.length > 0) {
-                        // solhint-disable-next-line no-inline-assembly
-                        assembly {
-                            revert(add(returnData, 32), mload(returnData))
+                    if (revertOnFailure) {
+                        // User wants to revert on failure - use EXACT original error propagation
+                        if (returnData.length > 0) {
+                            // solhint-disable-next-line no-inline-assembly
+                            assembly {
+                                revert(add(returnData, 32), mload(returnData))
+                            }
+                        } else {
+                            revert ExecutiveAssistantExecutionFailed(executiveAssistant, typeId);
                         }
                     } else {
-                        revert ExecutiveAssistantExecutionFailed(executiveAssistant, typeId);
+                        // User wants to continue on failure (default behavior)
+                        emit ExecutionResult(typeId, msg.sender, executiveAssistant, false);
+                        continue; // Skip to next assistant with unmodified payload
                     }
                 }
 
@@ -157,10 +211,11 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                     uint256 execValue,
                     bytes memory execData,
                     bytes memory execResultData
-                ) = abi.decode(returnData, (uint256, address, uint256, bytes, bytes));
+                ) = _safeDecodeExecutiveResult(returnData);
+
 
                 if (execResultData.length > 0) {
-                    (uint256 newValue, bytes memory newLsp1Data) = abi.decode(execResultData, (uint256, bytes));
+                    (uint256 newValue, bytes memory newLsp1Data) = _safeDecodeExecutionResult(execResultData);
                     currentValue = newValue;
                     currentLsp1Data = newLsp1Data;
                 }
@@ -168,8 +223,10 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
                 if (execOperationType != NO_OP) {
                     IERC725X(msg.sender).execute(execOperationType, execTarget, execValue, execData);
                     emit AssistantInvoked(msg.sender, executiveAssistant);
+                    emit ExecutionResult(typeId, msg.sender, executiveAssistant, true);
                 } else {
                     emit AssistantNoOp(msg.sender, executiveAssistant);
+                    emit ExecutionResult(typeId, msg.sender, executiveAssistant, false);
                 }
             }
         }
@@ -190,4 +247,77 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         // Cast the masked value to bytes20
         return bytes20(uint160(maskedValue));
     }
+
+
+    /**
+     * @dev Safely decodes an address array with comprehensive validation
+     * @param data The encoded data to decode
+     * @return The decoded address array
+     */
+    function _safeDecodeAddressArray(bytes memory data) internal pure returns (address[] memory) {
+        if (data.length == 0) {
+            return new address[](0);
+        }
+        
+        // Decode the array - abi.decode will revert if data is malformed
+        address[] memory decodedArray = abi.decode(data, (address[]));
+        return decodedArray;
+    }
+
+    /**
+     * @dev Safely decodes a boolean value with validation
+     * @param data The encoded data to decode
+     * @return The decoded boolean value
+     */
+    function _safeDecodeBoolean(bytes memory data) internal pure returns (bool) {
+        if (data.length == 0) {
+            return false;
+        }
+        
+        // Decode the boolean - abi.decode will revert if data is malformed
+        bool decodedBool = abi.decode(data, (bool));
+        return decodedBool;
+    }
+
+    /**
+     * @dev Safely decodes executive assistant execution result data
+     * @param data The encoded execution result data
+     * @return execOperationType The operation type
+     * @return execTarget The target address
+     * @return execValue The value
+     * @return execData The execution data
+     * @return execResultData The result data
+     */
+    function _safeDecodeExecutiveResult(bytes memory data) internal pure returns (
+        uint256 execOperationType,
+        address execTarget,
+        uint256 execValue,
+        bytes memory execData,
+        bytes memory execResultData
+    ) {
+        if (data.length == 0) {
+            revert InvalidEncodedExecutiveResultData(data);
+        }
+        
+        (execOperationType, execTarget, execValue, execData, execResultData) = 
+            abi.decode(data, (uint256, address, uint256, bytes, bytes));
+    }
+
+    /**
+     * @dev Safely decodes execution result data (value and lsp1Data)
+     * @param data The encoded result data
+     * @return newValue The new value
+     * @return newLsp1Data The new LSP1 data
+     */
+    function _safeDecodeExecutionResult(bytes memory data) internal pure returns (
+        uint256 newValue,
+        bytes memory newLsp1Data
+    ) {
+        if (data.length == 0) {
+            revert InvalidEncodedExecutionResultData(data);
+        }
+        
+        (newValue, newLsp1Data) = abi.decode(data, (uint256, bytes));
+    }
+
 }

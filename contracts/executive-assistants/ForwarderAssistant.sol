@@ -25,6 +25,7 @@ contract ForwarderAssistant is ExecutiveAssistantBase {
     );
     error TargetAddressNotSet();
     error InvalidTypeId();
+    error InvalidEncodedForwarderConfigData(bytes data);
 
     /**
      * @dev The execute function called by URDuap via delegatecall.
@@ -47,7 +48,7 @@ contract ForwarderAssistant is ExecutiveAssistantBase {
             return (0, notifier, value, "", "");
         }
         (, bytes memory encodedConfig) = this.fetchConfiguration(upAddress, typeId, executionOrder);
-        (address targetAddress) = abi.decode(encodedConfig, (address));
+        address targetAddress = _safeDecodeForwarderConfig(encodedConfig);
         if (targetAddress == address(0)) {
             revert TargetAddressNotSet();
         }
@@ -109,7 +110,7 @@ contract ForwarderAssistant is ExecutiveAssistantBase {
             );
             // Check if UP owns the tokenId (LSP8-specific)
             address tokenOwner = ILSP8IdentifiableDigitalAsset(notifier).tokenOwnerOf(tokenId);
-            if (tokenOwner != upAddress) {
+            if (tokenOwner == upAddress) {
                 emit LSP8AssetForwarded(notifier, tokenId, targetAddress);
                 return (0, notifier, value, encodedLSP8Tx, abi.encode(value, resultingLsp1Data));
             } else {
@@ -117,5 +118,19 @@ contract ForwarderAssistant is ExecutiveAssistantBase {
             } 
         }
         revert InvalidTypeId();
+    }
+
+    /**
+     * @dev Safely decodes forwarder configuration (address) 
+     * @param data The encoded data to decode
+     * @return targetAddress The forward target address
+     */
+    function _safeDecodeForwarderConfig(bytes memory data) internal pure returns (address targetAddress) {
+        if (data.length == 0) {
+            revert InvalidEncodedForwarderConfigData(data);
+        }
+        
+        // Decode the address - abi.decode will revert if data is malformed
+        targetAddress = abi.decode(data, (address));
     }
 }

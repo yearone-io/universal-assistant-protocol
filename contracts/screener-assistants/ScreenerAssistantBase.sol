@@ -15,6 +15,8 @@ abstract contract ScreenerAssistantBase is IScreenerAssistant, ERC165 {
         uint256 executionOrder
     );
     error InvalidEncodedData();
+    error InvalidEncodedBooleanData(bytes data);
+    error InvalidEncodedCurationConfigData(bytes data);
 
     function supportsInterface(
         bytes4 interfaceId
@@ -78,5 +80,38 @@ abstract contract ScreenerAssistantBase is IScreenerAssistant, ERC165 {
     function uint256ToBytes20(uint256 value) public pure returns (bytes20) {
         uint256 maskedValue = value & (2**160 - 1);
         return bytes20(uint160(maskedValue));
+    }
+
+    /**
+     * @dev Safely decodes a boolean value with validation
+     * @param data The encoded data to decode
+     * @return The decoded boolean value
+     */
+    function _safeDecodeBoolean(bytes memory data) internal pure returns (bool) {
+        if (data.length == 0) {
+            return false;
+        }
+        
+        // Decode the boolean - abi.decode will revert if data is malformed
+        bool decodedBool = abi.decode(data, (bool));
+        return decodedBool;
+    }
+
+    /**
+     * @dev Safely decodes curation configuration (address, bool) tuple
+     * @param data The encoded data to decode
+     * @return curatedListAddress The curated list address
+     * @return returnValueWhenCurated The return value when curated
+     */
+    function _safeDecodeCurationConfig(bytes memory data) internal pure returns (
+        address curatedListAddress,
+        bool returnValueWhenCurated
+    ) {
+        if (data.length == 0) {
+            revert InvalidEncodedCurationConfigData(data);
+        }
+        
+        // Decode the tuple - abi.decode will revert if data is malformed
+        (curatedListAddress, returnValueWhenCurated) = abi.decode(data, (address, bool));
     }
 }

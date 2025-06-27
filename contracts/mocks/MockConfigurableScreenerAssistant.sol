@@ -5,6 +5,7 @@ import { ScreenerAssistantBase } from "../screener-assistants/ScreenerAssistantB
 
 contract MockConfigurableScreenerAssistant is ScreenerAssistantBase {
     function evaluate(
+        address profile,
         address screenerAddress,
         uint256 screenerOrder,
         address notifier,
@@ -12,12 +13,12 @@ contract MockConfigurableScreenerAssistant is ScreenerAssistantBase {
         bytes32 typeId,
         bytes memory /* data */
     ) external view returns (bool) {
-        address upAddress = msg.sender;
+        address upAddress = profile;
         // Fetch configuration (assume encoded as bool: true/false)
         (,,bytes memory configData) = fetchConfiguration(upAddress, screenerAddress, typeId, screenerOrder);
         if (configData.length == 0) return false;
 
-        bool shouldReturn = abi.decode(configData, (bool));
+        bool shouldReturn = _safeDecodeBoolean(configData);
         return shouldReturn && notifier != address(0); // Additional check for non-zero notifier
     }
 }

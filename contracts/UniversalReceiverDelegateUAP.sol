@@ -18,14 +18,7 @@ import {IExecutiveAssistant} from "./executive-assistants/IExecutiveAssistant.so
 contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
     uint256 private constant NO_OP = type(uint256).max;
     bytes4 public constant _INTERFACEID_UAP = 0x03309e5f;
-    
-    // ERC725X operation types
-    uint256 private constant OPERATION_0_CALL = 0;
-    uint256 private constant OPERATION_1_CREATE = 1;
-    uint256 private constant OPERATION_2_CREATE2 = 2;
-    uint256 private constant OPERATION_3_STATICCALL = 3;
-    uint256 private constant OPERATION_4_DELEGATECALL = 4;
-    
+    bytes32 private constant REVERT_ON_FAILURE_KEY = 0x8631ee7d1d9475e6b2c38694122192970d91cafd1c64176ecc23849e17441672;
     
     event TypeIdConfigFound(bytes32 typeId);
     event AssistantFound(address executiveAssistant);
@@ -54,9 +47,6 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
     error InvalidEncodedBooleanData(bytes data);
     error InvalidEncodedExecutiveResultData(bytes data);
     error InvalidEncodedExecutionResultData(bytes data);
-    
-    // Key for UAPRevertOnFailure setting
-    bytes32 private constant REVERT_ON_FAILURE_KEY = 0x8631ee7d1d9475e6b2c38694122192970d91cafd1c64176ecc23849e17441672;
 
     /**
      * @dev Handles incoming transactions by evaluating Filters and invoking Assistants.
@@ -247,7 +237,6 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
         // Cast the masked value to bytes20
         return bytes20(uint160(maskedValue));
     }
-
 
     /**
      * @dev Safely decodes an address array with comprehensive validation

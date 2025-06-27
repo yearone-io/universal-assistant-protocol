@@ -64,22 +64,38 @@ describe("Executives: TipAssistant", function () {
   }
 
   it("No config => revert with TipConfigNotSet", async function () {
+    // Set UAPRevertOnFailure to true to get original behavior
+    const revertOnFailureKey = erc725UAP.encodeKeyName("UAPRevertOnFailure");
+    await universalProfile.setData(revertOnFailureKey, erc725UAP.encodeValueType("bool", true));
+    
     const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP1_TYPE_IDS.LSP0ValueReceived]);
     await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [tipAssistant1.target]));
     await expect(sendLYX("1")).to.be.revertedWithCustomError(tipAssistant1, "TipConfigNotSet");
   });
 
   it("Zero address => revert InvalidTipRecipient", async function () {
+    // Set UAPRevertOnFailure to true to get original behavior
+    const revertOnFailureKey = erc725UAP.encodeKeyName("UAPRevertOnFailure");
+    await universalProfile.setData(revertOnFailureKey, erc725UAP.encodeValueType("bool", true));
+    
     await subscribeTipAssistant(tipAssistant1.target, ethers.ZeroAddress, 10);
     await expect(sendLYX("1")).to.be.revertedWithCustomError(tipAssistant1, "InvalidTipRecipient");
   });
 
   it("tipPercentage = 0 => revert InvalidTipPercentage", async function () {
+    // Set UAPRevertOnFailure to true to get original behavior
+    const revertOnFailureKey = erc725UAP.encodeKeyName("UAPRevertOnFailure");
+    await universalProfile.setData(revertOnFailureKey, erc725UAP.encodeValueType("bool", true));
+    
     await subscribeTipAssistant(tipAssistant1.target, await lyxTipReceiver.getAddress(), 0);
     await expect(sendLYX("1")).to.be.revertedWithCustomError(tipAssistant1, "InvalidTipPercentage");
   });
 
   it("tipPercentage > 100 => revert InvalidTipPercentage", async function () {
+    // Set UAPRevertOnFailure to true to get original behavior
+    const revertOnFailureKey = erc725UAP.encodeKeyName("UAPRevertOnFailure");
+    await universalProfile.setData(revertOnFailureKey, erc725UAP.encodeValueType("bool", true));
+    
     await subscribeTipAssistant(tipAssistant1.target, await lyxTipReceiver.getAddress(), 101);
     await expect(sendLYX("1")).to.be.revertedWithCustomError(tipAssistant1, "InvalidTipPercentage");
   });

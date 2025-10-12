@@ -7,10 +7,9 @@ import {
   MockAssistant,
   MockBadAssistant,
 } from "../../typechain-types";
-import { deployUniversalProfile, deployMockAssets } from "../utils/TestUtils";
+import { deployUniversalProfile, deployMockAssets, encodeTupleKeyValue } from "../utils/TestUtils";
 import ERC725, { ERC725JSONSchema } from "@erc725/erc725.js";
 import uap from '../../schemas/UAP.json';
-import { encodeTupleKeyValue } from "@erc725/erc725.js/build/main/src/lib/utils";
 
 describe("Executives: Forwarder", function () {
   let owner: Signer;

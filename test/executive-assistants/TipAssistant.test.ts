@@ -2,11 +2,10 @@ import { ethers } from "hardhat";
 import { Signer } from "ethers";
 import { expect } from "chai";
 import { OPERATION_TYPES, LSP1_TYPE_IDS, PERMISSIONS } from "@lukso/lsp-smart-contracts";
-import { deployUniversalProfile } from "../utils/TestUtils";
+import { deployUniversalProfile, encodeTupleKeyValue } from "../utils/TestUtils";
 import { TipAssistant } from "../../typechain-types/contracts/executive-assistants/TipAssistant.sol";
 import ERC725, { ERC725JSONSchema } from "@erc725/erc725.js";
 import uap from '../../schemas/UAP.json';
-import { encodeTupleKeyValue } from "@erc725/erc725.js/build/main/src/lib/utils";
 
 describe("Executives: TipAssistant", function () {
   let owner: Signer;

@@ -1,210 +1,240 @@
 # Universal Assistant Protocol (UAP)
 
-The Universal Assistant Protocol (UAP) extends LUKSO's blockchain ecosystem by providing programmable automation for Universal Profiles. UAP enables profiles to respond intelligently and autonomously to incoming and outgoing transactions through a configurable system of "Executive Assistants".
+> **Transform your Universal Profile into an intelligent, automated blockchain entity**
 
-## Overview
+The Universal Assistant Protocol (UAP) is a powerful automation framework for [LUKSO](https://lukso.network)'s Universal Profiles. UAP enables profiles to automatically execute custom logic in response to incoming transactions, token transfers, and other blockchain events through a flexible system of **Executive Assistants** and **Screener Assistants**.
 
-UAP is built on top of LUKSO's Universal Receiver pattern (LSP1) and provides an extensible framework where users can configure their Universal Profile to handle various types of blockchain interactions automatically based on customizable rules and conditions.
+## ✨ What UAP Does
 
-## Architecture
+UAP turns your Universal Profile into a smart, automated agent that can do things like (but not limited to):
 
-```mermaid
-flowchart TD
-    subgraph "Universal Profile"
-        UP[Universal Profile Contract]
-        ERC725Y[ERC725Y Storage]
-        ERC725X[ERC725X Execution]
-    end
-    
-    subgraph "Universal Assistant Protocol"
-        URD[UniversalReceiverDelegateUAP]
-        EA[Executive Assistants]
-        SA[Screener Assistants]
-    end
-    
-    TRX[Transaction/Event] --> UP
-    UP --> URD
-    URD <--> ERC725Y
-    URD --> EA
-    EA --> ERC725X
-    EA <--> ERC725Y
-    SA <--> EA
-    SA <--> ERC725Y
-    
-    classDef lukso fill:#7C4DFF,color:white;
-    classDef uap fill:#00BFA5,color:white;
-    
-    class UP,ERC725Y,ERC725X lukso;
-    class URD,EA,SA uap;
+- 🔄 **Automatically forward tokens** to other addresses when received
+- 💰 **Send tips** - share a percentage of incoming payments with others
+- 🎯 **Filter interactions** - only respond to trusted addresses or token holders
+- 🔗 **Chain complex behaviors** - combine multiple actions with sophisticated conditions
+- 🛡️ **Secure automation** - all logic runs through your Universal Profile's permissions system
+
+## 🚀 Quick Start
+
+### Basic Example: Auto-Forward Tokens
+```typescript
+// 1. Deploy UAP to your Universal Profile
+const uap = await deployUAP(universalProfile);
+
+// 2. Deploy a ForwarderAssistant
+const forwarder = await deployAssistant("ForwarderAssistant");
+
+// 3. Configure auto-forwarding for LSP7 tokens
+await configureAssistant(universalProfile, {
+  typeId: LSP7_TRANSFER_TYPE_ID,
+  assistant: forwarder.address,
+  config: { forwardTo: "0x..." }
+});
 ```
 
-## Core Components
+Now your Universal Profile will automatically forward any received LSP7 tokens to the specified address!
 
-### 1. UniversalReceiverDelegateUAP
+## 🏗️ Core Concepts
 
-This is the central contract of the UAP system. It extends LUKSO's `LSP1UniversalReceiverDelegateUP` and serves as the main entry point for handling incoming transactions and events in a Universal Profile.
+### Executive Assistants
+**Executive Assistants** are smart contracts that perform actions on behalf of your Universal Profile. They implement the automation logic - what should happen when certain events occur.
 
-Main responsibilities:
-- Receives notifications through the `universalReceiverDelegate` function when transactions are sent to or from a Universal Profile
-- Looks up the appropriate configuration for the transaction type
-- Executes the chain of Executive Assistants after running them through configured Screeners
-- Manages the execution flow between multiple Assistants
+**Initial Built-in Executive Assistants:**
+- **🔄 ForwarderAssistant** - Forwards received tokens to another address
+- **💰 TipAssistant** - Sends a percentage of received LYX to a tip address  
+- **🎨 BurntPixRefinerAssistant** - Specialized automation for BurntPix ecosystem
 
-### 2. Executive Assistants
+### Screener Assistants
+**Screener Assistants** act as filters - they decide whether an Executive Assistant should run based on custom conditions.
 
-Executive Assistants perform actions on behalf of the Universal Profile. They implement the `IExecutiveAssistant` interface and are responsible for executing specific tasks in response to transactions.
+**Built-in Screener Assistants:**
+- **📋 NotifierListScreener** - Allow/block based on address lists
+- **🎫 NotifierCurationScreener** -  Allow/block based on address in curated list of addresses
 
-Examples included:
-- **ForwarderAssistant**: Automatically forwards received tokens (LSP7/LSP8) to another address
-- **TipAssistant**: Sends a percentage of received native tokens (LYX) to a specified address
-- **BurntPixRefinerAssistant**: Specialized assistant for interacting with the BurntPix system
+### Configuration Flexibility
+- **Chain Multiple Assistants**: Execute several actions for the same event
+- **Complex Conditions**: Combine screeners with AND/OR logic
+- **Dynamic Lists**: Update allowed/blocked addresses without redeploying
+- **Error Handling**: Choose between graceful degradation or strict failure modes
 
-Each Executive Assistant:
-- Is associated with a specific transaction type
-- Can be configured with custom parameters
-- Can execute arbitrary transactions through the Universal Profile
+## 🔧 Building Your Own Assistants
 
-### 3. Screener Assistants
+Creating custom assistants is straightforward and powerful:
 
-Screener Assistants implement filtering logic to determine whether an Executive Assistant should execute. They implement the `IScreenerAssistant` interface and return boolean values.
+### Executive Assistant Example
+```solidity
+pragma solidity ^0.8.24;
 
-Examples included:
-- **NotifierListScreener**: Determines whether to execute based on if a notifier address is on a predefined list
-- **NotifierCurationScreener**: Uses a LSP8 token-based curation system to determine allowed notifiers
+import "./ExecutiveAssistantBase.sol";
 
-Screeners can be chained together with AND/OR logic to create complex conditions.
+contract MyCustomAssistant is ExecutiveAssistantBase {
+    function execute(
+        uint256 executionOrder,
+        address upAddress,
+        address notifier,
+        uint256 value,
+        bytes32 typeId,
+        bytes memory lsp1Data
+    ) external returns (uint256, address, uint256, bytes memory, bytes memory) {
+        // Fetch your configuration from the Universal Profile
+        (, bytes memory config) = fetchConfiguration(upAddress, typeId, executionOrder);
+        
+        // Decode configuration parameters
+        address targetAddress = abi.decode(config, (address));
+        
+        // Your custom logic here!
+        bytes memory executeData = abi.encodeWithSignature(
+            "transfer(address,uint256)", 
+            targetAddress, 
+            value
+        );
+        
+        // Return execution details
+        return (0, notifier, value, executeData, "");
+    }
+}
+```
 
-## Data Structure
+### Screener Assistant Example
+```solidity
+pragma solidity ^0.8.24;
 
-The UAP uses ERC725Y key-value storage for configuration with a well-defined schema:
+import "./ScreenerAssistantBase.sol";
 
-- **UAPTypeConfig**: Maps transaction typeIds to a list of Executive Assistants
-- **UAPExecutiveConfig**: Stores configuration parameters for each Executive Assistant
-- **UAPExecutiveScreeners**: Defines Screener Assistants for each Executive Assistant
-- **UAPExecutiveScreenersANDLogic**: Defines logical operator (AND/OR) for chained Screeners
-- **UAPAddressListName**: Stores named lists of addresses for use by various Assistants
+contract MyCustomScreener is ScreenerAssistantBase {
+    function evaluate(
+        address upAddress,
+        address notifier,
+        uint256 value,
+        bytes32 typeId,
+        bytes memory lsp1Data
+    ) external view returns (bool) {
+        // Your filtering logic here
+        return value > 1 ether; // Only allow high-value transactions
+    }
+}
+```
 
-For a detailed overview of the schema for storing configurations please refer to:
-1. [UAP Schema](./schemas/UAP.json)
-2. [UAP Schema Overview](./UAP-Schema-Breakdown.md)
+## 📋 Real-World Use Cases
 
-## Transaction Flow
+### **1. Automated Tip Jar**
+Automatically share 10% of all incoming payments with a charity:
+```typescript
+await configureAssistant(universalProfile, {
+  typeId: LSP0_VALUE_RECEIVED,
+  assistant: tipAssistant.address,
+  config: { 
+    recipient: "0x...", // charity address
+    percentage: 1000    // 10% (basis points)
+  }
+});
+```
 
-1. A transaction is sent to a Universal Profile (receiving tokens, native currency, etc.)
-2. The Universal Profile's Universal Receiver forwards this to the Universal Receiver Delegate (UAP)
-3. The URD checks if there's a configuration for the transaction's typeId
-4. For each configured Executive Assistant:
-   - All associated Screener Assistants are evaluated
-   - If Screeners approve, the Executive Assistant executes its action
-   - The Executive Assistant can modify transaction data or value for subsequent Assistants
-5. The URD returns control to the Universal Profile
+### **2. Auto-Forwarder for Curated Tokens**
+Only forward tokens when the sender's address is on a curated list:
+```typescript
+await configureAssistant(universalProfile, {
+  typeId: LSP7_TRANSFER_TYPE_ID,
+  assistant: forwarderAssistant.address,
+  screeners: [curationScreener.address],
+  screenerConfig: {
+    tokenContract: "0x...", // Required NFT contract
+    returnWhenTrue: true
+  },
+  config: { forwardTo: "0x..." }
+});
+```
 
-## Executive Assistant Examples
+### **3. Multi-Step Automation**
+Execute multiple actions in sequence with complex conditions:
+```typescript
+// Configure multiple assistants for the same event
+await configureMultipleAssistants(universalProfile, {
+  typeId: LSP7_TRANSFER_TYPE_ID,
+  assistants: [
+    { 
+      assistant: tipAssistant.address,
+      config: { recipient: "0x...", percentage: 500 }, // 5% tip
+      screeners: [allowlistScreener.address] // Only from trusted addresses
+    },
+    { 
+      assistant: forwarderAssistant.address,
+      config: { forwardTo: "0x..." } // Forward remaining amount
+    }
+  ]
+});
+```
 
-### ForwarderAssistant
+## 🛡️ Security & Control
 
-Automatically forwards tokens received by a Universal Profile to another address.
+UAP is designed with security as the top priority:
 
-- **Use case**: Setting up a forwarding address for all received tokens
-- **Configuration**: Target address to receive the forwarded tokens
-- **Supported Standards**: LSP7 (fungible tokens) and LSP8 (non-fungible tokens)
+- **Permission-Based**: All automation runs through your Universal Profile's existing permission system
+- **Configurable Error Handling**: Choose between graceful degradation or strict failure modes
+- **Static Screening**: Screener assistants cannot modify state, only read and evaluate
 
-### TipAssistant
-
-Sends a percentage of received native tokens (LYX) to a specified address.
-
-- **Use case**: Automatically sharing a percentage of incoming funds
-- **Configuration**: Recipient address and percentage to send
-
-### BurntPixRefinerAssistant
-
-Specialized assistant for interacting with the BurntPix system.
-
-- **Use case**: Automating the refinement of BurntPix tokens
-- **Configuration**: BurntPix collection address, token ID, and iteration count
-
-## Screener Assistant Examples
-
-### NotifierListScreener
-
-Filters transactions based on a list of addresses stored in the Universal Profile.
-
-- **Use case**: Allowing only specific addresses to trigger automation
-- **Configuration**: List name and return value when in list
-
-### NotifierCurationScreener
-
-Uses LSP8 tokens for a more flexible and decentralized curation system.
-
-- **Use case**: Token-gated automation based on ownership of specific NFTs
-- **Configuration**: LSP8 contract address and return value configuration
-
-## Integration with Universal Profiles
-
-To use UAP with a Universal Profile:
-
-1. Deploy the UniversalReceiverDelegateUAP contract
-2. Set it as the Universal Receiver Delegate for your Universal Profile
-3. Deploy the desired Executive and Screener Assistants
-4. Configure your Universal Profile with the appropriate ERC725Y data
-
-## Benefits
-
-- **Automation**: Perform actions automatically when receiving assets
-- **Customization**: Create tailored automation rules with screeners and assistants
-- **Composability**: Mix and match different assistants for complex behaviors
-- **Extensibility**: Easily create new assistants for specific use cases
-
-## Security Considerations
-
-- Executive Assistants can execute arbitrary transactions through the Universal Profile
-- Carefully review all assistants before configuring them
-- Use screeners to limit which transactions can trigger assistants
-- Test configurations thoroughly before deploying to mainnet
-
-## Development
-
-To develop new Assistants:
-
-1. For Executive Assistants, extend `ExecutiveAssistantBase` and implement the `execute` function
-2. For Screener Assistants, extend `ScreenerAssistantBase` and implement the `evaluate` function
-
-## Installing and Deployment
-
-Ensure your .env file is configured.
-
-Install & Run Tests:
+## 🔧 Development Setup
 
 ```bash
+# Clone and install
+git clone https://github.com/yearone-io/universal-assistant-protocol
+cd universal-assistant-protocol
 npm install
+
+# Run tests
 npm run test
+
+# Deploy to LUKSO testnet
+npx hardhat deployContracts --network luksoTestnet \
+  --names "UniversalReceiverDelegateUAP,ForwarderAssistant,TipAssistant" \
+  --paths "contracts,contracts/executive-assistants,contracts/executive-assistants"
 ```
 
-Deploy the UAP URD and multiple assistants at once:
+## 📚 Documentation
 
-```bash
-npx hardhat deployContracts \
-  --network luksoTestnet \
-  --names "UniversalReceiverDelegateUAP,ForwarderAssistant" \
-  --paths "contracts,contracts/executive-assistants"
-```
+- **[Schema Guide](./UAP-Schema-Breakdown.md)** - Complete ERC725Y configuration reference
+- **[Assistant Examples](./contracts/executive-assistants/)** - Browse built-in assistant implementations
+- **[Test Suite](./test/)** - Comprehensive examples and patterns
+- **[LUKSO Docs](./lukso-docs.md)** - Integration with LUKSO ecosystem
 
-## Verifications
+## 🌟 Why Build on UAP?
 
-Verify the UAP URD and multiple assistants post-deployment:
+### **For Users**
+- **Set and Forget**: Configure once, automate forever
+- **Composable**: Mix and match assistants for custom workflows
+- **Secure**: Built on LUKSO's battle-tested Universal Profile system
+- **Transparent**: All actions are on-chain and auditable
 
-```bash
-npx hardhat verifyContracts \
-  --network luksoTestnet \
-  --names "UniversalReceiverDelegateUAP,TipAssistant,BurntPixRefinerAssistant,ForwarderAssistant" \
-  --addresses "0xcf44a050c9b1fc87141d77b646436443bdc05a2b,0xf24c39a4d55994e70059443622fc166f05b5ff14,0x34a8ad9cf56dece5790f64f790de137b517169c6,0x67cc9c63af02f743c413182379e0f41ed3807801" \
-  --paths "contracts,contracts/executive-assistants,contracts/executive-assistants,contracts/executive-assistants"
-```
+### **For Developers**
+- **Easy Extension**: Simple interfaces for custom logic
+- **Rich Tooling**: Comprehensive test utilities and base classes
+- **Gas Efficient**: Optimized execution patterns
+- **Well Documented**: Clear examples and detailed guides
 
-## Project Status
+## 🤝 Contributing
 
-This project is currently still in early beta/development. Use at your own risk.
+We welcome contributions! UAP thrives on a diverse ecosystem of assistants.
 
-## License
+**Ways to contribute:**
+- 🔨 Build new Executive Assistants for specific use cases
+- 🛡️ Create innovative Screener Assistants for complex conditions
+- 📖 Improve documentation and examples
+- 🐛 Report bugs and suggest improvements
+- 🧪 Add test coverage and edge cases
 
-Licensed under Apache-2.0 and MIT licenses as specified in the individual contract files.
+See our [Contributing Guide](./CONTRIBUTING.md) for details.
+
+## 📜 License
+
+Licensed under Apache-2.0 and MIT licenses as specified in individual contract files.
+
+## 🚀 Get Started Building
+
+Ready to create intelligent, automated Universal Profiles? 
+
+1. **[Explore Examples](./test/)** - See UAP in action
+2. **[Read the Schema Guide](./UAP-Schema-Breakdown.md)** - Understand configuration patterns  
+3. **[Browse Built-in Assistants](./contracts/)** - Learn from existing implementations
+4. **Join the Community** - Coming soon
+
+**The future of blockchain automation starts with UAP. What will you build?** 🌟

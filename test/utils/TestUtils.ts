@@ -20,8 +20,44 @@ import { LSP9DataKeys } from "@lukso/lsp9-contracts";
 import { LSP10DataKeys } from "@lukso/lsp10-contracts";
 import { LSP12DataKeys } from "@lukso/lsp12-contracts";
 import { LSP17DataKeys } from "@lukso/lsp17contractextension-contracts";
-import ERC725 from "@erc725/erc725.js";
-import { encodeTupleKeyValue } from "@erc725/erc725.js/build/main/src/lib/utils";
+import ERC725, { encodeData } from "@erc725/erc725.js";
+
+/**
+ * Encodes tuple key-value pairs using the official ERC725.js encodeData function.
+ * This function wraps the official API for backward compatibility with the old encodeTupleKeyValue.
+ *
+ * The encoding format is:
+ * - For "(Address,Bytes)" => concatenates: address (20 bytes) + bytes (variable)
+ * - For "(Address,Address,Bytes)" => concatenates: address (20 bytes) + address (20 bytes) + bytes (variable)
+ *
+ * @param keyType - The key type (e.g., "(Address,Bytes)")
+ * @param valueType - The value type (e.g., "(address,bytes)")
+ * @param values - Array of values to encode
+ * @returns Hex-encoded bytes string
+ */
+export function encodeTupleKeyValue(
+  keyType: string,
+  valueType: string,
+  values: any[]
+): string {
+  // The tempSchema is just boilerplate to access ERC725's internal tuple encoding logic.
+  // We only care about the encoded VALUE (result.values[0]), not the key hash.
+  // The key must match keccak256(name) for validation, but the actual name doesn't matter.
+  const tempSchema = [{
+    name: 'TempKey',
+    key: '0x817d21792a7e78e5e6e0fba4a0f1e94419ad7134b94ff5cf56ad11b464ad7d2b', // keccak256('TempKey')
+    keyType: 'Singleton',
+    valueType: valueType,
+    valueContent: keyType
+  }];
+
+  const result = encodeData({
+    keyName: 'TempKey',
+    value: values
+  }, tempSchema);
+
+  return result.values[0]; // Return only the encoded value, ignore the key
+}
 
 export function customEncodeAddresses(addresses: string[]): string {
     if (addresses.length > 65535) {

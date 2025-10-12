@@ -1,28 +1,21 @@
-# Universal Assistant Protocol Schema aka Protocol Configurations
+# Universal Assistant Protocol Schema Guide
 
-## Overview
+> **Complete reference for configuring intelligent automation on Universal Profiles**
 
-The Universal Assistant Protocol (UAP) extends LUKSO's LSP1 Universal Receiver pattern to create an automation layer for Universal Profiles. The user configured protocol settings adhere to the LSP2 JSON Schema standard which provides a structured way to interact with ERC725Y key-value data stored on Universal Profiles. It leverages ERC725Y's key-value storage capabilities to create a flexible and powerful automation system for Universal Profiles. The schema follows all best practices of LSP2 while adding custom functionality for complex automation logic.
+This guide provides a comprehensive overview of the ERC725Y schema used by the Universal Assistant Protocol (UAP). The schema follows LUKSO's LSP2 JSON Schema standard while adding powerful automation capabilities to Universal Profiles.
 
-The structure enables:
-- Multiple executive assistants (automations) per transaction type flowing through the Universal Receiver.
-- Layered filtering for transaction payloads through screener assistants
-- Complex logic combinations for payload filtration (AND/OR)
-- Efficient storage of configuration data
-- Expandability for new assistant types
+## 🎯 Quick Schema Overview
 
-## LSP2 JSON Schema Standard & the UAP Schema Structure
+The UAP schema enables:
+- **📋 Assistant Registration**: Map transaction types to executable assistants
+- **🔧 Dynamic Configuration**: Store flexible configuration data for each assistant
+- **🛡️ Sophisticated Filtering**: Chain screener assistants with AND/OR logic
+- **📚 Address List Management**: Efficient allow/block list patterns
+- **⚙️ Error Control**: Configure failure handling behavior
 
-The [LSP2 standard](https://github.com/lukso-network/LIPs/blob/main/LSPs/LSP-2-ERC725YJSONSchema.md) defines a format for keys and values in the ERC725Y storage. Each key-value pair follows specific encoding rules:
+## 🏗️ Core Schema Structure
 
-- **Keys**: 32 bytes (256 bits) identifiers, often created through hash functions
-- **KeyTypes**: Define the structure of the key (Singleton, Array, Mapping, MappingWithGrouping)
-- **ValueTypes**: Define the data type of the stored value
-- **ValueContent**: Describe the semantic meaning of the value
-
-The UAP schema closely matches the patterns set by the LSP2 standard in order to benefit from the tooling built around it and to reduce the cognitive load around learning new patterns when interacting and building on top of the UAP.
-
-### 1. SupportedStandards:UAP
+### 1. **SupportedStandards:UAP** - Protocol Registration
 
 ```json
 {
@@ -34,63 +27,36 @@ The UAP schema closely matches the patterns set by the LSP2 standard in order to
 }
 ```
 
-This key follows LSP2's convention for registering supported standards. It uses:
-- **KeyType**: Mapping with a prefix and a standard name
-- **ValueType**: bytes4 (interface ID)
-- **ValueContent**: The interface ID for UAP (0x03309e5f)
+**Purpose**: Registers UAP support on a Universal Profile following LSP2 conventions.
 
-### 2. UAPTypeConfig:<bytes32>
+### 2. **UAPTypeConfig:\<bytes32\>** - Assistant Registration
 
 ```json
 {
   "name": "UAPTypeConfig:<bytes32>",
   "key": "0x007d1fb981483053919f0000<bytes32>",
   "keyType": "Mapping",
-  "valueType": "address[]",
+  "valueType": "address[]", 
   "valueContent": "Address"
 }
 ```
 
-This mapping stores the executive assistants to execute for a specific typeId:
-- **KeyType**: Mapping with typeId placeholder
-- **ValueType**: Array of addresses
-- **ValueContent**: Addresses of executive assistants in execution order
+**Purpose**: Maps transaction typeIds to arrays of Executive Assistant addresses.
+- **Key**: `typeId` (e.g., LSP7 transfer type, LSP0 value received)
+- **Value**: Array of assistant contract addresses in execution order
 
-### 3. UAPExecutiveScreeners:<bytes32>:<uint256>
-
-```json
-{
-  "name": "UAPExecutiveScreeners:<bytes32>:<uint256>",
-  "key": "0xf71242d9035c<bytes32>0000<uint256>",
-  "keyType": "MappingWithGrouping",
-  "valueType": "address[]",
-  "valueContent": "Address"
-}
+**Example Usage**:
+```typescript
+// Register ForwarderAssistant and TipAssistant for LSP7 transfers
+const typeId = "0xa4d96624a38e7b7e7b3d99a3c1e84e9ad3e3f..."; // LSP7 transfer
+const assistants = [forwarderAssistant.address, tipAssistant.address];
+await up.setData(
+  erc725.encodeKeyName("UAPTypeConfig:<bytes32>", [typeId]),
+  erc725.encodeValueType("address[]", assistants)
+);
 ```
 
-This key stores screener assistants for a specific typeId and execution order:
-- **KeyType**: MappingWithGrouping (two-level mapping)
-- **ValueType**: Array of addresses
-- **ValueContent**: Addresses of screener assistants
-
-### 4. UAPExecutiveScreenersANDLogic:<bytes32>:<uint256>
-
-```json
-{
-  "name": "UAPExecutiveScreenersANDLogic:<bytes32>:<uint256>",
-  "key": "0x5c353a1de5ca<bytes32>0000<uint256>",
-  "keyType": "MappingWithGrouping",
-  "valueType": "bool",
-  "valueContent": "Boolean"
-}
-```
-
-This key determines whether screeners use AND logic (all must pass) or OR logic (any can pass):
-- **KeyType**: MappingWithGrouping (like above)
-- **ValueType**: bool
-- **ValueContent**: Boolean (true for AND logic, false for OR logic)
-
-### 5. UAPExecutiveConfig:<bytes32>:<uint256>
+### 3. **UAPExecutiveConfig:\<bytes32\>:\<uint256\>** - Assistant Configuration
 
 ```json
 {
@@ -102,12 +68,77 @@ This key determines whether screeners use AND logic (all must pass) or OR logic 
 }
 ```
 
-This key stores configuration data for each executive assistant:
-- **KeyType**: MappingWithGrouping
-- **ValueType**: Tuple of address and bytes
-- **ValueContent**: Executive assistant address and its encoded configuration
+**Purpose**: Stores configuration data for each Executive Assistant.
+- **typeId**: Transaction type identifier
+- **executionOrder**: Position in execution sequence (0, 1, 2...)
+- **Value**: Tuple of (assistant address, encoded configuration)
 
-### 6. UAPScreenerConfig:<bytes32>:<uint256>
+**Example Usage**:
+```typescript
+// Configure ForwarderAssistant to forward to specific address
+const config = ethers.AbiCoder.defaultAbiCoder().encode(
+  ["address"], 
+  ["0x742d35Cc6632C0532c718C"] // forward destination
+);
+
+await up.setData(
+  erc725.encodeKeyName("UAPExecutiveConfig:<bytes32>:<uint256>", [typeId, "0"]),
+  encodeTupleKeyValue("(Address,Bytes)", "(address,bytes)", [forwarderAssistant.address, config])
+);
+```
+
+### 4. **UAPExecutiveScreeners:\<bytes32\>:\<uint256\>** - Screener Registration
+
+```json
+{
+  "name": "UAPExecutiveScreeners:<bytes32>:<uint256>",
+  "key": "0xf71242d9035c<bytes32>0000<uint256>",
+  "keyType": "MappingWithGrouping", 
+  "valueType": "address[]",
+  "valueContent": "Address"
+}
+```
+
+**Purpose**: Associates screener assistants with specific executive assistants.
+- **typeId**: Transaction type
+- **executionOrder**: Executive assistant position
+- **Value**: Array of screener assistant addresses
+
+**Example Usage**:
+```typescript
+// Add allowlist screener to ForwarderAssistant
+await up.setData(
+  erc725.encodeKeyName("UAPExecutiveScreeners:<bytes32>:<uint256>", [typeId, "0"]),
+  erc725.encodeValueType("address[]", [allowlistScreener.address])
+);
+```
+
+### 5. **UAPExecutiveScreenersANDLogic:\<bytes32\>:\<uint256\>** - Screener Logic
+
+```json
+{
+  "name": "UAPExecutiveScreenersANDLogic:<bytes32>:<uint256>",
+  "key": "0x5c353a1de5ca<bytes32>0000<uint256>",
+  "keyType": "MappingWithGrouping",
+  "valueType": "bool",
+  "valueContent": "Boolean"
+}
+```
+
+**Purpose**: Determines how multiple screeners are evaluated.
+- **true**: AND logic (all screeners must approve)
+- **false**: OR logic (any screener can approve)
+
+**Example Usage**:
+```typescript
+// Require ALL screeners to approve
+await up.setData(
+  erc725.encodeKeyName("UAPExecutiveScreenersANDLogic:<bytes32>:<uint256>", [typeId, "0"]),
+  "0x01" // true for AND logic
+);
+```
+
+### 6. **UAPScreenerConfig:\<bytes32\>:\<uint256\>** - Screener Configuration
 
 ```json
 {
@@ -119,80 +150,332 @@ This key stores configuration data for each executive assistant:
 }
 ```
 
-This key stores configuration for screener assistants:
-- **KeyType**: MappingWithGrouping
-- **ValueType**: Tuple with two addresses and bytes
-- **ValueContent**: Executive assistant address, screener address, and encoded configuration
+**Purpose**: Stores configuration for individual screener assistants.
+- **screenerOrder**: Calculated as `(executionOrder * 1000) + screenerIndex`
+- **Value**: Tuple of (executive address, screener address, encoded config)
 
-### 7. UAPAddressListName:<bytes32>:<uint256>
+**Example Usage**:
+```typescript
+// Configure NotifierListScreener
+const screenerConfig = ethers.AbiCoder.defaultAbiCoder().encode(
+  ["bool"], 
+  [true] // return true when address is in list
+);
+
+const screenerOrder = 0 * 1000 + 0; // Executive 0, Screener 0
+await up.setData(
+  erc725.encodeKeyName("UAPScreenerConfig:<bytes32>:<uint256>", [typeId, screenerOrder.toString()]),
+  encodeTupleKeyValue("(Address,Address,Bytes)", "(address,address,bytes)", 
+    [forwarderAssistant.address, listScreener.address, screenerConfig])
+);
+```
+
+### 7. **UAPAddressListName:\<bytes32\>:\<uint256\>** - List References
 
 ```json
 {
   "name": "UAPAddressListName:<bytes32>:<uint256>",
-  "key": "0xbba64f30d800<bytes32>0000<uint256>",
+  "key": "0xcfd5d9478c49<bytes32>0000<uint256>",
   "keyType": "MappingWithGrouping",
   "valueType": "string",
   "valueContent": "String"
 }
 ```
 
-This key stores the list name used by screener assistants:
-- **KeyType**: MappingWithGrouping
-- **ValueType**: string
-- **ValueContent**: Name of the list used for address verification
+**Purpose**: Links screeners to named address lists for flexible access control.
 
-### 8. NOTE: The Address List Pattern in the UAP
-Within the UAP screeners users can point to special object that follows what we call "the Address List pattern" which is a recurring well-established pattern within exiting LUKSO standards (LSP5 ReceivedAssets, LSP10 ReceivedVaults, LSP12 IssuedAssets). It uses ERC725Y key-value storage to efficiently manage lists of addresses. This pattern consists of:
-
-1. **A main array key** that stores the length of all addresses in a list (ex: `"LSP5ReceivedAssets[]", "Allowlist[]"`)
-2. **Individual mapping keys** that provide quick lookup of an index and interface id for each address (ex: `"LSP5ReceivedAssetsMap:<address>", "AllowlistMap:<address>"`)
-3. **Index look up key** that provides the address at a particular index (ex: `"LSP5ReceivedAssets[index]", "Allowlist[index]"`)
-3. **A consistent naming convention** that links these components
-
-#### Purpose in the UAP Framework
-
-Address lists serve several crucial purposes in the UAP:
-
-1. **Efficient Screener Evaluations**: The `NotifierListScreener` and `NotifierCurationScreener` use these lists to quickly determine if an address is allowed or blocked from executing actions.
-
-2. **Flexible Configuration**: The schema provides a standardized way to store and access lists of addresses that can be:
-   - Allowlists (addresses that are permitted)
-   - Blocklists (addresses that are restricted)
-
-3. **Dynamic Access Control**: Universal Profiles can use these lists to control which addresses can interact with their automated assistants.
-
-#### Example AddressList Schema Implementation
-
-Looking at the provided schemas in `schemas/GRAVEAllowlist.json`, we can see an example implementation:
-
-```json
-[
-  {
-    "name": "GRAVEAllowlistMap:<address>",
-    "key": "0x538db0639104fb35016d0000<address>",
-    "keyType": "Mapping",
-    "valueType": "(bytes4,uint128)",
-    "valueContent": "(Bytes4,Number)"
-  },
-  {
-    "name": "GRAVEAllowlist[]",
-    "key": "0x6395719ed241bd1fd292a270f8cff2fd1791609fdb8ff7f4f333465b86e1e220",
-    "keyType": "Array",
-    "valueType": "address",
-    "valueContent": "Address"
-  }
-]
+**Example Usage**:
+```typescript
+// Link screener to "TrustedSenders" list
+await up.setData(
+  erc725.encodeKeyName("UAPAddressListName:<bytes32>:<uint256>", [typeId, "0"]),
+  erc725.encodeValueType("string", "TrustedSenders")
+);
 ```
 
-#### Practical Application
+### 8. **UAPRevertOnFailure** - Error Handling Control
 
-In practice, the AddressList is used by Screener Assistants to:
+```json
+{
+  "name": "UAPRevertOnFailure",
+  "key": "0x8631ee7d1d9475e6b2c38694122192970d91cafd1c64176ecc23849e17441672",
+  "keyType": "Singleton",
+  "valueType": "bool",
+  "valueContent": "Boolean"
+}
+```
 
-1. **Retrieve a list name** using `fetchListName()` based on the transaction type and execution order
-2. **Generate a mapping key** specific to an address using `LSP2Utils.generateMappingKey()`
-3. **Perform a lookup** to see if that address exists in the list
-4. **Make a decision** based on whether the address is in the list and the configured return value
+**Purpose**: Controls error handling behavior across all assistants.
+- **true**: Revert entire transaction on any assistant failure
+- **false** (default): Continue execution, emit failure events
 
-This allows for flexible access control that can be dynamically updated by the Universal Profile owner without requiring smart contract redeployments.
+## 📚 Address List Pattern
 
-The pattern brings standardization and efficiency to address management within the Universal Assistant Protocol, enabling complex, automated behaviors in a gas-efficient and structured way.
+UAP leverages LUKSO's established address list pattern for efficient access control:
+
+### List Structure
+```typescript
+// List length
+"TrustedSenders[]" -> uint256 (number of addresses)
+
+// Individual entries  
+"TrustedSenders[0]" -> address (first address)
+"TrustedSenders[1]" -> address (second address)
+
+// Fast lookup mapping
+"TrustedSendersMap:<address>" -> (bytes4, uint128) (interface ID, index)
+```
+
+### Managing Lists
+
+**Add Address to List**:
+```typescript
+await mergeListEntry(erc725, up, "TrustedSenders", "0x742d35Cc...", "0x00000000");
+```
+
+**Remove Address from List**:
+```typescript
+await removeListEntry(erc725, up, "TrustedSenders", "0x742d35Cc...");
+```
+
+**Check List Membership**:
+```typescript
+const mapKey = erc725.encodeKeyName("TrustedSendersMap:<address>", ["0x742d35Cc..."]);
+const exists = await up.getData(mapKey) !== "0x";
+```
+
+## 🚀 Configuration Examples
+
+### Example 1: Simple Auto-Forwarder
+
+```typescript
+const typeId = LSP7_TOKENS_RECIPIENT_NOTIFICATION;
+
+// 1. Register ForwarderAssistant
+await up.setData(
+  erc725.encodeKeyName("UAPTypeConfig:<bytes32>", [typeId]),
+  erc725.encodeValueType("address[]", [forwarderAssistant.address])
+);
+
+// 2. Configure forwarding destination
+const config = ethers.AbiCoder.defaultAbiCoder().encode(
+  ["address"], 
+  ["0x742d35Cc6632C0532c718C"]
+);
+
+await up.setData(
+  erc725.encodeKeyName("UAPExecutiveConfig:<bytes32>:<uint256>", [typeId, "0"]),
+  encodeTupleKeyValue("(Address,Bytes)", "(address,bytes)", [forwarderAssistant.address, config])
+);
+```
+
+### Example 2: Curated-Token Tipping
+
+```typescript
+const typeId = LSP0_VALUE_RECEIVED_NOTIFICATION;
+
+// 1. Register TipAssistant with NFT screener
+await up.setDataBatch([
+  erc725.encodeKeyName("UAPTypeConfig:<bytes32>", [typeId]),
+  erc725.encodeKeyName("UAPExecutiveScreeners:<bytes32>:<uint256>", [typeId, "0"]),
+  erc725.encodeKeyName("UAPExecutiveScreenersANDLogic:<bytes32>:<uint256>", [typeId, "0"])
+], [
+  erc725.encodeValueType("address[]", [tipAssistant.address]),
+  erc725.encodeValueType("address[]", [curationScreener.address]),
+  "0x01" // AND logic
+]);
+
+// 2. Configure tip percentage
+const tipConfig = ethers.AbiCoder.defaultAbiCoder().encode(
+  ["address", "uint256"], 
+  ["0xCharityAddress...", 1000] // 10% in basis points
+);
+
+await up.setData(
+  erc725.encodeKeyName("UAPExecutiveConfig:<bytes32>:<uint256>", [typeId, "0"]),
+  encodeTupleKeyValue("(Address,Bytes)", "(address,bytes)", [tipAssistant.address, tipConfig])
+);
+
+// 3. Configure NFT requirement
+const screenerConfig = ethers.AbiCoder.defaultAbiCoder().encode(
+  ["address", "bool"], 
+  ["0xNFTContract...", true] // Address must be curated
+);
+
+await up.setData(
+  erc725.encodeKeyName("UAPScreenerConfig:<bytes32>:<uint256>", [typeId, "0"]),
+  encodeTupleKeyValue("(Address,Address,Bytes)", "(address,address,bytes)", 
+    [tipAssistant.address, curationScreener.address, screenerConfig])
+);
+```
+
+### Example 3: Multi-Step Allowlist Automation
+
+```typescript
+const typeId = LSP7_TOKENS_RECIPIENT_NOTIFICATION;
+
+// 1. Register multiple assistants in sequence
+await up.setData(
+  erc725.encodeKeyName("UAPTypeConfig:<bytes32>", [typeId]),
+  erc725.encodeValueType("address[]", [tipAssistant.address, forwarderAssistant.address])
+);
+
+// 2. Add allowlist screener to first assistant only
+await up.setDataBatch([
+  erc725.encodeKeyName("UAPExecutiveScreeners:<bytes32>:<uint256>", [typeId, "0"]),
+  erc725.encodeKeyName("UAPAddressListName:<bytes32>:<uint256>", [typeId, "0"])
+], [
+  erc725.encodeValueType("address[]", [listScreener.address]),
+  erc725.encodeValueType("string", "TrustedSenders")
+]);
+
+// 3. Configure both assistants
+const tipConfig = ethers.AbiCoder.defaultAbiCoder().encode(
+  ["address", "uint256"], 
+  ["0xTipRecipient...", 500] // 5% tip
+);
+
+const forwarderConfig = ethers.AbiCoder.defaultAbiCoder().encode(
+  ["address"], 
+  ["0xForwardDestination..."]
+);
+
+await up.setDataBatch([
+  erc725.encodeKeyName("UAPExecutiveConfig:<bytes32>:<uint256>", [typeId, "0"]),
+  erc725.encodeKeyName("UAPExecutiveConfig:<bytes32>:<uint256>", [typeId, "1"])
+], [
+  encodeTupleKeyValue("(Address,Bytes)", "(address,bytes)", [tipAssistant.address, tipConfig]),
+  encodeTupleKeyValue("(Address,Bytes)", "(address,bytes)", [forwarderAssistant.address, forwarderConfig])
+]);
+
+// 4. Setup allowlist
+await mergeListEntry(erc725, up, "TrustedSenders", "0xTrustedAddress1...", "0x00000000");
+await mergeListEntry(erc725, up, "TrustedSenders", "0xTrustedAddress2...", "0x00000000");
+```
+
+## 🛠️ Advanced Configuration Patterns
+
+### Conditional Execution Chains
+
+Configure different assistant chains for different conditions:
+
+```typescript
+// Different behavior based on token amount
+const highValueScreener = await deployScreener("ValueThresholdScreener");
+const lowValueScreener = await deployScreener("InverseValueThresholdScreener");
+
+// High value: tip 10% to charity, forward rest
+await configureConditionalChain(up, typeId, {
+  screener: highValueScreener,
+  assistants: [tipAssistant, forwarderAssistant],
+  configs: [charityTipConfig, mainForwarderConfig]
+});
+
+// Low value: forward everything
+await configureConditionalChain(up, typeId, {
+  screener: lowValueScreener, 
+  assistants: [forwarderAssistant],
+  configs: [mainForwarderConfig]
+});
+```
+
+### Dynamic List Management
+
+Update access control without reconfiguring assistants:
+
+```typescript
+// Add new trusted address
+await mergeListEntry(erc725, up, "TrustedSenders", newTrustedAddress, "0x00000000");
+
+// Remove compromised address
+await removeListEntry(erc725, up, "TrustedSenders", compromisedAddress);
+
+// Switch to different list
+await up.setData(
+  erc725.encodeKeyName("UAPAddressListName:<bytes32>:<uint256>", [typeId, "0"]),
+  erc725.encodeValueType("string", "PremiumUsers")
+);
+```
+
+### Error Handling Strategies
+
+```typescript
+// Strict mode: any failure reverts entire transaction
+await up.setData(
+  "0x8631ee7d1d9475e6b2c38694122192970d91cafd1c64176ecc23849e17441672",
+  "0x01"
+);
+
+// Graceful mode: log failures but continue (default)
+await up.setData(
+  "0x8631ee7d1d9475e6b2c38694122192970d91cafd1c64176ecc23849e17441672", 
+  "0x00"
+);
+```
+
+## 🔧 Developer Utilities
+
+### Schema Validation
+
+```typescript
+import { ERC725 } from "@erc725/erc725.js";
+import UAP_SCHEMA from "./schemas/UAP.json";
+
+const erc725 = new ERC725(UAP_SCHEMA);
+
+// Validate key encoding
+const key = erc725.encodeKeyName("UAPTypeConfig:<bytes32>", [typeId]);
+console.log("Generated key:", key);
+
+// Validate value encoding  
+const value = erc725.encodeValueType("address[]", assistantAddresses);
+console.log("Encoded value:", value);
+```
+
+### Configuration Helpers
+
+The test utilities provide comprehensive helpers for complex configurations:
+
+```typescript
+import { 
+  setExecutiveConfig,
+  setScreenerConfig, 
+  setListNameOnScreener,
+  mergeListEntry
+} from "./test/utils/TestUtils";
+
+// Use helper functions for cleaner configuration
+await setExecutiveConfig(erc725, up, assistantAddress, typeId, 0, config);
+await setScreenerConfig(erc725, up, assistantAddress, 0, [screenerAddress], typeId, [screenerConfig]);
+```
+
+## 🎯 Best Practices
+
+### 1. **Execution Order Planning**
+- Order value-modifying assistants carefully 
+- Consider gas costs in ordering decisions
+
+### 2. **Configuration Validation**
+- Always validate assistant addresses match configuration addresses
+- Test screener logic thoroughly before deploying
+- Use events to monitor execution success/failure
+
+### 3. **Security Considerations**
+- Review all assistant code before configuration
+- Use address lists for access control
+- Consider attack vectors when chaining assistants
+- Test with small amounts first
+
+### 4. **Gas Optimization**
+- Minimize screener complexity for frequently-triggered events
+- Use static calls for read-only operations
+- Consider batching configuration updates
+
+### 5. **Upgradeability**
+- Design configurations to be easily updateable
+- Use address lists instead of hardcoded addresses
+- Plan for assistant version migrations
+
+The UAP schema provides a powerful foundation for building sophisticated blockchain automation. By understanding these patterns and following best practices, developers can create intelligent, secure, and efficient automation for Universal Profiles.
+
+**Ready to build? Start with the [built-in assistants](./contracts/) and extend from there!** 🚀

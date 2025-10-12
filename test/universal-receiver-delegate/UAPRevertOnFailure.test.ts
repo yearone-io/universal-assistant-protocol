@@ -7,9 +7,8 @@ import {
   MockBadAssistant,
   TipAssistant,
 } from "../../typechain-types";
-import { deployUniversalProfile } from "../utils/TestUtils";
+import { deployUniversalProfile, encodeTupleKeyValue } from "../utils/TestUtils";
 import ERC725, { ERC725JSONSchema } from "@erc725/erc725.js";
-import { encodeTupleKeyValue } from "@erc725/erc725.js/build/main/src/lib/utils";
 import uap from '../../schemas/UAP.json';
 
 describe("UniversalReceiverDelegateUAP: UAPRevertOnFailure Feature", function () {

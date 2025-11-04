@@ -60,6 +60,16 @@
       "timestamp": 1755005209034,
       "verified": true,
       "constructorArgs": []
+    },
+    {
+      "name": "LSP9VaultImplementation",
+      "address": "0x392e18585b89bd795204c634cce5878f1cf40a58",
+      "contractPath": "contracts/vault/LSP9VaultImplementation.sol:LSP9VaultImplementation",
+      "txHash": "0xf05f43fa5bc5ab42ec185ee4295481e262049cdcc93ca476238a50c111a61a19",
+      "blockNumber": 6353104,
+      "timestamp": 1762199664831,
+      "verified": true,
+      "constructorArgs": []
     }
   ]
 }

@@ -52,6 +52,18 @@ npx hardhat verifyContracts \
   --names "UniversalReceiverDelegateUAP,TipAssistant" \
   --addresses "0x...,0x..." \
   --paths "contracts,contracts/executive-assistants"
+
+# Deploy LSP9VaultImplementation (with auto-verification!)
+npx hardhat deployContracts \
+  --network luksoTestnet \
+  --names "LSP9VaultImplementation" \
+  --paths "contracts/vault"
+
+# For mainnet
+npx hardhat deployContracts \
+  --network luksoMain \
+  --names "LSP9VaultImplementation" \
+  --paths "contracts/vault"
 ```
 
 ### Testing Individual Components
@@ -90,6 +102,7 @@ npx hardhat test test/executive-assistants/ForwarderAssistant.test.ts
 - `test/utils/TestUtils.ts`: Comprehensive test utilities
 - `constants/network.ts`: Network configuration helpers
 - `hardhat.config.ts`: Hardhat configuration for LUKSO networks
+- `deployments-{network}.json`: Records of all deployed contracts per network
 
 ## Development Patterns
 

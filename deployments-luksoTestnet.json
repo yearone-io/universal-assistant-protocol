@@ -70,6 +70,26 @@
       "timestamp": 1762199664831,
       "verified": true,
       "constructorArgs": []
+    },
+    {
+      "name": "NotifierListScreener",
+      "address": "0xb5b746a75a464c83f7c1cc838ee3387486883026",
+      "contractPath": "contracts/screener-assistants/NotifierListScreener.sol:NotifierListScreener",
+      "txHash": "0xfa9b8e19e61b64ccf9a35a7e090202eb4b1a2d8d2568647204c92232c8f4f9b4",
+      "blockNumber": 6571778,
+      "timestamp": 1765021920821,
+      "verified": true,
+      "constructorArgs": []
+    },
+    {
+      "name": "NotifierCurationScreener",
+      "address": "0x442cd0098e23a541e3604296e0252de28c1c4fc6",
+      "contractPath": "contracts/screener-assistants/NotifierCurationScreener.sol:NotifierCurationScreener",
+      "txHash": "0xfeebbeee901dcd9afffbdd3c39b68d9a2289df951f8664e1b7649ff940a71ffe",
+      "blockNumber": 6571779,
+      "timestamp": 1765021932488,
+      "verified": true,
+      "constructorArgs": []
     }
   ]
 }

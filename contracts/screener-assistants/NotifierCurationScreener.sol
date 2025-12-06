@@ -30,14 +30,9 @@ contract NotifierCurationScreener is ScreenerAssistantWithList {
         // Decode core settings: curated list address and return value configuration
         (address curatedListAddress, bool returnValueWhenCurated) = _safeDecodeCurationConfig(configData);
 
-        // Check list
+        // Check blocklist with proper bounds validation
         string memory blocklistName = fetchListName(upAddress, typeId, screenerOrder);
-        bytes32 listKey = LSP2Utils.generateMappingKey(
-            string.concat(blocklistName, "Map"),
-            notifier
-        );
-        bytes memory blocklistListValue = upERC725Y.getData(listKey);
-        bool isBlocked = blocklistListValue.length > 0;
+        bool isBlocked = isAddressInList(upERC725Y, blocklistName, notifier);
 
         // If blocked, return opposite of configured value
         if (isBlocked) {

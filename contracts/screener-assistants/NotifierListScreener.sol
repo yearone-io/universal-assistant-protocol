@@ -26,36 +26,9 @@ contract NotifierListScreener is ScreenerAssistantWithList {
         if (configData.length == 0) return false;
         bool returnValueWhenInList = _safeDecodeBoolean(configData);
 
-        // Check list
+        // Check list with proper bounds validation
         string memory listName = fetchListName(upAddress, typeId, screenerOrder);
-        bytes32 listKey = LSP2Utils.generateMappingKey(
-            string.concat(listName, "Map"),
-            notifier
-        );
-        bytes memory notifierListValue = upERC725Y.getData(listKey);
-
-        // Verify mapping entry exists and is within list bounds
-        bool isInList = false;
-        if (notifierListValue.length >= 36) {
-            // Decode the index from the mapping value
-            // Format: bytes4 interfaceId + uint256 index = 36 bytes total
-            // Extract bytes 4-35 (the uint256 index portion)
-            bytes memory indexBytes = new bytes(32);
-            for (uint256 i = 0; i < 32; i++) {
-                indexBytes[i] = notifierListValue[i + 4];
-            }
-            uint256 entryIndex = abi.decode(indexBytes, (uint256));
-
-            // Get the current list length
-            bytes32 listLengthKey = LSP2Utils.generateArrayKey(string.concat(listName, "[]"));
-            bytes memory listLengthRaw = upERC725Y.getData(listLengthKey);
-
-            if (listLengthRaw.length > 0) {
-                uint256 listLength = abi.decode(listLengthRaw, (uint256));
-                // Only consider the entry valid if it's within the current list bounds
-                isInList = entryIndex < listLength;
-            }
-        }
+        bool isInList = isAddressInList(upERC725Y, listName, notifier);
 
         return isInList ? returnValueWhenInList : !returnValueWhenInList;
     }

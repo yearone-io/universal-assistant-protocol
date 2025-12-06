@@ -266,6 +266,118 @@ describe("Screeners: Address and Curation Checkers", function () {
         .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
       expect(await mockLSP7A.balanceOf(upAddress)).to.equal(69);
     });
+
+    it("should reject stale entries from previous list iterations (vulnerability test)", async function () {
+      const upAddress = await universalProfile.getAddress();
+      const lsp7AddressA = await mockLSP7A.getAddress();
+      const lsp7AddressB = await mockLSP7B.getAddress();
+      const forwarderAddress = await forwarderAssistant.getAddress();
+      const screenerAddress = await addressListChecker.getAddress();
+
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
+
+      // Set up screener with allowlist
+      await setListNameOnScreener(erc725UAP, universalProfile, LSP7_TYPEID, 0, allowlistName);
+      const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]);
+      await setScreenerConfig(erc725UAP, universalProfile, forwarderAddress, 0, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
+
+      // Phase 1: Create list with 2 entries
+      await mergeListEntry(erc725UAP, universalProfile, allowlistName, lsp7AddressA, INTERFACE_IDS.LSP7DigitalAsset);
+      await mergeListEntry(erc725UAP, universalProfile, allowlistName, lsp7AddressB, INTERFACE_IDS.LSP7DigitalAsset);
+
+      // Verify both are in the list
+      const listLengthKey = erc725UAP.encodeKeyName(`${allowlistName}[]`);
+      let listLengthRaw = await universalProfile.getData(listLengthKey);
+      let listLength = Number(erc725UAP.decodeValueType("uint256", listLengthRaw));
+      expect(listLength).to.equal(2);
+
+      // Set executive config
+      const encodedExecConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]);
+      await setExecutiveConfig(erc725UAP, universalProfile, forwarderAddress, LSP7_TYPEID, 0, encodedExecConfig);
+
+      // Verify lsp7A is allowed
+      await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 10))
+        .to.emit(universalReceiverDelegateUAP, "AssistantInvoked")
+        .withArgs(upAddress, forwarderAddress);
+
+      // Phase 2: Remove all entries
+      await removeListEntry(erc725UAP, universalProfile, allowlistName, lsp7AddressA);
+      await removeListEntry(erc725UAP, universalProfile, allowlistName, lsp7AddressB);
+
+      // Verify list is empty
+      listLengthRaw = await universalProfile.getData(listLengthKey);
+      listLength = listLengthRaw && listLengthRaw !== "0x" ? Number(erc725UAP.decodeValueType("uint256", listLengthRaw)) : 0;
+      expect(listLength).to.equal(0);
+
+      // Phase 3: Recreate list with same name but only 1 entry (different address)
+      const [newSigner] = await ethers.getSigners();
+      const newAddress = await newSigner.getAddress();
+      await mergeListEntry(erc725UAP, universalProfile, allowlistName, newAddress, INTERFACE_IDS.LSP7DigitalAsset);
+
+      // Verify new list has length 1
+      listLengthRaw = await universalProfile.getData(listLengthKey);
+      listLength = Number(erc725UAP.decodeValueType("uint256", listLengthRaw));
+      expect(listLength).to.equal(1);
+
+      // CRITICAL TEST: Old addresses from previous iteration should be REJECTED
+      // Even though their mapping entries might still exist, they should fail the bounds check
+      const lsp7AMapKey = erc725UAP.encodeKeyName(`${allowlistName}Map:<address>`, [lsp7AddressA]);
+      const lsp7AMapValue = await universalProfile.getData(lsp7AMapKey);
+
+      // The map entry should be cleared (0x) from removeListEntry
+      expect(lsp7AMapValue).to.equal("0x");
+
+      // Verify lsp7A is now rejected (tokens stay in UP, not forwarded)
+      const upBalanceBefore = await mockLSP7A.balanceOf(upAddress);
+      await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 20))
+        .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
+      expect(await mockLSP7A.balanceOf(upAddress)).to.equal(upBalanceBefore + BigInt(20));
+      expect(await mockLSP7A.balanceOf(await nonOwner.getAddress())).to.equal(10); // Only the first 10 from phase 1
+    });
+
+    it("should reject manually-set stale mapping entry beyond list length", async function () {
+      const upAddress = await universalProfile.getAddress();
+      const lsp7AddressA = await mockLSP7A.getAddress();
+      const forwarderAddress = await forwarderAssistant.getAddress();
+      const screenerAddress = await addressListChecker.getAddress();
+
+      const typeKey = erc725UAP.encodeKeyName("UAPTypeConfig:<bytes32>", [LSP7_TYPEID]);
+      await universalProfile.setData(typeKey, erc725UAP.encodeValueType("address[]", [forwarderAddress]));
+
+      // Set up screener with allowlist
+      await setListNameOnScreener(erc725UAP, universalProfile, LSP7_TYPEID, 0, allowlistName);
+      const encodedConfig = ethers.AbiCoder.defaultAbiCoder().encode(["bool"], [true]);
+      await setScreenerConfig(erc725UAP, universalProfile, forwarderAddress, 0, [screenerAddress], LSP7_TYPEID, [encodedConfig]);
+
+      // Create a list with 1 entry (index 0)
+      const [newSigner] = await ethers.getSigners();
+      const validAddress = await newSigner.getAddress();
+      await mergeListEntry(erc725UAP, universalProfile, allowlistName, validAddress, INTERFACE_IDS.LSP7DigitalAsset);
+
+      // Manually set a mapping entry for lsp7A pointing to index 5 (beyond list length of 1)
+      const lsp7AMapKey = erc725UAP.encodeKeyName(`${allowlistName}Map:<address>`, [lsp7AddressA]);
+      // Encode: bytes4 interfaceId + uint256 index (5)
+      const maliciousMapValue = ethers.solidityPacked(
+        ["bytes4", "uint256"],
+        [INTERFACE_IDS.LSP7DigitalAsset, 5]
+      );
+      await universalProfile.setData(lsp7AMapKey, maliciousMapValue);
+
+      // Verify the malicious entry was set
+      const mapValue = await universalProfile.getData(lsp7AMapKey);
+      expect(mapValue).to.equal(maliciousMapValue);
+
+      // Set executive config
+      const encodedExecConfig = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [await nonOwner.getAddress()]);
+      await setExecutiveConfig(erc725UAP, universalProfile, forwarderAddress, LSP7_TYPEID, 0, encodedExecConfig);
+
+      // CRITICAL TEST: lsp7A should be REJECTED because index 5 >= list length (1)
+      await expect(mockLSP7A.connect(lsp7Holder).mint(upAddress, 100))
+        .to.not.emit(universalReceiverDelegateUAP, "AssistantInvoked");
+      expect(await mockLSP7A.balanceOf(upAddress)).to.equal(100);
+      expect(await mockLSP7A.balanceOf(await nonOwner.getAddress())).to.equal(0);
+    });
   });
 
   describe("NotifierCurationScreener", function () {

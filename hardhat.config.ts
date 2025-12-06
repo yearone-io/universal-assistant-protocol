@@ -36,13 +36,13 @@ const config: HardhatUserConfig = {
     ],
     overrides: {
       "contracts/vault/LSP9VaultImplementation.sol": {
-        version: "0.8.17",
+        version: "0.8.24",
         settings: {
           optimizer: {
             enabled: true,
             runs: 200,
           },
-          evmVersion: "london",
+          viaIR: true,
         },
       },
     },

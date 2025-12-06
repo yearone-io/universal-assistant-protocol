@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.24;
 
 /**
  * @title LSP9VaultImplementation
@@ -10,5 +10,6 @@ pragma solidity ^0.8.17;
 import {LSP9VaultInit} from "@lukso/lsp9-contracts/contracts/LSP9VaultInit.sol";
 
 contract LSP9VaultImplementation is LSP9VaultInit {
-    // No additional code needed - this just re-exports LSP9VaultInit
+    // solhint-disable-next-line no-empty-blocks
+    constructor() {}
 }

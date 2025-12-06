@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.24;
 
-import {LSP2Utils} from "@lukso/lsp-smart-contracts/contracts/LSP2ERC725YJSONSchema/LSP2Utils.sol";
 import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
 import {ScreenerAssistantWithList} from "../screener-assistants/ScreenerAssistantWithList.sol";
 
@@ -26,14 +25,10 @@ contract NotifierListScreener is ScreenerAssistantWithList {
         if (configData.length == 0) return false;
         bool returnValueWhenInList = _safeDecodeBoolean(configData);
 
-        // Check list
+        // Check list with proper bounds validation
         string memory listName = fetchListName(upAddress, typeId, screenerOrder);
-        bytes32 listKey = LSP2Utils.generateMappingKey(
-            string.concat(listName, "Map"),
-            notifier
-        );
-        bytes memory notifierListValue = upERC725Y.getData(listKey);
-        bool isInList = notifierListValue.length > 0;
+        bool isInList = isAddressInList(upERC725Y, listName, notifier);
+
         return isInList ? returnValueWhenInList : !returnValueWhenInList;
     }
 }

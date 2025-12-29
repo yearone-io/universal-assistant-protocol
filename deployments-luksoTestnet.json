@@ -110,6 +110,16 @@
       "timestamp": 1765046268508,
       "verified": true,
       "constructorArgs": []
+    },
+    {
+      "name": "UniversalReceiverDelegateUAP",
+      "address": "0x091ebe012c1e92b8e7cc8d5acffdea2fc6052efc",
+      "contractPath": "contracts/UniversalReceiverDelegateUAP.sol:UniversalReceiverDelegateUAP",
+      "txHash": "0x11354efe31901fa1688cb8396a6fa301130bdd0c5a9638081eded0bbf21c8536",
+      "blockNumber": 6689230,
+      "timestamp": 1766484384623,
+      "verified": true,
+      "constructorArgs": []
     }
   ]
 }

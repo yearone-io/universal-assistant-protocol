@@ -29,6 +29,8 @@ describe("NotifierCreatorCurationScreener", function () {
   // LSP4 and LSP12 constants
   const LSP4_CREATORS_ARRAY_KEY = "0x114bd03b3a46d48759680d81ebb2b414fda7d030a7105a851867accf1c2352e7";
   const LSP4_CREATORS_MAP_PREFIX = "0x6de85eaf5d982b4e5da0";
+  const LSP12_ISSUED_ASSETS_ARRAY_KEY = "0x7c8c3416d6cda87cd42c71ea1843df28ac4850354f988d55ee2eaa47b6dc05cd";
+  const LSP12_ISSUED_ASSETS_MAP_PREFIX = "0x74ac2555c10b9349e78f";
 
   let owner: Signer;
   let browserController: Signer;
@@ -84,16 +86,16 @@ describe("NotifierCreatorCurationScreener", function () {
     const keys: string[] = [];
     const values: string[] = [];
 
-    keys.push(LSP4_CREATORS_ARRAY_KEY);
+    keys.push(LSP12_ISSUED_ASSETS_ARRAY_KEY);
     values.push(toSolidityBytes32Prefixed(assets.length));
 
     for (let i = 0; i < assets.length; i++) {
-      const arrayElementKey = LSP4_CREATORS_ARRAY_KEY.slice(0, 34) +
+      const arrayElementKey = LSP12_ISSUED_ASSETS_ARRAY_KEY.slice(0, 34) +
         BigInt(i).toString(16).padStart(32, "0");
       keys.push(arrayElementKey);
       values.push(ethers.zeroPadValue(assets[i], 32));
 
-      const mapKey = LSP4_CREATORS_MAP_PREFIX + "0000" + assets[i].slice(2);
+      const mapKey = LSP12_ISSUED_ASSETS_MAP_PREFIX + "0000" + assets[i].slice(2);
       const mapValue = INTERFACE_IDS.LSP7DigitalAsset +
         ethers.AbiCoder.defaultAbiCoder().encode(["uint256"], [i]).slice(2);
       keys.push(mapKey);

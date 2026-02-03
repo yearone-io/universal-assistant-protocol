@@ -42,11 +42,8 @@ contract NotifierCreatorListScreener is ScreenerAssistantWithCreatorVerification
         address upAddress = profile;
         IERC725Y upERC725Y = IERC725Y(upAddress);
         (,,bytes memory configData) = fetchConfiguration(upAddress, screenerAddress, typeId, screenerOrder);
-
         if (configData.length == 0) return false;
-
-        // Decode configuration: (bool requireAllCreators, bool returnValueWhenInList)
-        (bool requireAllCreators, bool returnValueWhenInList) = _decodeCreatorListConfig(configData);
+        (bool requireAllCreators, bool returnValueWhenInList) = _safeDecodeCreatorListConfig(configData);
 
         // Get verified creators from the notifier
         address[] memory verifiedCreators = getVerifiedCreators(notifier, requireAllCreators);
@@ -76,7 +73,7 @@ contract NotifierCreatorListScreener is ScreenerAssistantWithCreatorVerification
      * @return requireAllCreators Whether all creators must verify issuance
      * @return returnValueWhenInList The return value when a verified creator is in the list
      */
-    function _decodeCreatorListConfig(bytes memory data) private pure returns (
+    function _safeDecodeCreatorListConfig(bytes memory data) private pure returns (
         bool requireAllCreators,
         bool returnValueWhenInList
     ) {

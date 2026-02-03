@@ -18,60 +18,79 @@ import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.so
  */
 abstract contract ScreenerAssistantWithCreatorVerification is ScreenerAssistantWithList {
     // LSP4 Digital Asset Metadata - Creators Array
-    // Same key used for both LSP4Creators[] and LSP12IssuedAssets[]
     bytes32 internal constant LSP4_CREATORS_ARRAY_KEY = 0x114bd03b3a46d48759680d81ebb2b414fda7d030a7105a851867accf1c2352e7;
 
-    // LSP4 Creators Map prefix: LSP4CreatorsMap:<address>
-    bytes10 internal constant LSP4_CREATORS_MAP_KEY_PREFIX = 0x6de85eaf5d982b4e5da0;
-
-    // LSP12 Issued Assets uses the same keys as LSP4 Creators
-    // LSP12IssuedAssets[] - same as LSP4_CREATORS_ARRAY_KEY
-    // LSP12IssuedAssetsMap:<address> - same as LSP4_CREATORS_MAP_KEY_PREFIX
+    // LSP12 Issued Assets
+    bytes32 internal constant LSP12_ISSUED_ASSETS_ARRAY_KEY = 0x7c8c3416d6cda87cd42c71ea1843df28ac4850354f988d55ee2eaa47b6dc05cd;
+    // LSP12 Issued Assets Map prefix: LSP12IssuedAssetsMap:<address>
+    bytes12 internal constant LSP12_ISSUED_ASSETS_MAP_KEY_PREFIX = 0x74ac2555c10b9349e78f0000;
 
     /**
      * @dev Fetches the list of creator addresses from an asset's LSP4Creators[] array
      * @param notifierAddress The address of the asset to query
      * @return creators Array of creator addresses, empty if none exist
+     *
+     * @notice This function is protected with try-catch blocks to handle assets that
+     *         do not implement the IERC725Y interface. If getData() calls fail, the
+     *         function returns an empty array instead of reverting, allowing screeners
+     *         to gracefully handle non-compliant tokens.
      */
     function getCreatorsFromAsset(
         address notifierAddress
     ) internal view returns (address[] memory creators) {
-        IERC725Y assetERC725Y = IERC725Y(notifierAddress);
+        // Wrap the entire getData flow in try-catch to handle non-ERC725Y contracts
+        try IERC725Y(notifierAddress).getData(LSP4_CREATORS_ARRAY_KEY)
+            returns (bytes memory creatorsLengthRaw) {
 
-        // Get array length
-        bytes memory creatorsLengthRaw = assetERC725Y.getData(LSP4_CREATORS_ARRAY_KEY);
-
-        if (creatorsLengthRaw.length == 0) {
-            return new address[](0);
-        }
-
-        uint256 creatorsLength = abi.decode(creatorsLengthRaw, (uint256));
-
-        if (creatorsLength == 0) {
-            return new address[](0);
-        }
-
-        // Fetch all creator addresses
-        creators = new address[](creatorsLength);
-
-        for (uint256 i = 0; i < creatorsLength; i++) {
-            // Generate array element key: first 16 bytes of array key + index
-            bytes32 creatorElementKey = bytes32(
-                bytes.concat(
-                    bytes16(LSP4_CREATORS_ARRAY_KEY),
-                    bytes16(uint128(i))
-                )
-            );
-
-            bytes memory creatorAddressRaw = assetERC725Y.getData(creatorElementKey);
-
-            if (creatorAddressRaw.length >= 20) {
-                creators[i] = abi.decode(creatorAddressRaw, (address));
+            if (creatorsLengthRaw.length == 0) {
+                return new address[](0);
             }
-            // If decode fails, creators[i] remains address(0)
-        }
 
-        return creators;
+            uint256 creatorsLength = _decodeLSP2ArrayLength(creatorsLengthRaw);
+
+            if (creatorsLength == 0) {
+                return new address[](0);
+            }
+
+            // Fetch all creator addresses
+            creators = new address[](creatorsLength);
+
+            for (uint256 i = 0; i < creatorsLength; i++) {
+                // Generate array element key: first 16 bytes of array key + index
+                bytes32 creatorElementKey = bytes32(
+                    bytes.concat(
+                        bytes16(LSP4_CREATORS_ARRAY_KEY),
+                        bytes16(uint128(i))
+                    )
+                );
+
+                // Wrap each element fetch in try-catch as well
+                try IERC725Y(notifierAddress).getData(creatorElementKey)
+                    returns (bytes memory creatorAddressRaw) {
+
+                    if (creatorAddressRaw.length == 32) {
+                        // Standard ERC725Y encoding: address stored as 32 bytes
+                        creators[i] = address(uint160(uint256(bytes32(creatorAddressRaw))));
+                    } else if (creatorAddressRaw.length == 20) {
+                        // Edge case: raw 20-byte address
+                        creators[i] = address(bytes20(creatorAddressRaw));
+                    }
+                    // If length is invalid, creators[i] remains address(0)
+
+                } catch {
+                    // Element fetch failed, leave as address(0)
+                    // This handles individual getData failures
+                }
+            }
+
+            return creators;
+
+        } catch {
+            // Contract doesn't support getData() or reverted
+            // Return empty array - treat as no creators
+            // This prevents screener reverts when processing non-ERC725Y tokens
+            return new address[](0);
+        }
     }
 
     /**
@@ -89,23 +108,19 @@ abstract contract ScreenerAssistantWithCreatorVerification is ScreenerAssistantW
             _generateLSP12IssuedAssetsMapKey(notifierAddress)
         ) returns (bytes memory mapValue) {
 
-            // Verify mapping entry exists and has correct format (bytes4 + uint256 = 36 bytes)
-            if (mapValue.length < 36) return false;
-
-            // Decode the index from the mapping value
-            // Format: bytes4 interfaceId + uint256 index
-            bytes memory indexBytes = new bytes(32);
-            for (uint256 i = 0; i < 32; i++) {
-                indexBytes[i] = mapValue[i + 4];
-            }
-            uint256 entryIndex = abi.decode(indexBytes, (uint256));
+            // Verify mapping entry exists and has correct format:
+            // LSP2 map value for LSP12IssuedAssetsMap is (bytes4,uint128) = 20 bytes
+            // Some implementations may store (bytes4,uint256) = 36 bytes
+            (bool ok, uint256 entryIndex) = _decodeLSP2MapIndex(mapValue);
+            if (!ok) return false;
 
             // Get the current array length for bounds validation
-            bytes memory arrayLengthRaw = IERC725Y(creatorAddress).getData(LSP4_CREATORS_ARRAY_KEY);
+            bytes memory arrayLengthRaw = IERC725Y(creatorAddress).getData(LSP12_ISSUED_ASSETS_ARRAY_KEY);
 
             if (arrayLengthRaw.length == 0) return false;
 
-            uint256 arrayLength = abi.decode(arrayLengthRaw, (uint256));
+            uint256 arrayLength = _decodeLSP2ArrayLength(arrayLengthRaw);
+            if (arrayLength == 0) return false;
 
             // Prevent stale mapping attack: only valid if index < array length
             return entryIndex < arrayLength;
@@ -177,10 +192,52 @@ abstract contract ScreenerAssistantWithCreatorVerification is ScreenerAssistantW
     ) private pure returns (bytes32) {
         return bytes32(
             bytes.concat(
-                LSP4_CREATORS_MAP_KEY_PREFIX,
-                bytes2(0),
+                LSP12_ISSUED_ASSETS_MAP_KEY_PREFIX,
                 bytes20(assetAddress)
             )
         );
+    }
+
+    /**
+     * @dev Decode LSP2 array length.
+     * LSP2 length is uint128 (16 bytes). Some legacy data may be uint256 (32 bytes).
+     */
+    function _decodeLSP2ArrayLength(bytes memory raw) internal pure returns (uint256) {
+        if (raw.length == 0) return 0;
+        uint256 value;
+        assembly {
+            value := mload(add(raw, 0x20))
+        }
+        if (raw.length == 16) {
+            return value >> 128;
+        }
+        if (raw.length == 32) {
+            return value;
+        }
+        return 0;
+    }
+
+    /**
+     * @dev Decode LSP2 map value index.
+     * Supports (bytes4,uint128) = 20 bytes and legacy (bytes4,uint256) = 36 bytes.
+     */
+    function _decodeLSP2MapIndex(
+        bytes memory raw
+    ) internal pure returns (bool ok, uint256 index) {
+        if (raw.length == 20) {
+            uint256 value;
+            assembly {
+                value := mload(add(raw, 0x24))
+            }
+            return (true, value >> 128);
+        }
+        if (raw.length == 36) {
+            uint256 value;
+            assembly {
+                value := mload(add(raw, 0x24))
+            }
+            return (true, value);
+        }
+        return (false, 0);
     }
 }

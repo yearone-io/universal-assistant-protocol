@@ -12,7 +12,7 @@
       "constructorArgs": []
     },
     {
-      "name": "ForwarderAssistant",
+      "name": "GraveForwarderAssistant",
       "address": "0x1296ace80af3230c961c79a9bee6a07b4a45f53f",
       "contractPath": "contracts/executive-assistants/ForwarderAssistant.sol:ForwarderAssistant",
       "txHash": "0xc3db54613fd4ad4164e5f2e682be63ee428037b7ae93997cb5c3ac1ad5a3035e",
@@ -272,6 +272,16 @@
       "constructorArgs": [
         "0x392e18585b89bd795204c634cce5878f1cf40a58"
       ]
+    },
+    {
+      "name": "ForwarderAssistant",
+      "address": "0x0da9c56b34575026b5ccd15e28140da2893bc998",
+      "contractPath": "contracts/executive-assistants/ForwarderAssistant.sol:ForwarderAssistant",
+      "txHash": "0x0c665220884eb5de301abc76435e7e9e4bc84ba1b7382e0ddc998b2ccc07c260",
+      "blockNumber": 6987070,
+      "timestamp": 1770214945242,
+      "verified": true,
+      "constructorArgs": []
     }
   ]
 }

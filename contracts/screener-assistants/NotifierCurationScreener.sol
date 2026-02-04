@@ -25,8 +25,6 @@ contract NotifierCurationScreener is ScreenerAssistantWithList {
         IERC725Y upERC725Y = IERC725Y(upAddress);
         (,,bytes memory configData) = fetchConfiguration(upAddress, screenerAddress, typeId, screenerOrder);
         if (configData.length == 0) return false;
-
-        // Decode core settings: curated list address and return value configuration
         (address curatedListAddress, bool returnValueWhenCurated) = _safeDecodeCurationConfig(configData);
 
         // Check blocklist with proper bounds validation

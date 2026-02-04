@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 import { toBigInt, zeroPadValue, toBeHex, Signer, solidityPacked, parseEther, keccak256, toUtf8Bytes, AbiCoder } from "ethers";
-import { ALL_PERMISSIONS, PERMISSIONS } from "@lukso/lsp-smart-contracts";
+import { ALL_PERMISSIONS, PERMISSIONS, INTERFACE_IDS } from "@lukso/lsp-smart-contracts";
 import {
   LSP1UniversalReceiverDelegateUP__factory,
   LSP6KeyManager__factory, UniversalProfile,
@@ -474,4 +474,86 @@ export async function removeListEntry(
       ]
     )
   }
+}
+
+/**
+ * LSP4 and LSP12 Helpers for Creator Verification Tests
+ */
+
+// LSP4 Creators Array Key
+const LSP4_CREATORS_ARRAY_KEY = "0x114bd03b3a46d48759680d81ebb2b414fda7d030a7105a851867accf1c2352e7";
+// LSP4 Creators Map Prefix
+const LSP4_CREATORS_MAP_PREFIX = "0x6de85eaf5d982b4e5da0";
+
+// LSP12 Issued Assets Array Key (different from LSP4!)
+const LSP12_ISSUED_ASSETS_ARRAY_KEY = "0x7c8c3416d6cda87cd42c71ea1843df28ac4850354f988d55ee2eaa47b6dc05cd";
+// LSP12 Issued Assets Map Prefix
+const LSP12_ISSUED_ASSETS_MAP_PREFIX = "0x74ac2555c10b9349e78f";
+
+/**
+ * Sets LSP4Creators[] array on an asset contract
+ * @param asset The asset contract (must have setDataBatch method)
+ * @param creators Array of creator addresses
+ * @param assetOwner Signer that owns the asset
+ */
+export async function setLSP4Creators(asset: any, creators: string[], assetOwner: Signer) {
+  const keys: string[] = [];
+  const values: string[] = [];
+
+  // Set array length
+  keys.push(LSP4_CREATORS_ARRAY_KEY);
+  values.push(toSolidityBytes32Prefixed(creators.length));
+
+  // Set each creator in the array
+  for (let i = 0; i < creators.length; i++) {
+    // Generate array element key: first 16 bytes of array key + index
+    const arrayElementKey = LSP4_CREATORS_ARRAY_KEY.slice(0, 34) +
+      BigInt(i).toString(16).padStart(32, "0");
+    keys.push(arrayElementKey);
+    values.push(ethers.zeroPadValue(creators[i], 32));
+
+    // Set mapping entry: LSP4CreatorsMap:<address>
+    const mapKey = LSP4_CREATORS_MAP_PREFIX + "0000" + creators[i].slice(2);
+    const mapValue = INTERFACE_IDS.LSP0ERC725Account +
+      ethers.AbiCoder.defaultAbiCoder().encode(["uint256"], [i]).slice(2);
+    keys.push(mapKey);
+    values.push(mapValue);
+  }
+
+  await asset.connect(assetOwner).setDataBatch(keys, values);
+}
+
+/**
+ * Sets LSP12IssuedAssets[] array on a creator's Universal Profile
+ * @param creatorProfile The creator's Universal Profile
+ * @param assets Array of asset addresses
+ * @param profileOwner Signer that owns the profile
+ */
+export async function setLSP12IssuedAssets(creatorProfile: any, assets: string[], profileOwner: Signer) {
+  const keys: string[] = [];
+  const values: string[] = [];
+
+  // Set array length using LSP12 key
+  keys.push(LSP12_ISSUED_ASSETS_ARRAY_KEY);
+  values.push(toSolidityBytes32Prefixed(assets.length));
+
+  // Set each asset in the array
+  for (let i = 0; i < assets.length; i++) {
+    // Generate array element key: first 16 bytes of array key + index
+    const arrayElementKey = LSP12_ISSUED_ASSETS_ARRAY_KEY.slice(0, 34) +
+      BigInt(i).toString(16).padStart(32, "0");
+    keys.push(arrayElementKey);
+    values.push(ethers.zeroPadValue(assets[i], 32));
+
+    // Set mapping entry: LSP12IssuedAssetsMap:<address>
+    // Format: prefix (12 bytes) + 0000 + address (20 bytes)
+    const mapKey = LSP12_ISSUED_ASSETS_MAP_PREFIX + "0000" + assets[i].slice(2);
+    // Map value format: interfaceId (4 bytes) + index (32 bytes) = 36 bytes total
+    const mapValue = INTERFACE_IDS.LSP7DigitalAsset +
+      ethers.AbiCoder.defaultAbiCoder().encode(["uint256"], [i]).slice(2);
+    keys.push(mapKey);
+    values.push(mapValue);
+  }
+
+  await creatorProfile.connect(profileOwner).setDataBatch(keys, values);
 }

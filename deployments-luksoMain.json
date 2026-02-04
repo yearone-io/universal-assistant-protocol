@@ -12,7 +12,7 @@
       "constructorArgs": []
     },
     {
-      "name": "ForwarderAssistant",
+      "name": "GraveForwarderAssistant",
       "address": "0xc503d7f50c4d2c0649fa86e43c247eb4e2e62fec",
       "contractPath": "contracts/executive-assistants/ForwarderAssistant.sol:ForwarderAssistant",
       "txHash": "0xcf96f270d6e9eb006ba9fa7e8b8ccbec9ecb581b7dc7c3f988ddf9476cfb464e",
@@ -89,6 +89,198 @@
       "blockNumber": 6464980,
       "timestamp": 1765022005066,
       "verified": true,
+      "constructorArgs": []
+    },
+    {
+      "name": "NotifierCreatorListScreener",
+      "address": "0x7587aaf2a61c9142024624601165e7083f454efd",
+      "contractPath": "contracts/screener-assistants/NotifierCreatorListScreener.sol:NotifierCreatorListScreener",
+      "txHash": "0x548ee6ced1666fc5f98bb403ecbdffba80244e28917a0a4820fcdec7d4632b98",
+      "blockNumber": 6466944,
+      "timestamp": 1765046676960,
+      "verified": true,
+      "constructorArgs": []
+    },
+    {
+      "name": "NotifierCreatorCurationScreener",
+      "address": "0xfee83ab2dfb646991f20c30822de5f24dd1d21c4",
+      "contractPath": "contracts/screener-assistants/NotifierCreatorCurationScreener.sol:NotifierCreatorCurationScreener",
+      "txHash": "0xbda60e164ef2453a2fc98c47fcf92e62cf63a11f3b0c9fe6e154dbe4be3b6008",
+      "blockNumber": 6466945,
+      "timestamp": 1765046688673,
+      "verified": true,
+      "constructorArgs": []
+    },
+    {
+      "name": "UniversalReceiverDelegateUAP",
+      "address": "0x74cdf5beb4a2323fd386b87a1522d9aa0f59aeb9",
+      "contractPath": "contracts/UniversalReceiverDelegateUAP.sol:UniversalReceiverDelegateUAP",
+      "txHash": "0x348f50f0e79e20de5ee41e16579d29db58001b74665def9b348805b181035ada",
+      "blockNumber": 6580381,
+      "timestamp": 1766484529808,
+      "verified": true,
+      "constructorArgs": []
+    },
+    {
+      "name": "NotifierCreatorListScreener",
+      "address": "0x04bc746b89e6ee2bcac9e6f8db923ffdbac292d7",
+      "contractPath": "contracts/screener-assistants/NotifierCreatorListScreener.sol:NotifierCreatorListScreener",
+      "txHash": "0xa40d60af120073da8cca14ee937ce529a871155f92db1f559fd4fddf30a40686",
+      "blockNumber": 6648951,
+      "timestamp": 1767351325031,
+      "verified": false,
+      "constructorArgs": []
+    },
+    {
+      "name": "NotifierCreatorCurationScreener",
+      "address": "0x9d8531e2ea0f068bc10d14384e39dff90290e88a",
+      "contractPath": "contracts/screener-assistants/NotifierCreatorCurationScreener.sol:NotifierCreatorCurationScreener",
+      "txHash": "0x7ef3b98c139d1242ba664addd5a33bb98dcbc2a7ae8aa717037b54189aae9ba1",
+      "blockNumber": 6648952,
+      "timestamp": 1767351336635,
+      "verified": false,
+      "constructorArgs": []
+    },
+    {
+      "name": "NotifierListScreener",
+      "address": "0x2e1fc250e758651bd0ab0edc355d7986ab138edc",
+      "contractPath": "contracts/screener-assistants/NotifierListScreener.sol:NotifierListScreener",
+      "txHash": "0x42aa140cad0eca31e3a3155b850722537d197bb80336ed980faaf94d97d85f77",
+      "blockNumber": 6649179,
+      "timestamp": 1767354276605,
+      "verified": false,
+      "constructorArgs": []
+    },
+    {
+      "name": "NotifierCurationScreener",
+      "address": "0x56d3ef8a7bf8b04b51ff7c9f4b5d7e4e375b2664",
+      "contractPath": "contracts/screener-assistants/NotifierCurationScreener.sol:NotifierCurationScreener",
+      "txHash": "0x6c8b5d8f2373e94b2b2f4ecaad7302c21b3de09d8e96d317574f9ed5745e22e5",
+      "blockNumber": 6649181,
+      "timestamp": 1767354300861,
+      "verified": false,
+      "constructorArgs": []
+    },
+    {
+      "name": "NotifierCreatorListScreener",
+      "address": "0x6031249b8f0427fa7ac4092706eb7a6d53141451",
+      "contractPath": "contracts/screener-assistants/NotifierCreatorListScreener.sol:NotifierCreatorListScreener",
+      "txHash": "0x302b397769d9d535667dd79d032adb5bec36a11ce2d71f9d7576da223b7746c6",
+      "blockNumber": 6671909,
+      "timestamp": 1767639408853,
+      "verified": false,
+      "constructorArgs": []
+    },
+    {
+      "name": "NotifierCreatorCurationScreener",
+      "address": "0x844472b633c0911dd3fe4c335e8764e2510c180d",
+      "contractPath": "contracts/screener-assistants/NotifierCreatorCurationScreener.sol:NotifierCreatorCurationScreener",
+      "txHash": "0xb84d7e023366c652d090afbcac25dff6c3091a79051d7ab6fca41359e1bd9055",
+      "blockNumber": 6671912,
+      "timestamp": 1767639445062,
+      "verified": false,
+      "constructorArgs": []
+    },
+    {
+      "name": "NotifierListScreener",
+      "address": "0x4beb62449a732aa8c55281220a590480a54d9c5c",
+      "contractPath": "contracts/screener-assistants/NotifierListScreener.sol:NotifierListScreener",
+      "txHash": "0x06475ceeb53deb423e42326330817f4c265e508404ab97363a7e2f428c218f35",
+      "blockNumber": 6867520,
+      "timestamp": 1770118741671,
+      "verified": true,
+      "constructorArgs": []
+    },
+    {
+      "name": "NotifierCurationScreener",
+      "address": "0xcfbcc35eac58586cbabf6d3a153388356dd781cc",
+      "contractPath": "contracts/screener-assistants/NotifierCurationScreener.sol:NotifierCurationScreener",
+      "txHash": "0x6e9ae4b2d24c9ae6de435c03e26828430791048c0c85eb72aadae172cd8c8033",
+      "blockNumber": 6867524,
+      "timestamp": 1770118789177,
+      "verified": true,
+      "constructorArgs": []
+    },
+    {
+      "name": "NotifierCreatorListScreener",
+      "address": "0xc7f0c113421b24f1149e180eee3ff3b19442b3be",
+      "contractPath": "contracts/screener-assistants/NotifierCreatorListScreener.sol:NotifierCreatorListScreener",
+      "txHash": "0x701f0163447e6684249b5d7641708dce970dc11e492a904c6d4e5eedfa8eb869",
+      "blockNumber": 6867525,
+      "timestamp": 1770118800877,
+      "verified": true,
+      "constructorArgs": []
+    },
+    {
+      "name": "NotifierCreatorCurationScreener",
+      "address": "0x59802bb0d34f308dad1fca0894e31e81713833d1",
+      "contractPath": "contracts/screener-assistants/NotifierCreatorCurationScreener.sol:NotifierCreatorCurationScreener",
+      "txHash": "0x0a14bb8204023fa2dcd7ba37f18260cff22da9c033207f80a6b25ad016bcaecf",
+      "blockNumber": 6867528,
+      "timestamp": 1770118837693,
+      "verified": true,
+      "constructorArgs": []
+    },
+    {
+      "name": "NotifierListScreener",
+      "address": "0x0b2e499f42f04b616f7b5ceb8bfc32902bbf91f8",
+      "contractPath": "contracts/screener-assistants/NotifierListScreener.sol:NotifierListScreener",
+      "txHash": "0x774d979d3d8928c7c972551c436415a3155a2d02da5954da5d37a98014eedd8a",
+      "blockNumber": 6867726,
+      "timestamp": 1770121285809,
+      "verified": true,
+      "constructorArgs": []
+    },
+    {
+      "name": "NotifierCurationScreener",
+      "address": "0xfd1fafda3b462eebe55814ceb1e8df9388f099a8",
+      "contractPath": "contracts/screener-assistants/NotifierCurationScreener.sol:NotifierCurationScreener",
+      "txHash": "0x3ad4c9d970466352f68283263d58324d5ed709953342f326fa79943abd932b20",
+      "blockNumber": 6867728,
+      "timestamp": 1770121309371,
+      "verified": true,
+      "constructorArgs": []
+    },
+    {
+      "name": "NotifierCreatorListScreener",
+      "address": "0xb2b5312111b252b4a26d987309845a533cd2e668",
+      "contractPath": "contracts/screener-assistants/NotifierCreatorListScreener.sol:NotifierCreatorListScreener",
+      "txHash": "0xbc6ef63bfedc42305232631275b9c1363d408a286f19b5535c51906aa07c1442",
+      "blockNumber": 6867729,
+      "timestamp": 1770121333308,
+      "verified": true,
+      "constructorArgs": []
+    },
+    {
+      "name": "NotifierCreatorCurationScreener",
+      "address": "0x71c93169d2600cd98c3c9f49fc09405f49e5ef92",
+      "contractPath": "contracts/screener-assistants/NotifierCreatorCurationScreener.sol:NotifierCreatorCurationScreener",
+      "txHash": "0xcc0a6524a74dfa1f6adaebb49343fd9c2cbcc35fb3161cd000d860135e11df60",
+      "blockNumber": 6867730,
+      "timestamp": 1770121345850,
+      "verified": true,
+      "constructorArgs": []
+    },
+    {
+      "name": "GraveVaultFactory",
+      "address": "0x72205f508e7ad239ad2e4f8c7ec8e6d8da22f960",
+      "contractPath": "contracts/GraveVaultFactory.sol:GraveVaultFactory",
+      "txHash": "0x4b59ae75a03c0bfde6ca0747ff8c18eb3bbef881ac0af71278f6a1ed35a05357",
+      "blockNumber": 6868095,
+      "timestamp": 1770125906003,
+      "verified": true,
+      "constructorArgs": [
+        "0x137f75c7e05aecf4cbbae0141cf624edbbe6c54c"
+      ]
+    },
+    {
+      "name": "ForwarderAssistant",
+      "address": "0x4674899e82879f669eb66eb415d8507edb23725e",
+      "contractPath": "contracts/executive-assistants/ForwarderAssistant.sol:ForwarderAssistant",
+      "txHash": "0x0e3f27d2ec410aae2be91b70ad771e5af3bba7ae4198e39cdb7c1b0480220f2f",
+      "blockNumber": 6875141,
+      "timestamp": 1770215017360,
+      "verified": false,
       "constructorArgs": []
     }
   ]

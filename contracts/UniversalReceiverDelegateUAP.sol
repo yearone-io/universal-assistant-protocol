@@ -17,7 +17,6 @@ import {IExecutiveAssistant} from "./executive-assistants/IExecutiveAssistant.so
  */
 contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
     uint256 private constant NO_OP = type(uint256).max;
-    bytes4 public constant _INTERFACEID_UAP = 0x03309e5f;
     bytes32 private constant REVERT_ON_FAILURE_KEY = 0x8631ee7d1d9475e6b2c38694122192970d91cafd1c64176ecc23849e17441672;
     
     // Pre-computed hash constants for gas optimization
@@ -188,14 +187,6 @@ contract UniversalReceiverDelegateUAP is LSP1UniversalReceiverDelegateUP {
             }
         }
         return super.universalReceiverDelegate(notifier, currentValue, typeId, currentLsp1Data);
-    }
-
-    function supportsInterface(
-        bytes4 interfaceId
-    ) public view virtual override returns (bool) {
-        return
-            interfaceId == _INTERFACEID_UAP ||
-            super.supportsInterface(interfaceId);
     }
 
     function uint256ToBytes20(uint256 value) internal pure returns (bytes20) {

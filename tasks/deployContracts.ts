@@ -193,6 +193,100 @@ task('deployContracts', 'Deploys specified contracts')
     }
   });
 
+task('deployContractWithArgs', 'Deploys a contract with constructor arguments')
+  .addParam('name', 'Name of the contract to deploy')
+  .addParam('path', 'Path to the contract file')
+  .addParam('args', 'JSON array of constructor arguments')
+  .setAction(async (taskArgs, hre) => {
+    const { ethers } = hre;
+    const network = hre.network.name;
+    const { UP_ADDR_CONTROLLED_BY_EOA } = getNetworkAccountsConfig(network);
+
+    const eoaSigner = (await ethers.getSigners())[0]
+    const UP = new ethers.Contract(
+      UP_ADDR_CONTROLLED_BY_EOA,
+      UniversalProfile.abi,
+      eoaSigner
+    );
+
+    const contractName = taskArgs.name.trim();
+    const contractPath = taskArgs.path.trim();
+    const constructorArgs = JSON.parse(taskArgs.args);
+
+    console.log(`\n--- Deploying ${contractName} via UP ---`);
+    console.log(`Constructor args: ${JSON.stringify(constructorArgs)}`);
+
+    // Get the contract factory to access the deployment bytecode
+    const ContractFactory = await ethers.getContractFactory(contractName);
+
+    // Get the deployment bytecode with constructor arguments encoded
+    const deploymentBytecode = (await ContractFactory.getDeployTransaction(...constructorArgs)).data;
+
+    // Execute the deployment through UP
+    const deployedAddress = await (UP.connect(eoaSigner) as any).execute.staticCall(
+        OPERATION_TYPES.CREATE,
+        ethers.ZeroAddress,
+        0,
+        deploymentBytecode,
+    );
+    const tx = await (UP.connect(eoaSigner) as any).execute(
+      OPERATION_TYPES.CREATE,
+      ethers.ZeroAddress,
+      0,
+      deploymentBytecode
+    );
+    const receipt = await tx.wait();
+
+    if (!deployedAddress) {
+      throw new Error('Failed to get deployed contract address');
+    }
+
+    console.log(`✅ ${contractName} deployed to: ${deployedAddress}`);
+    console.log(`   Transaction hash: ${receipt?.hash}`);
+
+    // Save deployment info to JSON file
+    const deploymentInfo: DeploymentInfo = {
+      name: contractName,
+      address: deployedAddress,
+      contractPath: `${contractPath}/${contractName}.sol:${contractName}`,
+      txHash: receipt?.hash || '',
+      blockNumber: receipt?.blockNumber || 0,
+      timestamp: Date.now(),
+      verified: false,
+      constructorArgs: constructorArgs
+    };
+
+    saveDeploymentInfo(network, deploymentInfo);
+
+    // Wait 30 seconds before starting verification
+    console.log('\n⏳ Waiting 30 seconds before verification to ensure contract is indexed...');
+    await new Promise(resolve => setTimeout(resolve, 30000));
+
+    console.log('\n--- Starting Verification Process ---');
+
+    try {
+      console.log(`\n🔍 Verifying ${contractName}...`);
+      await hre.run('verify:verify', {
+        address: deployedAddress,
+        constructorArguments: constructorArgs,
+        contract: `${contractPath}/${contractName}.sol:${contractName}`,
+      });
+      console.log(`✅ ${contractName} verified successfully`);
+
+      // Update verification status in deployment file
+      updateVerificationStatus(network, deployedAddress, true);
+    } catch (error: any) {
+      if (error.message?.includes('Already Verified')) {
+        console.log(`✅ ${contractName} was already verified`);
+        updateVerificationStatus(network, deployedAddress, true);
+      } else {
+        console.error(`❌ ${contractName} verification failed:`, error.message || error);
+      }
+    }
+
+    return deployedAddress;
+  });
+
 task('deployFullProtocol', 'Deploys the complete UAP protocol (main contract + all assistants)')
   .setAction(async (taskArgs, hre) => {
     const network = hre.network.name;
